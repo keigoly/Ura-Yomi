@@ -4,20 +4,24 @@
 
 import { useState } from 'react';
 import { FileDown, Copy, Check } from 'lucide-react';
-import { AnalysisResult } from '../services/geminiApi';
-import { YouTubeCommentThread } from '../services/youtubeApi';
+import type { AnalysisResult, VideoInfo, YouTubeCommentThread } from '../types';
 import SummaryTab from './tabs/SummaryTab';
 import DeepDiveTab from './tabs/DeepDiveTab';
 import SentimentTab from './tabs/SentimentTab';
 
+/**
+ * タブの種類
+ */
+type TabType = 'summary' | 'deepdive' | 'sentiment';
+
 interface ResultDashboardProps {
   result: AnalysisResult;
-  videoInfo: { videoId: string; title?: string } | null;
+  videoInfo: VideoInfo | null;
   comments: YouTubeCommentThread[];
 }
 
 function ResultDashboard({ result, videoInfo, comments }: ResultDashboardProps) {
-  const [activeTab, setActiveTab] = useState<'summary' | 'deepdive' | 'sentiment'>('summary');
+  const [activeTab, setActiveTab] = useState<TabType>('summary');
   const [copied, setCopied] = useState(false);
 
   const handleExportJson = () => {
@@ -28,7 +32,9 @@ function ResultDashboard({ result, videoInfo, comments }: ResultDashboardProps) 
       exportedAt: new Date().toISOString(),
     };
 
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify(data, null, 2)], {
+      type: 'application/json',
+    });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -42,6 +48,12 @@ function ResultDashboard({ result, videoInfo, comments }: ResultDashboardProps) 
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  const tabs: { id: TabType; label: string }[] = [
+    { id: 'summary', label: '要約' },
+    { id: 'deepdive', label: '深掘り' },
+    { id: 'sentiment', label: '感情' },
+  ];
 
   return (
     <div className="h-full flex flex-col">
@@ -72,43 +84,27 @@ function ResultDashboard({ result, videoInfo, comments }: ResultDashboardProps) 
         </div>
         {videoInfo && (
           <p className="text-sm text-gray-600">
-            {videoInfo.title || videoInfo.videoId} ({comments.length.toLocaleString()}件のコメント)
+            {videoInfo.title || videoInfo.videoId} (
+            {comments.length.toLocaleString()}件のコメント)
           </p>
         )}
       </div>
 
       {/* Tabs */}
       <div className="flex border-b bg-white">
-        <button
-          onClick={() => setActiveTab('summary')}
-          className={`px-6 py-3 font-medium transition-colors ${
-            activeTab === 'summary'
-              ? 'text-blue-600 border-b-2 border-blue-600'
-              : 'text-gray-600 hover:text-gray-800'
-          }`}
-        >
-          要約
-        </button>
-        <button
-          onClick={() => setActiveTab('deepdive')}
-          className={`px-6 py-3 font-medium transition-colors ${
-            activeTab === 'deepdive'
-              ? 'text-blue-600 border-b-2 border-blue-600'
-              : 'text-gray-600 hover:text-gray-800'
-          }`}
-        >
-          深掘り
-        </button>
-        <button
-          onClick={() => setActiveTab('sentiment')}
-          className={`px-6 py-3 font-medium transition-colors ${
-            activeTab === 'sentiment'
-              ? 'text-blue-600 border-b-2 border-blue-600'
-              : 'text-gray-600 hover:text-gray-800'
-          }`}
-        >
-          感情
-        </button>
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`px-6 py-3 font-medium transition-colors ${
+              activeTab === tab.id
+                ? 'text-blue-600 border-b-2 border-blue-600'
+                : 'text-gray-600 hover:text-gray-800'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
       {/* Tab Content */}

@@ -2,18 +2,17 @@
  * YouTube関連のユーティリティ関数
  */
 
-export interface YouTubeVideoInfo {
-  videoId: string;
-  title?: string;
-  url: string;
-}
+import type { YouTubeVideoInfo } from '../types';
+
+// 型をre-export（後方互換性のため）
+export type { YouTubeVideoInfo };
 
 /**
  * 現在のタブからYouTube動画情報を取得
  */
 export async function getCurrentYouTubeVideo(): Promise<YouTubeVideoInfo | null> {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  
+
   if (!tab.url) {
     return null;
   }
@@ -41,6 +40,8 @@ export async function getCurrentYouTubeVideo(): Promise<YouTubeVideoInfo | null>
 export function extractVideoId(url: string): string | null {
   try {
     const urlObj = new URL(url);
+
+    // 標準のYouTube URL
     if (urlObj.hostname === 'www.youtube.com' || urlObj.hostname === 'youtube.com') {
       if (urlObj.pathname === '/watch') {
         return urlObj.searchParams.get('v');
@@ -52,11 +53,21 @@ export function extractVideoId(url: string): string | null {
         return urlObj.pathname.split('/v/')[1];
       }
     }
+
+    // 短縮URL
     if (urlObj.hostname === 'youtu.be') {
       return urlObj.pathname.slice(1);
     }
+
     return null;
   } catch {
     return null;
   }
+}
+
+/**
+ * URLがYouTube動画URLかどうかを判定
+ */
+export function isYouTubeVideoUrl(url: string): boolean {
+  return extractVideoId(url) !== null;
 }

@@ -3,11 +3,12 @@
  */
 
 import { useEffect, useState } from 'react';
-import { LogIn, User, CreditCard } from 'lucide-react';
-import { authenticateWithGoogle, verifySession, getCredits, User as UserType, CreditsResponse } from '../services/apiServer';
+import { LogIn, CreditCard } from 'lucide-react';
+import { authenticateWithGoogle, verifySession, getCredits } from '../services/apiServer';
+import type { User } from '../types';
 
 interface AuthProps {
-  onAuthSuccess: (user: UserType) => void;
+  onAuthSuccess: (user: User) => void;
 }
 
 function Auth({ onAuthSuccess }: AuthProps) {
@@ -37,28 +38,25 @@ function Auth({ onAuthSuccess }: AuthProps) {
     setLoading(true);
     try {
       // Chrome Identity APIを使用してGoogle認証
-      chrome.identity.getAuthToken(
-        { interactive: true },
-        async (token) => {
-          if (chrome.runtime.lastError) {
-            console.error('Auth error:', chrome.runtime.lastError);
-            alert('認証に失敗しました: ' + chrome.runtime.lastError.message);
-            setLoading(false);
-            return;
-          }
-
-          // IDトークンを取得（実際の実装では追加の処理が必要）
-          const result = await authenticateWithGoogle(token);
-          
-          if (result.success && result.user) {
-            onAuthSuccess(result.user);
-            await loadCredits();
-          } else {
-            alert(result.error || '認証に失敗しました');
-          }
+      chrome.identity.getAuthToken({ interactive: true }, async (token) => {
+        if (chrome.runtime.lastError || !token) {
+          console.error('Auth error:', chrome.runtime.lastError);
+          alert('認証に失敗しました: ' + chrome.runtime.lastError?.message);
           setLoading(false);
+          return;
         }
-      );
+
+        // IDトークンを取得
+        const result = await authenticateWithGoogle(token);
+
+        if (result.success && result.user) {
+          onAuthSuccess(result.user);
+          await loadCredits();
+        } else {
+          alert(result.error || '認証に失敗しました');
+        }
+        setLoading(false);
+      });
     } catch (error) {
       console.error('Sign in error:', error);
       alert('認証エラーが発生しました');
@@ -97,23 +95,29 @@ function Auth({ onAuthSuccess }: AuthProps) {
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <CreditCard className="w-5 h-5 text-blue-600" />
-              <span className="text-sm font-medium text-blue-900">クレジット残高</span>
+              <span className="text-sm font-medium text-blue-900">
+                クレジット残高
+              </span>
             </div>
-            <span className="text-lg font-bold text-blue-600">{credits.toLocaleString()}</span>
+            <span className="text-lg font-bold text-blue-600">
+              {credits.toLocaleString()}
+            </span>
           </div>
           {credits === 100 && (
             <p className="text-xs text-blue-700 mt-2">
-              🎉 新規登録特典で100クレジット無料プレゼント！
+              新規登録特典で100クレジット無料プレゼント！
             </p>
           )}
         </div>
       )}
 
       <div className="text-xs text-gray-500 text-center space-y-1">
-        <p className="font-semibold text-blue-600">🎁 新規登録で100クレジット無料プレゼント！</p>
-        <p>• 解析1回につき10クレジット消費</p>
-        <p>• クレジットが不足した場合は追加購入できます</p>
-        <p>• クレジットは有効期限なし</p>
+        <p className="font-semibold text-blue-600">
+          新規登録で100クレジット無料プレゼント！
+        </p>
+        <p>・解析1回につき10クレジット消費</p>
+        <p>・クレジットが不足した場合は追加購入できます</p>
+        <p>・クレジットは有効期限なし</p>
       </div>
     </div>
   );

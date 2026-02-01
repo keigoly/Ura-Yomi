@@ -1,0 +1,65 @@
+/**
+ * 解析結果に関する型定義
+ */
+
+/**
+ * Hidden Gem（隠れた価値あるコメント）
+ */
+export interface HiddenGem {
+  comment: string;
+  author: string;
+  likeCount: number;
+  reason: string;
+}
+
+/**
+ * 議論のあるポイント
+ */
+export interface Controversy {
+  topic: string;
+  description: string;
+}
+
+/**
+ * 感情分析結果
+ */
+export interface SentimentAnalysis {
+  positive: number;
+  negative: number;
+  neutral: number;
+}
+
+/**
+ * AI解析結果
+ */
+export interface AnalysisResult {
+  summary: string;
+  sentiment: SentimentAnalysis;
+  topics: string[];
+  hiddenGems: HiddenGem[];
+  controversy: Controversy[];
+  keywords: string[];
+}
+
+/**
+ * 解析の進行状態
+ */
+export type AnalysisStage = 'fetching' | 'analyzing' | 'complete';
+
+/**
+ * 解析進捗
+ */
+export interface AnalysisProgress {
+  stage: AnalysisStage;
+  current: number;
+  total: number;
+  message: string;
+}
+
+/**
+ * 動画情報
+ */
+export interface VideoInfo {
+  videoId: string;
+  title?: string;
+}

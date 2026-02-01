@@ -3,32 +3,36 @@
  */
 
 import { create } from 'zustand';
-import { AnalysisResult } from '../services/geminiApi';
-import { YouTubeCommentThread } from '../services/youtubeApi';
+import type {
+  AnalysisResult,
+  AnalysisProgress,
+  VideoInfo,
+  YouTubeCommentThread,
+} from '../types';
 
+/**
+ * 解析ストアの状態
+ */
 interface AnalysisState {
   isAnalyzing: boolean;
-  progress: {
-    stage: 'fetching' | 'analyzing' | 'complete';
-    current: number;
-    total: number;
-    message: string;
-  };
-  videoInfo: {
-    videoId: string;
-    title?: string;
-  } | null;
+  progress: AnalysisProgress;
+  videoInfo: VideoInfo | null;
   comments: YouTubeCommentThread[];
   result: AnalysisResult | null;
   error: string | null;
+
+  // アクション
   startAnalysis: (videoId: string, title?: string) => void;
-  updateProgress: (progress: Partial<AnalysisState['progress']>) => void;
+  updateProgress: (progress: Partial<AnalysisProgress>) => void;
   setComments: (comments: YouTubeCommentThread[]) => void;
   setResult: (result: AnalysisResult) => void;
   setError: (error: string | null) => void;
   reset: () => void;
 }
 
+/**
+ * 初期状態
+ */
 const initialState = {
   isAnalyzing: false,
   progress: {
@@ -43,32 +47,46 @@ const initialState = {
   error: null,
 };
 
+/**
+ * 解析ストア
+ */
 export const useAnalysisStore = create<AnalysisState>((set) => ({
   ...initialState,
+
   startAnalysis: (videoId: string, title?: string) =>
     set({
       isAnalyzing: true,
       videoInfo: { videoId, title },
-      progress: { stage: 'fetching', current: 0, total: 0, message: 'コメント取得を開始...' },
+      progress: {
+        stage: 'fetching',
+        current: 0,
+        total: 0,
+        message: 'コメント取得を開始...',
+      },
       comments: [],
       result: null,
       error: null,
     }),
+
   updateProgress: (progress) =>
     set((state) => ({
       progress: { ...state.progress, ...progress },
     })),
+
   setComments: (comments) => set({ comments }),
+
   setResult: (result) =>
     set({
       result,
       isAnalyzing: false,
       progress: { ...initialState.progress, stage: 'complete' },
     }),
+
   setError: (error) =>
     set({
       error,
       isAnalyzing: false,
     }),
+
   reset: () => set(initialState),
 }));

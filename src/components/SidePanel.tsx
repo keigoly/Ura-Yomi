@@ -4,10 +4,10 @@
 
 import { useEffect, useCallback } from 'react';
 import { useAnalysisStore } from '../store/analysisStore';
-import LoadingView from './LoadingView';
-import ResultDashboard from './ResultDashboard';
 import { getSettings } from '../utils/storage';
 import { analyzeViaServer } from '../services/apiServer';
+import LoadingView from './LoadingView';
+import ResultDashboard from './ResultDashboard';
 
 function SidePanel() {
   const {
@@ -24,44 +24,46 @@ function SidePanel() {
     setError,
   } = useAnalysisStore();
 
-  const handleStartAnalysis = useCallback(async (videoId: string, title?: string) => {
-    try {
-      startAnalysis(videoId, title);
+  const handleStartAnalysis = useCallback(
+    async (videoId: string, title?: string) => {
+      try {
+        startAnalysis(videoId, title);
 
-      const settings = await getSettings();
+        // 設定を取得（将来的にパラメータとして使用）
+        await getSettings();
 
-      // サーバー側で処理（コメント取得とAI解析）
-      updateProgress({
-        stage: 'fetching',
-        message: 'サーバーで処理中...',
-        current: 0,
-        total: 100,
-      });
+        // サーバー側で処理（コメント取得とAI解析）
+        updateProgress({
+          stage: 'fetching',
+          message: 'サーバーで処理中...',
+          current: 0,
+          total: 100,
+        });
 
-      const result = await analyzeViaServer(videoId, []);
+        const analysisResult = await analyzeViaServer(videoId, []);
 
-      // サーバーから返された結果を使用
-      if (result.comments) {
-        setComments(result.comments);
+        // サーバーから返された結果を使用
+        if (analysisResult.comments) {
+          setComments(analysisResult.comments);
+        }
+
+        setResult(analysisResult.result);
+      } catch (err) {
+        const errorMessage =
+          err instanceof Error ? err.message : '不明なエラーが発生しました';
+
+        // クレジット不足エラーの場合
+        if (errorMessage.includes('クレジット')) {
+          setError(
+            errorMessage + ' 設定画面でクレジットを購入してください。'
+          );
+        } else {
+          setError(errorMessage);
+        }
       }
-      
-      setResult(result.result);
-      
-      // クレジット残高を更新
-      if (result.creditsRemaining !== undefined) {
-        // クレジット残高を更新する処理（必要に応じて）
-      }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : '不明なエラーが発生しました';
-      
-      // クレジット不足エラーの場合
-      if (errorMessage.includes('クレジット')) {
-        setError(errorMessage + ' 設定画面でクレジットを購入してください。');
-      } else {
-        setError(errorMessage);
-      }
-    }
-  }, [startAnalysis, updateProgress, setComments, setResult, setError]);
+    },
+    [startAnalysis, updateProgress, setComments, setResult, setError]
+  );
 
   useEffect(() => {
     // chrome.storageの変更を監視して解析開始を検知
@@ -79,7 +81,9 @@ function SidePanel() {
     checkPendingAnalysis();
 
     // storage変更を監視
-    const handleStorageChange = (changes: { [key: string]: chrome.storage.StorageChange }) => {
+    const handleStorageChange = (changes: {
+      [key: string]: chrome.storage.StorageChange;
+    }) => {
       if (changes.pendingAnalysis?.newValue) {
         const { videoId, title } = changes.pendingAnalysis.newValue;
         chrome.storage.local.remove(['pendingAnalysis']);
@@ -123,12 +127,16 @@ function SidePanel() {
   }
 
   if (result) {
-    return <ResultDashboard result={result} videoInfo={videoInfo} comments={comments} />;
+    return (
+      <ResultDashboard result={result} videoInfo={videoInfo} comments={comments} />
+    );
   }
 
   return (
     <div className="p-6 text-center space-y-4">
-      <p className="text-gray-500">解析を開始するには、拡張機能のアイコンをクリックしてください。</p>
+      <p className="text-gray-500">
+        解析を開始するには、拡張機能のアイコンをクリックしてください。
+      </p>
       <button
         onClick={handleOpenSettings}
         className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm"

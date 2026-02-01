@@ -2,7 +2,7 @@
  * Summary Tab コンポーネント
  */
 
-import { AnalysisResult } from '../../services/geminiApi';
+import type { AnalysisResult } from '../../types';
 
 interface SummaryTabProps {
   result: AnalysisResult;
@@ -14,7 +14,9 @@ function SummaryTab({ result }: SummaryTabProps) {
       <div>
         <h3 className="text-lg font-semibold text-gray-800 mb-3">全体の要約</h3>
         <div className="bg-gray-50 rounded-lg p-4">
-          <p className="text-gray-700 whitespace-pre-line leading-relaxed">{result.summary}</p>
+          <p className="text-gray-700 whitespace-pre-line leading-relaxed">
+            {result.summary}
+          </p>
         </div>
       </div>
 

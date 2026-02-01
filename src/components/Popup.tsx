@@ -3,14 +3,19 @@
  */
 
 import { useEffect, useState } from 'react';
-import { Settings, Play, AlertCircle, User, CreditCard } from 'lucide-react';
+import { Settings, Play, AlertCircle, CreditCard } from 'lucide-react';
 import { getCurrentYouTubeVideo } from '../utils/youtube';
-import { verifySession, getCredits, User as UserType } from '../services/apiServer';
+import { verifySession, getCredits } from '../services/apiServer';
+import type { User } from '../types';
+import { ANALYSIS_CREDIT_COST } from '../constants';
 import Auth from './Auth';
 
 function Popup() {
-  const [videoInfo, setVideoInfo] = useState<{ videoId: string; title?: string } | null>(null);
-  const [user, setUser] = useState<UserType | null>(null);
+  const [videoInfo, setVideoInfo] = useState<{
+    videoId: string;
+    title?: string;
+  } | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [credits, setCredits] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -36,7 +41,7 @@ function Popup() {
     }
   };
 
-  const handleAuthSuccess = (authenticatedUser: UserType) => {
+  const handleAuthSuccess = (authenticatedUser: User) => {
     setUser(authenticatedUser);
     setCredits(authenticatedUser.credits);
   };
@@ -53,7 +58,7 @@ function Popup() {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (tab.id && tab.windowId !== undefined) {
       await chrome.sidePanel.open({ windowId: tab.windowId });
-      
+
       // chrome.storageを使用してSide Panelに解析開始を通知
       await chrome.storage.local.set({
         pendingAnalysis: {
@@ -91,6 +96,8 @@ function Popup() {
     );
   }
 
+  const hasInsufficientCredits = credits !== null && credits < ANALYSIS_CREDIT_COST;
+
   return (
     <div className="w-80 p-4 bg-white">
       <div className="flex items-center justify-between mb-4">
@@ -112,17 +119,24 @@ function Popup() {
         </div>
       </div>
 
-      {credits !== null && credits < 10 && (
+      {hasInsufficientCredits && (
         <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
           <div className="flex items-start gap-2">
             <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
-              <p className="text-sm font-medium text-yellow-800 mb-1">クレジットが不足しています</p>
+              <p className="text-sm font-medium text-yellow-800 mb-1">
+                クレジットが不足しています
+              </p>
               <p className="text-xs text-yellow-700 mb-2">
-                解析には10クレジット必要です。現在の残高: {credits}クレジット
+                解析には{ANALYSIS_CREDIT_COST}クレジット必要です。現在の残高:{' '}
+                {credits}クレジット
               </p>
               <button
-                onClick={() => chrome.tabs.create({ url: chrome.runtime.getURL('settings.html') })}
+                onClick={() =>
+                  chrome.tabs.create({
+                    url: chrome.runtime.getURL('settings.html'),
+                  })
+                }
                 className="text-xs text-yellow-800 underline hover:text-yellow-900"
               >
                 クレジットを購入 →
@@ -136,22 +150,29 @@ function Popup() {
         <div className="space-y-4">
           <div className="p-3 bg-gray-50 rounded-lg">
             <p className="text-xs text-gray-500 mb-1">Video ID</p>
-            <p className="text-sm font-mono text-gray-800 break-all">{videoInfo.videoId}</p>
+            <p className="text-sm font-mono text-gray-800 break-all">
+              {videoInfo.videoId}
+            </p>
             {videoInfo.title && (
               <>
                 <p className="text-xs text-gray-500 mt-2 mb-1">タイトル</p>
-                <p className="text-sm text-gray-700 line-clamp-2">{videoInfo.title}</p>
+                <p className="text-sm text-gray-700 line-clamp-2">
+                  {videoInfo.title}
+                </p>
               </>
             )}
           </div>
 
           <button
             onClick={handleAnalyze}
-            disabled={credits !== null && credits < 10}
+            disabled={hasInsufficientCredits}
             className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Play className="w-5 h-5" />
-            解析を開始する {credits !== null && <span className="text-xs">({credits}クレジット)</span>}
+            解析を開始する{' '}
+            {credits !== null && (
+              <span className="text-xs">({credits}クレジット)</span>
+            )}
           </button>
         </div>
       ) : (

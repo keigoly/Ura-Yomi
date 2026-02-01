@@ -4,30 +4,32 @@
 
 import { X } from 'lucide-react';
 import { useAnalysisStore } from '../store/analysisStore';
+import type { AnalysisProgress, AnalysisStage } from '../types';
 
 interface LoadingViewProps {
-  progress: {
-    stage: 'fetching' | 'analyzing' | 'complete';
-    current: number;
-    total: number;
-    message: string;
-  };
+  progress: AnalysisProgress;
 }
+
+/**
+ * ステージ表示ラベル
+ */
+const STAGE_LABELS: Record<AnalysisStage, string> = {
+  fetching: 'コメント取得中',
+  analyzing: 'AI解析中',
+  complete: '完了',
+};
 
 function LoadingView({ progress }: LoadingViewProps) {
   const { reset } = useAnalysisStore();
-  const percentage = progress.total > 0 ? (progress.current / progress.total) * 100 : 0;
-
-  const stageLabels = {
-    fetching: 'コメント取得中',
-    analyzing: 'AI解析中',
-    complete: '完了',
-  };
+  const percentage =
+    progress.total > 0 ? (progress.current / progress.total) * 100 : 0;
 
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-bold text-gray-800">{stageLabels[progress.stage]}</h2>
+        <h2 className="text-xl font-bold text-gray-800">
+          {STAGE_LABELS[progress.stage]}
+        </h2>
         <button
           onClick={reset}
           className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
@@ -42,7 +44,8 @@ function LoadingView({ progress }: LoadingViewProps) {
           <div className="flex justify-between text-sm text-gray-600 mb-2">
             <span>{progress.message}</span>
             <span>
-              {progress.current.toLocaleString()} / {progress.total.toLocaleString()}
+              {progress.current.toLocaleString()} /{' '}
+              {progress.total.toLocaleString()}
             </span>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">

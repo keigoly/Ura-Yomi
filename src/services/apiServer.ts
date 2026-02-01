@@ -2,68 +2,76 @@
  * バックエンドAPIサーバーとの通信
  */
 
-const API_BASE_URL = process.env.VITE_API_BASE_URL || 'http://localhost:3000';
+import type { User, AuthResponse, CreditsResponse } from '../types';
+import { API_BASE_URL, API_ENDPOINTS } from '../constants';
 
-export interface User {
-  id: string;
-  email: string;
-  credits: number;
-  subscription: {
-    type: string;
-    startDate: string;
-    creditsPerMonth: number;
-  } | null;
-}
+// 型をre-export（後方互換性のため）
+export type { User, AuthResponse, CreditsResponse };
 
-export interface AuthResponse {
-  success: boolean;
-  sessionToken?: string;
-  user?: User;
-  error?: string;
-}
-
-export interface CreditsResponse {
-  success: boolean;
-  credits?: number;
-  subscription?: any;
-  error?: string;
-}
+/**
+ * セッショントークンのストレージキー
+ */
+const SESSION_TOKEN_KEY = 'sessionToken';
 
 /**
  * セッショントークンを取得
  */
 export function getSessionToken(): string | null {
-  return localStorage.getItem('sessionToken');
+  return localStorage.getItem(SESSION_TOKEN_KEY);
 }
 
 /**
  * セッショントークンを保存
  */
 export function setSessionToken(token: string): void {
-  localStorage.setItem('sessionToken', token);
+  localStorage.setItem(SESSION_TOKEN_KEY, token);
 }
 
 /**
  * セッショントークンを削除
  */
 export function clearSessionToken(): void {
-  localStorage.removeItem('sessionToken');
+  localStorage.removeItem(SESSION_TOKEN_KEY);
+}
+
+/**
+ * 認証ヘッダーを生成
+ */
+function getAuthHeaders(): HeadersInit {
+  const token = getSessionToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+/**
+ * APIリクエストを実行
+ */
+async function apiRequest<T>(
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeaders(),
+      ...options.headers,
+    },
+  });
+
+  return response.json();
 }
 
 /**
  * Google OAuth認証
  */
-export async function authenticateWithGoogle(idToken: string): Promise<AuthResponse> {
+export async function authenticateWithGoogle(
+  idToken: string
+): Promise<AuthResponse> {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/auth/google`, {
+    const data = await apiRequest<AuthResponse>(API_ENDPOINTS.AUTH.GOOGLE, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
       body: JSON.stringify({ idToken }),
     });
-
-    const data = await response.json();
 
     if (data.success && data.sessionToken) {
       setSessionToken(data.sessionToken);
@@ -89,14 +97,7 @@ export async function verifySession(): Promise<AuthResponse> {
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/auth/verify`, {
-      headers: {
-        Authorization: `Bearer ${sessionToken}`,
-      },
-    });
-
-    const data = await response.json();
-    return data;
+    return await apiRequest<AuthResponse>(API_ENDPOINTS.AUTH.VERIFY);
   } catch (error) {
     console.error('Verify error:', error);
     clearSessionToken();
@@ -117,13 +118,7 @@ export async function getCredits(): Promise<CreditsResponse> {
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/user/credits`, {
-      headers: {
-        Authorization: `Bearer ${sessionToken}`,
-      },
-    });
-
-    return await response.json();
+    return await apiRequest<CreditsResponse>(API_ENDPOINTS.USER.CREDITS);
   } catch (error) {
     console.error('Get credits error:', error);
     return {
@@ -136,23 +131,20 @@ export async function getCredits(): Promise<CreditsResponse> {
 /**
  * 解析リクエスト（サーバー経由）
  */
-export async function analyzeViaServer(videoId: string, comments: any[]): Promise<any> {
+export async function analyzeViaServer(
+  videoId: string,
+  comments: any[]
+): Promise<any> {
   const sessionToken = getSessionToken();
   if (!sessionToken) {
     throw new Error('認証が必要です');
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/analyze`, {
+    const data = await apiRequest<any>(API_ENDPOINTS.ANALYZE, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${sessionToken}`,
-      },
       body: JSON.stringify({ videoId, comments }),
     });
-
-    const data = await response.json();
 
     if (!data.success) {
       throw new Error(data.error || '解析エラー');
@@ -168,23 +160,20 @@ export async function analyzeViaServer(videoId: string, comments: any[]): Promis
 /**
  * クレジット購入
  */
-export async function purchaseCredits(plan: string, paymentMethod: any): Promise<any> {
+export async function purchaseCredits(
+  plan: string,
+  paymentMethod: any
+): Promise<any> {
   const sessionToken = getSessionToken();
   if (!sessionToken) {
     throw new Error('認証が必要です');
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/billing/purchase`, {
+    const data = await apiRequest<any>(API_ENDPOINTS.BILLING.PURCHASE, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${sessionToken}`,
-      },
       body: JSON.stringify({ plan, paymentMethod }),
     });
-
-    const data = await response.json();
 
     if (!data.success) {
       throw new Error(data.error || '購入エラー');

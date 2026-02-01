@@ -7,24 +7,41 @@ import { Save, Check, X, CreditCard } from 'lucide-react';
 import { getSettings, saveSettings } from '../utils/storage';
 import { testYouTubeApiKey } from '../services/youtubeApi';
 import { testGeminiApiKey } from '../services/geminiApi';
-import { AppSettings } from '../utils/storage';
+import { getCredits } from '../services/apiServer';
+import type { AppSettings, SummaryLength } from '../types';
+import { DEFAULT_COMMENT_LIMIT } from '../constants';
 import Billing from './Billing';
-import { getCredits, CreditsResponse } from '../services/apiServer';
+
+/**
+ * API Keyテスト状態
+ */
+interface TestingState {
+  youtube: boolean;
+  gemini: boolean;
+}
+
+/**
+ * API Keyテスト結果
+ */
+interface TestResultState {
+  youtube: boolean | null;
+  gemini: boolean | null;
+}
 
 function Settings() {
   const [settings, setSettings] = useState<AppSettings>({
     youtubeApiKey: '',
     geminiApiKey: '',
-    commentLimit: 10000,
+    commentLimit: DEFAULT_COMMENT_LIMIT,
     summaryLength: 'medium',
   });
   const [youtubeApiKeyVisible, setYoutubeApiKeyVisible] = useState(false);
   const [geminiApiKeyVisible, setGeminiApiKeyVisible] = useState(false);
-  const [testing, setTesting] = useState<{ youtube: boolean; gemini: boolean }>({
+  const [testing, setTesting] = useState<TestingState>({
     youtube: false,
     gemini: false,
   });
-  const [testResults, setTestResults] = useState<{ youtube: boolean | null; gemini: boolean | null }>({
+  const [testResults, setTestResults] = useState<TestResultState>({
     youtube: null,
     gemini: null,
   });
@@ -71,6 +88,13 @@ function Settings() {
     setTesting((prev) => ({ ...prev, gemini: false }));
   };
 
+  const handleSummaryLengthChange = (value: string) => {
+    setSettings({
+      ...settings,
+      summaryLength: value as SummaryLength,
+    });
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-2xl mx-auto">
@@ -78,9 +102,13 @@ function Settings() {
 
         {/* API Key取得ガイド */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-          <h2 className="text-sm font-semibold text-blue-900 mb-2">📋 API Keyの取得方法</h2>
+          <h2 className="text-sm font-semibold text-blue-900 mb-2">
+            API Keyの取得方法
+          </h2>
           <div className="text-xs text-blue-800 space-y-2">
-            <p><strong>1. YouTube Data API Key:</strong></p>
+            <p>
+              <strong>1. YouTube Data API Key:</strong>
+            </p>
             <ol className="list-decimal list-inside ml-2 space-y-1">
               <li>
                 <a
@@ -94,10 +122,14 @@ function Settings() {
                 にアクセス
               </li>
               <li>プロジェクトを作成または選択</li>
-              <li>「APIとサービス」→「ライブラリ」で「YouTube Data API v3」を有効化</li>
+              <li>
+                「APIとサービス」→「ライブラリ」で「YouTube Data API v3」を有効化
+              </li>
               <li>「認証情報」→「認証情報を作成」→「APIキー」を選択</li>
             </ol>
-            <p className="mt-2"><strong>2. Google Gemini API Key:</strong></p>
+            <p className="mt-2">
+              <strong>2. Google Gemini API Key:</strong>
+            </p>
             <ol className="list-decimal list-inside ml-2 space-y-1">
               <li>
                 <a
@@ -252,9 +284,12 @@ function Settings() {
               取得コメント数上限
             </label>
             <select
-              value={settings.commentLimit || 10000}
+              value={settings.commentLimit || DEFAULT_COMMENT_LIMIT}
               onChange={(e) =>
-                setSettings({ ...settings, commentLimit: parseInt(e.target.value) })
+                setSettings({
+                  ...settings,
+                  commentLimit: parseInt(e.target.value),
+                })
               }
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
@@ -272,12 +307,7 @@ function Settings() {
             </label>
             <select
               value={settings.summaryLength || 'medium'}
-              onChange={(e) =>
-                setSettings({
-                  ...settings,
-                  summaryLength: e.target.value as 'short' | 'medium' | 'long',
-                })
-              }
+              onChange={(e) => handleSummaryLengthChange(e.target.value)}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="short">Short（3-5行）</option>
@@ -314,11 +344,13 @@ function Settings() {
             {credits !== null && (
               <div className="flex items-center gap-2 px-3 py-1 bg-blue-50 rounded-lg">
                 <CreditCard className="w-4 h-4 text-blue-600" />
-                <span className="text-sm font-medium text-blue-600">{credits}クレジット</span>
+                <span className="text-sm font-medium text-blue-600">
+                  {credits}クレジット
+                </span>
               </div>
             )}
           </div>
-          
+
           {showBilling ? (
             <Billing
               onPurchaseSuccess={() => {
