@@ -1,0 +1,30 @@
+{
+  "name": "tubeinsight-ai",
+  "version": "1.0.0",
+  "description": "YouTube Comment Analyzer using Gemini 3.0 Flash",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "@google/generative-ai": "^0.21.0",
+    "lucide-react": "^0.460.0",
+    "zustand": "^5.0.2"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.268",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.3",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.14",
+    "typescript": "^5.6.3",
+    "vite": "^6.0.1",
+    "vite-plugin-web-extension": "^4.1.1"
+  }
+}
