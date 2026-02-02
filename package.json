@@ -1,7 +1,7 @@
 {
-  "name": "tubeinsight-ai",
+  "name": "youtube-comments-with-ai",
   "version": "1.0.0",
-  "description": "YouTube Comment Analyzer using Gemini 3.0 Flash",
+  "description": "YouTubeコメントwithAI - YouTube Comment Analyzer using Gemini",
   "type": "module",
   "scripts": {
     "dev": "vite",

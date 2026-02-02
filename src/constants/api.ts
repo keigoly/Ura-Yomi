@@ -23,6 +23,9 @@ export const API_ENDPOINTS = {
   USER: {
     CREDITS: '/api/user/credits',
   },
+  VIDEO: {
+    INFO: '/api/video/info',
+  },
   ANALYZE: '/api/analyze',
   BILLING: {
     PURCHASE: '/api/billing/purchase',

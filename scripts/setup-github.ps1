@@ -1,6 +1,6 @@
 # GitHubリポジトリ作成用スクリプト (PowerShell)
 
-Write-Host "🚀 TubeInsight AI - GitHubリポジトリ作成スクリプト" -ForegroundColor Cyan
+Write-Host "🚀 YouTubeコメントwithAI - GitHubリポジトリ作成スクリプト" -ForegroundColor Cyan
 Write-Host ""
 
 # Gitの状態を確認
@@ -16,7 +16,7 @@ git add .
 
 # 初回コミット
 Write-Host "💾 初回コミットを作成中..." -ForegroundColor Yellow
-git commit -m "Initial commit: TubeInsight AI - YouTube Comment Analyzer
+git commit -m "Initial commit: YouTubeコメントwithAI - YouTube Comment Analyzer
 
 - Chrome拡張機能の実装
 - Google認証とクレジットシステム

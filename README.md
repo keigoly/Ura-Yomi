@@ -1,4 +1,4 @@
-# TubeInsight AI - YouTube Comment Analyzer
+# YouTubeコメントwithAI
 
 YouTube動画のコメントをAI（Gemini 3.0 Flash）で解析し、真の価値と本音を可視化するChrome拡張機能。
 
@@ -26,34 +26,76 @@ APIキーを直接取得する必要がなくなりました！Googleアカウ�
 
 ## セットアップ
 
-### 1. 依存関係のインストール
+### 開発者向け: サーバー側のセットアップ
+
+YouTubeコメントwithAIは、バックエンドサーバーとChrome拡張機能で構成されています。
+
+#### 1. バックエンドサーバーのセットアップ
+
+```bash
+cd server
+npm install
+cp .env.example .env
+```
+
+`.env`ファイルを編集して、APIキーとOAuth認証情報を設定：
+
+```env
+PORT=3000
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+YOUTUBE_API_KEY=your_youtube_api_key
+GEMINI_API_KEY=your_gemini_api_key
+JWT_SECRET=your_jwt_secret
+```
+
+詳細な設定方法は以下のドキュメントを参照：
+- [APIキー設定ガイド](./docs/API_KEY_SETUP.md)
+- [Google OAuth設定ガイド](./docs/GOOGLE_OAUTH_SETUP.md)
+
+サーバーを起動：
+
+```bash
+npm run dev
+```
+
+#### 2. 拡張機能のセットアップ
+
+プロジェクトルートで：
 
 ```bash
 npm install
 ```
 
-### 2. ビルド
+`.env`ファイルを作成（または既存のファイルを編集）：
+
+```env
+VITE_API_BASE_URL=http://localhost:3000
+```
+
+ビルド：
 
 ```bash
 npm run build
 ```
 
-### 3. Chrome拡張機能として読み込む
+#### 3. Chrome拡張機能として読み込む
 
 1. Chromeで `chrome://extensions/` を開く
 2. 「デベロッパーモード」を有効にする
 3. 「パッケージ化されていない拡張機能を読み込む」をクリック
 4. `dist` フォルダを選択
 
-### 4. API Keyの設定
+### ユーザー向け: 使用方法
 
-1. 拡張機能のアイコンをクリック
-2. 設定アイコンをクリック
-3. YouTube Data API Key と Google Gemini API Key を入力
-4. 各API Keyの「テスト」ボタンで接続確認
-5. 「設定を保存」をクリック
+1. YouTube動画ページを開く
+2. 拡張機能のアイコンをクリック
+3. **「Googleアカウントでサインイン」** をクリック
+4. Googleアカウントを選択してサインイン
+5. 「解析を開始する」ボタンをクリック
+6. Side Panelで結果を確認
 
-## API Keyの取得方法
+## API Keyの取得方法（開発者向け）
 
 ### YouTube Data API Key
 
@@ -80,20 +122,18 @@ npm run build
 4. **APIキーをコピー**
    - ⚠️ **重要**: APIキーは秘密情報です。他人に共有しないでください
 
-### 設定画面での入力
+### サーバーへの設定
 
-1. 拡張機能のアイコンをクリック
-2. 右上の設定アイコン（⚙️）をクリック
-3. 各APIキーを入力
-4. 「テスト」ボタンで接続確認
-5. 「設定を保存」をクリック
+取得したAPIキーは、サーバーの`.env`ファイルに設定します。詳細は[APIキー設定ガイド](./docs/API_KEY_SETUP.md)を参照してください。
 
-## 使用方法
+**注意**: APIキーはサーバー側で管理されます。ユーザーはAPIキーを直接設定する必要はありません。
 
-1. YouTube動画ページを開く
-2. 拡張機能のアイコンをクリック
-3. 「解析を開始する」ボタンをクリック
-4. Side Panelで結果を確認
+## 詳細ドキュメント
+
+- [APIキー設定ガイド](./docs/API_KEY_SETUP.md) - YouTube APIとGemini APIキーの取得方法
+- [Google OAuth設定ガイド](./docs/GOOGLE_OAUTH_SETUP.md) - Google認証の設定方法
+- [実装ガイド](./docs/IMPLEMENTATION_GUIDE.md) - アーキテクチャと実装の詳細
+- [セットアップガイド](./docs/SETUP.md) - 開発環境のセットアップ
 
 ## 開発
 

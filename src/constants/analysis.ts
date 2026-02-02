@@ -4,8 +4,10 @@
 
 /**
  * Geminiモデル名
+ * gemini-2.5-flash: 安定版のFlashモデル（推奨）
+ * その他の利用可能なモデル: gemini-2.5-pro, gemini-flash-latest, gemini-3-flash-preview
  */
-export const GEMINI_MODEL = 'gemini-3.0-flash';
+export const GEMINI_MODEL = 'gemini-2.5-flash';
 
 /**
  * 要約の長さマッピング
@@ -19,12 +21,12 @@ export const SUMMARY_LENGTH_MAP = {
 /**
  * 解析に必要なクレジット数
  */
-export const ANALYSIS_CREDIT_COST = 10;
+export const ANALYSIS_CREDIT_COST = 20;
 
 /**
  * デフォルトのコメント取得上限
  */
-export const DEFAULT_COMMENT_LIMIT = 10000;
+export const DEFAULT_COMMENT_LIMIT = 2000;
 
 /**
  * 1回のAPIリクエストで取得するコメント数の上限

@@ -7,12 +7,12 @@ import { FileDown, Copy, Check } from 'lucide-react';
 import type { AnalysisResult, VideoInfo, YouTubeCommentThread } from '../types';
 import SummaryTab from './tabs/SummaryTab';
 import DeepDiveTab from './tabs/DeepDiveTab';
-import SentimentTab from './tabs/SentimentTab';
+import CommentsTab from './tabs/CommentsTab';
 
 /**
  * タブの種類
  */
-type TabType = 'summary' | 'deepdive' | 'sentiment';
+type TabType = 'summary' | 'deepdive' | 'comments';
 
 interface ResultDashboardProps {
   result: AnalysisResult;
@@ -25,10 +25,65 @@ function ResultDashboard({ result, videoInfo, comments }: ResultDashboardProps) 
   const [copied, setCopied] = useState(false);
 
   const handleExportJson = () => {
+    // 全コメントをフラット化（親コメント + 返信）
+    const allComments: Array<{
+      id: string;
+      text: string;
+      author: string;
+      authorId: string;
+      likeCount: number;
+      publishedAt: string;
+      replyCount: number;
+      isReply: boolean;
+      parentId?: string;
+    }> = comments.flatMap((thread) => {
+      const commentList: Array<{
+        id: string;
+        text: string;
+        author: string;
+        authorId: string;
+        likeCount: number;
+        publishedAt: string;
+        replyCount: number;
+        isReply: boolean;
+        parentId?: string;
+      }> = [
+        {
+          id: thread.topLevelComment.id,
+          text: thread.topLevelComment.text,
+          author: thread.topLevelComment.author,
+          authorId: thread.topLevelComment.id.split('_')[0] || thread.topLevelComment.id, // IDからauthorIdを推定
+          likeCount: thread.topLevelComment.likeCount,
+          publishedAt: thread.topLevelComment.publishedAt,
+          replyCount: thread.topLevelComment.replyCount,
+          isReply: false,
+        },
+      ];
+
+      if (thread.replies) {
+        thread.replies.forEach((reply) => {
+          commentList.push({
+            id: reply.id,
+            text: reply.text,
+            author: reply.author,
+            authorId: reply.id.split('_')[0] || reply.id,
+            likeCount: reply.likeCount,
+            publishedAt: reply.publishedAt,
+            replyCount: 0,
+            isReply: true,
+            parentId: thread.topLevelComment.id,
+          });
+        });
+      }
+
+      return commentList;
+    });
+
     const data = {
       videoInfo,
       analysisResult: result,
-      commentsCount: comments.length,
+      comments: allComments,
+      commentsCount: allComments.length,
       exportedAt: new Date().toISOString(),
     };
 
@@ -38,7 +93,7 @@ function ResultDashboard({ result, videoInfo, comments }: ResultDashboardProps) 
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `tubeinsight-analysis-${videoInfo?.videoId || 'unknown'}-${Date.now()}.json`;
+    a.download = `youtube-comments-with-ai-analysis-${videoInfo?.videoId || 'unknown'}-${Date.now()}.json`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -52,7 +107,7 @@ function ResultDashboard({ result, videoInfo, comments }: ResultDashboardProps) 
   const tabs: { id: TabType; label: string }[] = [
     { id: 'summary', label: '要約' },
     { id: 'deepdive', label: '深掘り' },
-    { id: 'sentiment', label: '感情' },
+    { id: 'comments', label: `コメント一覧 (${comments.length})` },
   ];
 
   return (
@@ -111,7 +166,7 @@ function ResultDashboard({ result, videoInfo, comments }: ResultDashboardProps) 
       <div className="flex-1 overflow-y-auto">
         {activeTab === 'summary' && <SummaryTab result={result} />}
         {activeTab === 'deepdive' && <DeepDiveTab result={result} />}
-        {activeTab === 'sentiment' && <SentimentTab result={result} />}
+        {activeTab === 'comments' && <CommentsTab comments={comments} />}
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "TubeInsight AI - YouTube Comment Analyzer",
+  "name": "YouTubeコメントwithAI",
   "version": "1.0.0",
   "description": "YouTube動画のコメントをAIで解析し、真の価値と本音を可視化する",
   "permissions": [
@@ -34,5 +34,13 @@
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
+  },
+  "oauth2": {
+    "client_id": "284840824950-e5hvenvcr4vqhrn633anh5cfv8ucm5qv.apps.googleusercontent.com",
+    "scopes": [
+      "openid",
+      "email",
+      "profile"
+    ]
   }
 }

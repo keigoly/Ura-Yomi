@@ -2,7 +2,7 @@
 
 # GitHubリポジトリ作成用スクリプト
 
-echo "🚀 TubeInsight AI - GitHubリポジトリ作成スクリプト"
+echo "🚀 YouTubeコメントwithAI - GitHubリポジトリ作成スクリプト"
 echo ""
 
 # Gitの状態を確認
@@ -18,7 +18,7 @@ git add .
 
 # 初回コミット
 echo "💾 初回コミットを作成中..."
-git commit -m "Initial commit: TubeInsight AI - YouTube Comment Analyzer
+git commit -m "Initial commit: YouTubeコメントwithAI - YouTube Comment Analyzer
 
 - Chrome拡張機能の実装
 - Google認証とクレジットシステム

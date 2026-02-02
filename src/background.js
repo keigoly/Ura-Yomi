@@ -1,6 +1,6 @@
 // Service Worker for Chrome Extension
 chrome.runtime.onInstalled.addListener(() => {
-  console.log('TubeInsight AI installed');
+  console.log('YouTubeコメントwithAI installed');
 });
 
 // Side Panelを開く処理

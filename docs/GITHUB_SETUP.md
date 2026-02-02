@@ -55,7 +55,7 @@ git init
 git add .
 
 # 初回コミット
-git commit -m "Initial commit: TubeInsight AI - YouTube Comment Analyzer"
+git commit -m "Initial commit: YouTubeコメントwithAI - YouTube Comment Analyzer"
 
 # リモートリポジトリを追加（YOUR_USERNAMEをあなたのGitHubユーザー名に置き換え）
 git remote add origin https://github.com/YOUR_USERNAME/tubeinsight-ai.git

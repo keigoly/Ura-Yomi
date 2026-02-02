@@ -18,6 +18,6 @@ export interface AppSettings {
  * デフォルト設定値
  */
 export const DEFAULT_SETTINGS: AppSettings = {
-  commentLimit: 10000,
+  commentLimit: 2000,
   summaryLength: 'medium',
 };

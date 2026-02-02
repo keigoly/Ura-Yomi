@@ -43,7 +43,15 @@ function SentimentBar({
 }
 
 function SentimentTab({ result }: SentimentTabProps) {
-  const { positive, negative, neutral } = result.sentiment;
+  // sentimentがオブジェクトでない場合はデフォルト値を使用
+  const sentiment = result.sentiment && typeof result.sentiment === 'object'
+    ? result.sentiment
+    : { positive: 0, negative: 0, neutral: 0 };
+  
+  const { positive = 0, negative = 0, neutral = 0 } = sentiment;
+
+  // keywordsが配列でない場合は空配列を使用
+  const keywords = Array.isArray(result.keywords) ? result.keywords : [];
 
   return (
     <div className="p-6 space-y-6">
@@ -73,21 +81,23 @@ function SentimentTab({ result }: SentimentTabProps) {
       </div>
 
       {/* Keywords */}
-      <div>
-        <h3 className="text-lg font-semibold text-gray-800 mb-4">
-          頻出キーワード
-        </h3>
-        <div className="flex flex-wrap gap-2">
-          {result.keywords.map((keyword, index) => (
-            <span
-              key={index}
-              className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium"
-            >
-              {keyword}
-            </span>
-          ))}
+      {keywords.length > 0 && (
+        <div>
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">
+            頻出キーワード
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {keywords.map((keyword, index) => (
+              <span
+                key={index}
+                className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium"
+              >
+                {typeof keyword === 'string' ? keyword : JSON.stringify(keyword)}
+              </span>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

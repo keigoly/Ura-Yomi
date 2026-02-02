@@ -64,7 +64,7 @@ function LoadingView({ progress }: LoadingViewProps) {
 
         {progress.stage === 'analyzing' && (
           <p className="text-xs text-gray-500">
-            Gemini 3.0 Flashでコメントを解析中...
+            Gemini 2.5 Flashでコメントを解析中...
           </p>
         )}
       </div>
