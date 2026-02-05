@@ -28,6 +28,11 @@ function SidePanel() {
       try {
         startAnalysis(videoId, title);
 
+        // #region agent log
+        const totalStartTime = Date.now();
+        fetch('http://127.0.0.1:7243/ingest/c8966986-f336-4967-9725-2af59d2c095d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SidePanel.tsx:32',message:'Analysis request START',data:{videoId,startTime:totalStartTime},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'F'})}).catch(()=>{});
+        // #endregion
+
         // サーバー側で処理（コメント取得とAI解析）
         // デフォルト値を使用: コメント数上限2000件、要約の長さmedium
         updateProgress({
@@ -47,6 +52,12 @@ function SidePanel() {
         // サーバーから返された結果を使用
         // analyzeViaServerはdata全体を返すので、resultプロパティを確認
         if (analysisResult.comments) {
+          // #region agent log
+          if (analysisResult.comments.length > 0) {
+            const firstThread = analysisResult.comments[0];
+            fetch('http://127.0.0.1:7243/ingest/c8966986-f336-4967-9725-2af59d2c095d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SidePanel.tsx:55',message:'Frontend received comments - first thread',data:{author:firstThread.topLevelComment?.author,hasAuthorProfileImageUrl:!!firstThread.topLevelComment?.authorProfileImageUrl,authorProfileImageUrl:firstThread.topLevelComment?.authorProfileImageUrl,topLevelCommentKeys:firstThread.topLevelComment ? Object.keys(firstThread.topLevelComment) : [],hasReplies:!!(firstThread.replies && firstThread.replies.length > 0),repliesCount:firstThread.replies?.length || 0},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
+          }
+          // #endregion
           setComments(analysisResult.comments);
         }
 
@@ -205,6 +216,11 @@ function SidePanel() {
           hasTopics: !!resultData.topics,
           topics: resultData.topics,
         });
+        
+        // #region agent log
+        const totalEndTime = Date.now();
+        fetch('http://127.0.0.1:7243/ingest/c8966986-f336-4967-9725-2af59d2c095d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SidePanel.tsx:212',message:'Analysis request END',data:{totalDuration:totalEndTime-totalStartTime,hasNeutralComment:!!resultData.neutralComment,neutralCommentPreview:resultData.neutralComment?.comment?.substring(0,50),commentCount:analysisResult.comments?.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'F'})}).catch(()=>{});
+        // #endregion
         
         setResult(resultData);
       } catch (err) {

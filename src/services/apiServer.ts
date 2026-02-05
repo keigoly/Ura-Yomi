@@ -93,11 +93,18 @@ async function apiRequest<T>(
   } catch (error) {
     // ネットワークエラーの場合
     if (error instanceof TypeError && error.message.includes('fetch')) {
+      const apiBaseUrl = API_BASE_URL;
       throw new Error(
-        `サーバーに接続できませんでした。\n` +
-        `URL: ${url}\n` +
-        `サーバーが起動しているか確認してください。\n` +
-        `エラー: ${error.message}`
+        `サーバーに接続できませんでした。\n\n` +
+        `接続先URL: ${url}\n` +
+        `APIベースURL: ${apiBaseUrl}\n\n` +
+        `【確認事項】\n` +
+        `1. サーバーが起動しているか確認してください\n` +
+        `   → ターミナルで「cd server」→「npm run dev」を実行\n` +
+        `2. サーバーが正しいポート（デフォルト: 3000）で起動しているか確認\n` +
+        `3. フロントエンドの.envファイルに以下が設定されているか確認:\n` +
+        `   VITE_API_BASE_URL=http://localhost:3000\n\n` +
+        `エラー詳細: ${error.message}`
       );
     }
     

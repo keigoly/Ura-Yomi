@@ -2,6 +2,8 @@
  * Summary Tab コンポーネント
  */
 
+import { useState } from 'react';
+import { useThemeStore } from '../../store/themeStore';
 import type { AnalysisResult } from '../../types';
 
 interface SummaryTabProps {
@@ -77,6 +79,12 @@ function formatSummary(summary: string): string {
 }
 
 function SummaryTab({ result }: SummaryTabProps) {
+  const { theme } = useThemeStore();
+  const [hoveredSegment, setHoveredSegment] = useState<{
+    label: string;
+    percent: number;
+  } | null>(null);
+  
   // デバッグ用ログ
   console.log('[SummaryTab] 📥 Received result:', result);
   console.log('[SummaryTab] result.sentiment:', result.sentiment);
@@ -167,6 +175,21 @@ function SummaryTab({ result }: SummaryTabProps) {
     formattedSummary = result.summary || '要約がありません';
   }
 
+  // 要約の整形処理：冒頭の冗長なフレーズを削除し、句読点の後に改行を追加
+  if (formattedSummary && typeof formattedSummary === 'string') {
+    // 「このYouTube動画のコメントは」という冒頭フレーズを削除
+    formattedSummary = formattedSummary.replace(/^このYouTube動画のコメントは[、。，．\s]*/i, '');
+    
+    // 丸の句読点（。）の後に改行を追加（ただし、既に改行がある場合は追加しない）
+    formattedSummary = formattedSummary.replace(/。([^\n])/g, '。\n$1');
+    
+    // 余分な空白行を削除（3行以上連続する改行を2行に）
+    formattedSummary = formattedSummary.replace(/\n{3,}/g, '\n\n');
+    
+    // 先頭と末尾の空白を削除
+    formattedSummary = formattedSummary.trim();
+  }
+
   // topicsが配列でない場合は空配列を使用
   // 抽出されたtopicsがある場合はそれを使用、なければresult.topicsを使用
   let topics: string[] = extractedTopics.length > 0 ? extractedTopics : [];
@@ -182,6 +205,20 @@ function SummaryTab({ result }: SummaryTabProps) {
       }
     }
   }
+
+  // トピックのテキストが長すぎる場合は短縮またはスキップ
+  // 1行に収まるように、最大20文字程度に制限（絶対にはみ出さない安全な値）
+  const MAX_TOPIC_LENGTH = 20;
+  const processedTopics = topics
+    .map(topic => {
+      const topicStr = typeof topic === 'string' ? topic.trim() : String(topic).trim();
+      // 長すぎる場合は短縮
+      if (topicStr.length > MAX_TOPIC_LENGTH) {
+        return topicStr.substring(0, MAX_TOPIC_LENGTH) + '...';
+      }
+      return topicStr;
+    })
+    .filter(topic => topic.length > 0); // 空のトピックを除外
 
   // sentimentがオブジェクトでない場合はデフォルト値を使用
   // 抽出されたsentimentがある場合はそれを使用、なければresult.sentimentを使用
@@ -223,80 +260,226 @@ function SummaryTab({ result }: SummaryTabProps) {
   const negativePercent = total > 0 ? (negative / total) * 100 : 0;
   const neutralPercent = total > 0 ? (neutral / total) * 100 : 0;
 
+  // 円グラフ用の計算
+  const radius = 130; // 円の半径
+  const centerX = 140;
+  const centerY = 140;
+  
+  // 各セグメントの開始角度と終了角度を計算
+  let currentAngle = -90; // 12時から開始
+  const positiveAngle = (positivePercent / 100) * 360;
+  const neutralAngle = (neutralPercent / 100) * 360;
+  const negativeAngle = (negativePercent / 100) * 360;
+  
+  // 円グラフのアークパスを生成する関数（中心から始まる完全な円）
+  const createPieArcPath = (startAngle: number, endAngle: number) => {
+    const startRad = (startAngle * Math.PI) / 180;
+    const endRad = (endAngle * Math.PI) / 180;
+    
+    // 外側の円の座標
+    const x1 = centerX + radius * Math.cos(startRad);
+    const y1 = centerY + radius * Math.sin(startRad);
+    const x2 = centerX + radius * Math.cos(endRad);
+    const y2 = centerY + radius * Math.sin(endRad);
+    
+    const largeArcFlag = endAngle - startAngle > 180 ? 1 : 0;
+    
+    // 円グラフのパス（中心→外側の円弧→中心）
+    return `M ${centerX} ${centerY} 
+            L ${x1} ${y1}
+            A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x2} ${y2}
+            Z`;
+  };
+
   return (
-    <div className="p-6 space-y-6">
-      {/* 全体の要約 */}
-      <div>
-        <h3 className="text-lg font-semibold text-gray-800 mb-3">全体の要約</h3>
-        <div className="bg-gray-100 rounded-lg p-4 border border-gray-200">
-          <p className="text-gray-800 whitespace-pre-line leading-relaxed text-sm">
-            {formattedSummary || '要約を取得できませんでした'}
-          </p>
+    <div className={`min-h-full ${theme === 'dark' ? 'bg-[#0f0f0f]' : 'bg-white'}`}>
+      <div className="max-w-4xl mx-auto px-6 py-12 space-y-16">
+        {/* 全体の要約 */}
+        <div className="space-y-4">
+          <h2 className={`text-center text-xs uppercase tracking-widest ${
+            theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+          }`}>
+            全体の要約
+          </h2>
+          <div className={`rounded-2xl p-8 ${
+            theme === 'dark' 
+              ? 'bg-[#1a1a1a] border border-gray-800 shadow-lg' 
+              : 'bg-gray-50 border border-gray-200 shadow-md'
+          }`}>
+            <p className={`whitespace-pre-line leading-relaxed text-base ${
+              theme === 'dark' ? 'text-gray-200' : 'text-gray-800'
+            }`}>
+              {formattedSummary || '要約を取得できませんでした'}
+            </p>
+          </div>
         </div>
-      </div>
 
-      {/* 感情分析 */}
-      <div>
-        <h3 className="text-lg font-semibold text-gray-800 mb-4">感情分析</h3>
-        {/* 横棒グラフ（積み上げ式） */}
-        <div className="mb-4">
-          <div className="w-full h-8 bg-gray-200 rounded-full overflow-hidden flex">
-            {positivePercent > 0 && (
-              <div
-                className="bg-green-500 h-full transition-all"
-                style={{ width: `${positivePercent}%` }}
-                title={`ポジティブ ${positivePercent.toFixed(1)}%`}
-              />
-            )}
-            {negativePercent > 0 && (
-              <div
-                className="bg-red-500 h-full transition-all"
-                style={{ width: `${negativePercent}%` }}
-                title={`ネガティブ ${negativePercent.toFixed(1)}%`}
-              />
-            )}
-            {neutralPercent > 0 && (
-              <div
-                className="bg-gray-400 h-full transition-all"
-                style={{ width: `${neutralPercent}%` }}
-                title={`ニュートラル ${neutralPercent.toFixed(1)}%`}
-              />
-            )}
-          </div>
-        </div>
-        {/* 凡例 */}
-        <div className="flex flex-wrap gap-4 text-sm">
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded-full bg-green-500"></div>
-            <span className="text-gray-700">ポジティブ ({positivePercent.toFixed(1)}%)</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded-full bg-red-500"></div>
-            <span className="text-gray-700">ネガティブ ({negativePercent.toFixed(1)}%)</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded-full bg-gray-400"></div>
-            <span className="text-gray-700">ニュートラル ({neutralPercent.toFixed(1)}%)</span>
-          </div>
-        </div>
-      </div>
-
-      {/* 主なトピック */}
-      {topics.length > 0 && (
-        <div>
-          <h3 className="text-lg font-semibold text-gray-800 mb-3">主なトピック</h3>
-          <div className="flex flex-wrap gap-2">
-            {topics.map((topic, index) => (
-              <span
-                key={index}
-                className="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm font-medium"
+        {/* 感情分析 */}
+        <div className="space-y-2">
+          <h2 className={`text-center text-xs uppercase tracking-widest ${
+            theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+          }`}>
+            感情分析
+          </h2>
+          <div className="flex flex-col items-center">
+            <div className="relative w-80 h-80 flex items-center justify-center">
+              <svg 
+                width="280" 
+                height="280" 
+                className="transform"
+                onMouseLeave={() => setHoveredSegment(null)}
               >
-                {typeof topic === 'string' ? topic : JSON.stringify(topic)}
+                {/* ポジティブ */}
+                {positivePercent > 0 && (
+                  <path
+                    d={createPieArcPath(currentAngle, currentAngle + positiveAngle)}
+                    fill="#10B981"
+                    className="transition-all cursor-pointer hover:opacity-90"
+                    style={{ filter: hoveredSegment?.label === 'ポジティブ' ? 'drop-shadow(0 0 8px rgba(16, 185, 129, 0.6))' : 'none' }}
+                    onMouseEnter={() => {
+                      setHoveredSegment({
+                        label: 'ポジティブ',
+                        percent: positivePercent,
+                      });
+                    }}
+                  />
+                )}
+                {/* ニュートラル */}
+                {neutralPercent > 0 && (
+                  <path
+                    d={createPieArcPath(
+                      currentAngle + positiveAngle,
+                      currentAngle + positiveAngle + neutralAngle
+                    )}
+                    fill={theme === 'dark' ? '#9CA3AF' : '#6B7280'}
+                    className="transition-all cursor-pointer hover:opacity-90"
+                    style={{ filter: hoveredSegment?.label === 'ニュートラル' ? 'drop-shadow(0 0 8px rgba(156, 163, 175, 0.6))' : 'none' }}
+                    onMouseEnter={() => {
+                      setHoveredSegment({
+                        label: 'ニュートラル',
+                        percent: neutralPercent,
+                      });
+                    }}
+                  />
+                )}
+                {/* ネガティブ */}
+                {negativePercent > 0 && (
+                  <path
+                    d={createPieArcPath(
+                      currentAngle + positiveAngle + neutralAngle,
+                      currentAngle + positiveAngle + neutralAngle + negativeAngle
+                    )}
+                    fill="#EF4444"
+                    className="transition-all cursor-pointer hover:opacity-90"
+                    style={{ filter: hoveredSegment?.label === 'ネガティブ' ? 'drop-shadow(0 0 8px rgba(239, 68, 68, 0.6))' : 'none' }}
+                    onMouseEnter={() => {
+                      setHoveredSegment({
+                        label: 'ネガティブ',
+                        percent: negativePercent,
+                      });
+                    }}
+                  />
+                )}
+              </svg>
+              {/* 中心の表示（ホバー時のみ表示、小数点1桁） */}
+              {hoveredSegment && (
+                <div className={`absolute inset-0 flex flex-col items-center justify-center pointer-events-none ${
+                  theme === 'dark' ? 'text-white' : 'text-gray-800'
+                }`}>
+                  <div className="text-5xl font-bold mb-1">
+                    {hoveredSegment.percent.toFixed(1)}%
+                  </div>
+                  <div className="text-base uppercase tracking-wider opacity-80">
+                    {hoveredSegment.label.toUpperCase()}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+          {/* 凡例（縦3列、中央揃えかつ左揃え） */}
+          <div className="flex flex-col items-center gap-2 mt-2">
+            {/* ポジティブ */}
+            <div className="flex items-center gap-3 w-fit">
+              <div className="w-4 h-4 rounded-full bg-[#10B981] flex-shrink-0"></div>
+              <span className={`text-sm whitespace-nowrap text-left ${
+                theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+              }`} style={{ minWidth: '80px' }}>
+                ポジティブ
               </span>
-            ))}
+              <span className={`text-sm font-semibold text-right ${
+                theme === 'dark' ? 'text-white' : 'text-gray-800'
+              }`} style={{ minWidth: '50px' }}>
+                {positivePercent.toFixed(1)}%
+              </span>
+            </div>
+            {/* ニュートラル */}
+            <div className="flex items-center gap-3 w-fit">
+              <div className={`w-4 h-4 rounded-full flex-shrink-0 ${
+                theme === 'dark' ? 'bg-[#9CA3AF]' : 'bg-[#6B7280]'
+              }`}></div>
+              <span className={`text-sm whitespace-nowrap text-left ${
+                theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+              }`} style={{ minWidth: '80px' }}>
+                ニュートラル
+              </span>
+              <span className={`text-sm font-semibold text-right ${
+                theme === 'dark' ? 'text-white' : 'text-gray-800'
+              }`} style={{ minWidth: '50px' }}>
+                {neutralPercent.toFixed(1)}%
+              </span>
+            </div>
+            {/* ネガティブ */}
+            <div className="flex items-center gap-3 w-fit">
+              <div className="w-4 h-4 rounded-full bg-[#EF4444] flex-shrink-0"></div>
+              <span className={`text-sm whitespace-nowrap text-left ${
+                theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+              }`} style={{ minWidth: '80px' }}>
+                ネガティブ
+              </span>
+              <span className={`text-sm font-semibold text-right ${
+                theme === 'dark' ? 'text-white' : 'text-gray-800'
+              }`} style={{ minWidth: '50px' }}>
+                {negativePercent.toFixed(1)}%
+              </span>
+            </div>
           </div>
         </div>
-      )}
+
+        {/* 主なトピック */}
+        {topics.length > 0 && (
+          <div className="space-y-6">
+            <h2 className={`text-center text-xs uppercase tracking-widest ${
+              theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+            }`}>
+              主なトピック
+            </h2>
+            <div className="space-y-3">
+              {processedTopics.slice(0, 10).map((topic, index) => (
+                <div
+                  key={index}
+                  className={`p-4 rounded-xl transition-all hover:scale-[1.01] w-full overflow-hidden ${
+                    theme === 'dark' 
+                      ? 'bg-[#1a1a1a] border border-gray-800 hover:border-gray-700' 
+                      : 'bg-gray-50 border border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <p className={`text-sm text-center whitespace-nowrap ${
+                    theme === 'dark' ? 'text-white' : 'text-gray-800'
+                  }`} style={{ 
+                    maxWidth: '100%',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    display: 'block',
+                    boxSizing: 'border-box'
+                  }}>
+                    {topic}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

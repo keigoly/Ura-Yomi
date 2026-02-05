@@ -127,3 +127,166 @@ body {
   background-color: white;
   opacity: 8%;
 }
+
+/* ==========================================
+ * YouTube風コメントスタイル - Pixel Perfect実装
+ * 
+ * CSS変数による数理的な位置計算
+ * ========================================== */
+
+:root {
+  /* ========== 基本サイズ定義 ========== */
+  --parent-avatar-size: 40px;       /* 親アバター: w-10 h-10 */
+  --reply-avatar-size: 24px;        /* 返信アバター: w-6 h-6 */
+  --thread-line-width: 2px;         /* スレッドラインの太さ */
+  --thread-line-color: rgba(255, 255, 255, 0.15);
+  --thread-curve-radius: 16px;      /* L字カーブの半径（自然なカーブ） */
+  
+  /* ========== 計算値 ========== */
+  /* 親アバターの中心X座標: (親アバター幅 / 2) */
+  --parent-avatar-center-x: calc(var(--parent-avatar-size) / 2);
+  /* 縦線のX位置: 中心 - (線幅 / 2) で線の中央を合わせる */
+  --thread-line-x: calc(var(--parent-avatar-center-x) - (var(--thread-line-width) / 2));
+  
+  /* 返信アバターの中心Y座標: (返信アバター高さ / 2) */
+  --reply-avatar-center-y: calc(var(--reply-avatar-size) / 2);
+  
+  /* コメント間のギャップ */
+  --comment-gap: 12px;              /* 0.75rem = 12px */
+  --reply-section-margin-left: 52px; /* 親アバター(40px) + gap(12px) */
+  --reply-indent: 24px;             /* 返信のインデント */
+  
+  /* ボタンの高さ（トグルボタン） */
+  --toggle-btn-height: 28px;
+  --toggle-btn-center-y: calc(var(--toggle-btn-height) / 2);
+}
+
+/* コメントスレッド全体 */
+.youtube-comment-thread {
+  position: relative;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  overflow: visible !important;
+}
+
+/* 親コメント */
+.comment-parent {
+  position: relative;
+  z-index: 1;
+}
+
+/* 返信セクション全体のコンテナ */
+.comment-replies-section {
+  position: relative;
+  margin-top: 8px;
+  /* 親アバターの中心に揃える: 親アバター中心(20px) からの位置 */
+  margin-left: var(--reply-section-margin-left);
+}
+
+/* 返信コンテナ */
+.replies-container {
+  margin-top: var(--comment-gap);
+  position: relative;
+  padding-left: var(--reply-indent);
+  border: none !important;
+}
+
+/* 返信ラッパー */
+.reply-wrapper {
+  position: relative;
+  margin-bottom: 1rem;
+  margin-left: 0;
+}
+
+.reply-wrapper:last-child {
+  margin-bottom: 0;
+}
+
+/* 返信トグルボタン */
+.replies-toggle-wrapper {
+  position: relative;
+  margin-bottom: 0.5rem;
+  margin-left: 0; /* 本家YouTubeに合わせて左寄せ */
+  z-index: 1;
+}
+
+.replies-toggle-wrapper.replies-toggle-bottom {
+  margin-top: var(--comment-gap);
+  margin-bottom: 0;
+}
+
+/* ==========================================
+ * スレッドライン描画
+ * 
+ * 独立したdiv要素を使用（CSS疑似要素は廃止）
+ * - .thread-spine: 縦線（親コンテナに配置）
+ * - .reply-branch: 横線/曲線（各返信に配置）
+ * - .toggle-branch: トグルボタンへのL字カーブ
+ * 
+ * インラインスタイルで直接描画するため、
+ * CSS疑似要素は使用しません。
+ * ========================================== */
+
+/* 疑似要素による描画は廃止（div要素で描画） */
+.youtube-comment-thread.has-replies::before,
+.youtube-comment-thread.has-replies.is-collapsed::before,
+.youtube-comment-thread.has-replies.is-collapsed .replies-toggle-wrapper::before,
+.youtube-comment-thread.has-replies.is-expanded .reply-wrapper::before,
+.youtube-comment-thread.has-replies.is-expanded .reply-wrapper:last-child::before,
+.youtube-comment-thread.has-replies.is-expanded .replies-toggle-bottom::before {
+  content: none !important;
+  display: none !important;
+}
+
+/* 本家YouTube .yt-spec-button-shape-next--size-m 仕様 */
+.replies-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  height: 36px;              /* 本家仕様: 36px固定 */
+  padding: 0 16px;           /* 本家仕様: 左右16px */
+  font-size: 14px;           /* 本家仕様: 14px */
+  line-height: 36px;         /* 垂直中央揃え */
+  color: #3ea6ff;            /* 本家の青色 */
+  font-weight: 500;
+  border-radius: 18px;       /* 本家仕様: カプセル形状 (36px / 2) */
+  transition: background-color 0.2s;
+  background: none;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.replies-toggle-btn:hover {
+  color: #3ea6ff;
+  background-color: rgba(62, 166, 255, 0.1);  /* 本家の青色ホバー */
+}
+
+/* アバターサイズ */
+.avatar-parent {
+  /* 親コメント: 40px */
+}
+
+.avatar-reply {
+  /* 返信コメント: 24px (w-6 h-6) */
+}
+
+/* アバターのホバー効果 */
+.comment-thread img,
+.comment-thread .avatar-circle {
+  transition: transform 0.2s, opacity 0.2s;
+}
+
+.comment-thread img:hover,
+.comment-thread .avatar-circle:hover {
+  transform: scale(1.05);
+  opacity: 0.9;
+}
+
+/* エンゲージメントバーのボタンホバー */
+.comment-thread button:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+  border-radius: 4px;
+}

@@ -71,11 +71,20 @@ function Auth({ onAuthSuccess }: AuthProps) {
             onAuthSuccess(result.user);
             await loadCredits();
           } else {
-            alert(result.error || '認証に失敗しました');
+            const errorMsg = result.error || '認証に失敗しました';
+            console.error('Auth error:', errorMsg);
+            alert(`認証エラー: ${errorMsg}`);
           }
         } catch (error) {
-          console.error('User info fetch error:', error);
-          alert('ユーザー情報の取得に失敗しました');
+          console.error('Auth request error:', error);
+          const errorMessage = error instanceof Error ? error.message : '認証エラーが発生しました';
+          
+          // サーバー接続エラーの場合は詳細なメッセージを表示
+          if (errorMessage.includes('サーバーに接続できませんでした') || errorMessage.includes('Failed to fetch')) {
+            alert(errorMessage);
+          } else {
+            alert(`認証エラー: ${errorMessage}`);
+          }
         } finally {
           setLoading(false);
         }

@@ -9,6 +9,7 @@ export interface YouTubeComment {
   id: string;
   text: string;
   author: string;
+  authorProfileImageUrl?: string; // アバター画像URL
   likeCount: number;
   publishedAt: string;
   replyCount: number;

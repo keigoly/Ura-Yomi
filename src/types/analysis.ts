@@ -30,6 +30,17 @@ export interface SentimentAnalysis {
 }
 
 /**
+ * ニュートラルコメント（Geminiが選択）
+ */
+export interface NeutralComment {
+  comment: string;
+  author: string;
+  likeCount: number;
+  id?: string;
+  reason?: string;
+}
+
+/**
  * AI解析結果
  */
 export interface AnalysisResult {
@@ -39,6 +50,9 @@ export interface AnalysisResult {
   hiddenGems: HiddenGem[];
   controversy: Controversy[];
   keywords: string[];
+  positiveComment?: NeutralComment;
+  neutralComment?: NeutralComment;
+  // negativeCommentはフロントエンドで人気順リストの一番下から選択
 }
 
 /**

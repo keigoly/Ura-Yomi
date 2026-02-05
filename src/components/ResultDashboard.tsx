@@ -2,9 +2,10 @@
  * Result Dashboard コンポーネント
  */
 
-import { useState } from 'react';
-import { FileDown, Copy, Check } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { FileDown, Copy, Check, Moon, Sun } from 'lucide-react';
 import type { AnalysisResult, VideoInfo, YouTubeCommentThread } from '../types';
+import { useThemeStore } from '../store/themeStore';
 import SummaryTab from './tabs/SummaryTab';
 import DeepDiveTab from './tabs/DeepDiveTab';
 import CommentsTab from './tabs/CommentsTab';
@@ -23,6 +24,12 @@ interface ResultDashboardProps {
 function ResultDashboard({ result, videoInfo, comments }: ResultDashboardProps) {
   const [activeTab, setActiveTab] = useState<TabType>('summary');
   const [copied, setCopied] = useState(false);
+  const { theme, toggleTheme } = useThemeStore();
+
+  // テーマをbodyに適用
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', theme === 'dark');
+  }, [theme]);
 
   const handleExportJson = () => {
     // 全コメントをフラット化（親コメント + 返信）
@@ -111,61 +118,98 @@ function ResultDashboard({ result, videoInfo, comments }: ResultDashboardProps) 
   ];
 
   return (
-    <div className="h-full flex flex-col">
+    <div className={`h-full flex flex-col ${theme === 'dark' ? 'bg-[#0f0f0f]' : 'bg-white'}`}>
       {/* Header */}
-      <div className="p-4 border-b bg-white">
+      <div className={`p-4 border-b ${theme === 'dark' ? 'bg-[#0f0f0f] border-gray-800' : 'bg-white border-gray-200'}`}>
         <div className="flex items-center justify-between mb-2">
-          <h2 className="text-xl font-bold text-gray-800">解析結果</h2>
+          <div>
+            <h2 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
+              解析結果
+            </h2>
+            {videoInfo && (
+              <p className={`text-sm mt-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                {videoInfo.title || videoInfo.videoId} ({comments.length.toLocaleString()}件のコメント)
+              </p>
+            )}
+          </div>
           <div className="flex gap-2">
             <button
+              onClick={toggleTheme}
+              className={`p-2 rounded-lg transition-colors ${
+                theme === 'dark' 
+                  ? 'hover:bg-gray-800 text-gray-300' 
+                  : 'hover:bg-gray-100 text-gray-600'
+              }`}
+              title={theme === 'dark' ? 'ライトモードに切り替え' : 'ダークモードに切り替え'}
+            >
+              {theme === 'dark' ? (
+                <Sun className="w-5 h-5" />
+              ) : (
+                <Moon className="w-5 h-5" />
+              )}
+            </button>
+            <button
               onClick={handleCopySummary}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className={`p-2 rounded-lg transition-colors ${
+                theme === 'dark' 
+                  ? 'hover:bg-gray-800 text-gray-300' 
+                  : 'hover:bg-gray-100 text-gray-600'
+              }`}
               title="要約をコピー"
             >
               {copied ? (
                 <Check className="w-5 h-5 text-green-600" />
               ) : (
-                <Copy className="w-5 h-5 text-gray-600" />
+                <Copy className="w-5 h-5" />
               )}
             </button>
             <button
               onClick={handleExportJson}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className={`p-2 rounded-lg transition-colors ${
+                theme === 'dark' 
+                  ? 'hover:bg-gray-800 text-gray-300' 
+                  : 'hover:bg-gray-100 text-gray-600'
+              }`}
               title="JSONでエクスポート"
             >
-              <FileDown className="w-5 h-5 text-gray-600" />
+              <FileDown className="w-5 h-5" />
             </button>
           </div>
         </div>
-        {videoInfo && (
-          <p className="text-sm text-gray-600">
-            {videoInfo.title || videoInfo.videoId} (
-            {comments.length.toLocaleString()}件のコメント)
-          </p>
-        )}
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b bg-white">
+      <div className={`flex justify-center border-b ${theme === 'dark' ? 'bg-[#0f0f0f] border-gray-800' : 'bg-white border-gray-200'}`}>
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`px-6 py-3 font-medium transition-colors ${
+            className={`px-6 py-3 font-medium transition-colors relative ${
               activeTab === tab.id
-                ? 'text-blue-600 border-b-2 border-blue-600'
-                : 'text-gray-600 hover:text-gray-800'
+                ? theme === 'dark'
+                  ? 'text-blue-400'
+                  : 'text-blue-600'
+                : theme === 'dark'
+                  ? 'text-gray-400 hover:text-gray-200'
+                  : 'text-gray-600 hover:text-gray-800'
             }`}
           >
             {tab.label}
+            {activeTab === tab.id && (
+              <div className={`absolute bottom-0 left-0 right-0 h-0.5 ${
+                theme === 'dark' ? 'bg-blue-400' : 'bg-blue-600'
+              }`} />
+            )}
           </button>
         ))}
       </div>
 
       {/* Tab Content */}
-      <div className="flex-1 overflow-y-auto">
+      <div className={`flex-1 ${activeTab === 'comments' ? 'overflow-hidden' : 'overflow-y-auto'} ${
+        theme === 'dark' ? 'bg-[#0f0f0f]' : 'bg-white'
+      }`}>
         {activeTab === 'summary' && <SummaryTab result={result} />}
-        {activeTab === 'deepdive' && <DeepDiveTab result={result} />}
+        {activeTab === 'deepdive' && <DeepDiveTab comments={comments} result={result} />}
         {activeTab === 'comments' && <CommentsTab comments={comments} />}
       </div>
     </div>
