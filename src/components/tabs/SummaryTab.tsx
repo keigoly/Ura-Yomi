@@ -383,13 +383,23 @@ function SummaryTab({ result }: SummaryTabProps) {
               </svg>
               {/* 中心の表示（ホバー時のみ表示、小数点1桁） */}
               {hoveredSegment && (
-                <div className={`absolute inset-0 flex flex-col items-center justify-center pointer-events-none ${
-                  theme === 'dark' ? 'text-white' : 'text-gray-800'
-                }`}>
-                  <div className="text-5xl font-bold mb-1">
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                  <div className={`text-5xl font-bold mb-1 ${
+                    theme === 'dark' 
+                      ? 'text-white' 
+                      : hoveredSegment.label === 'ポジティブ'
+                        ? 'text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]'
+                        : hoveredSegment.label === 'ネガティブ'
+                          ? 'text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]'
+                          : 'text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]'
+                  }`}>
                     {hoveredSegment.percent.toFixed(1)}%
                   </div>
-                  <div className="text-base uppercase tracking-wider opacity-80">
+                  <div className={`text-base uppercase tracking-wider opacity-90 ${
+                    theme === 'dark' 
+                      ? 'text-white' 
+                      : 'text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]'
+                  }`}>
                     {hoveredSegment.label.toUpperCase()}
                   </div>
                 </div>

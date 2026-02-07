@@ -421,23 +421,10 @@ function CommentsTab({ comments }: CommentsTabProps) {
           </div>
         ) : (
           <div className="space-y-6">
-            {/* #region agent log - summary */}
-            {(() => {
-              const threadsWithReplies = filteredThreads.filter(t => t.replies && t.replies.length > 0);
-              const threadsWithoutReplies = filteredThreads.filter(t => !t.replies || t.replies.length === 0);
-              fetch('http://127.0.0.1:7243/ingest/c8966986-f336-4967-9725-2af59d2c095d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CommentsTab.tsx:356',message:'Threads summary',data:{totalThreads:filteredThreads.length,withReplies:threadsWithReplies.length,withoutReplies:threadsWithoutReplies.length,withRepliesAuthors:threadsWithReplies.slice(0,10).map(t=>t.topLevelComment?.author),withoutRepliesAuthors:threadsWithoutReplies.slice(0,5).map(t=>t.topLevelComment?.author)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'F'})}).catch(()=>{});
-              return null;
-            })()}
-            {/* #endregion */}
-            {filteredThreads.map((thread, idx) => {
+            {filteredThreads.map((thread) => {
               const isExpanded = expandedThreads.has(thread.id);
               const hasReplies = thread.replies && thread.replies.length > 0;
               const showReplies = hasReplies && isExpanded;
-              // #region agent log
-              if (idx < 10 || hasReplies) {
-                fetch('http://127.0.0.1:7243/ingest/c8966986-f336-4967-9725-2af59d2c095d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CommentsTab.tsx:369',message:'Thread render',data:{idx,author:thread.topLevelComment?.author,hasReplies,repliesLength:thread.replies?.length||0,isExpanded,cssClass:hasReplies?'has-replies':'no-replies'},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'I'})}).catch(()=>{});
-              }
-              // #endregion
               return (
                 <div 
                   key={thread.id} 

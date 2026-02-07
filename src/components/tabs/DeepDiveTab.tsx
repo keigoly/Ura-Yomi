@@ -155,10 +155,6 @@ function DeepDiveTab({ comments, result }: DeepDiveTabProps) {
       thread: thread,
     }));
 
-  // #region agent log
-  fetch('http://127.0.0.1:7243/ingest/c8966986-f336-4967-9725-2af59d2c095d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DeepDiveTab.tsx:103',message:'DeepDive - comment order check',data:{totalComments:comments.length,filteredComments:topLevelComments.length,firstComment:{author:topLevelComments[0]?.author,text:topLevelComments[0]?.text?.substring(0,50),likes:topLevelComments[0]?.likeCount},lastComment:{author:topLevelComments[topLevelComments.length-1]?.author,text:topLevelComments[topLevelComments.length-1]?.text?.substring(0,50),likes:topLevelComments[topLevelComments.length-1]?.likeCount}},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
-  // #endregion
-
   // ポジティブコメント: Geminiが選定、またはリストの最初（人気順の一番上）
   const positiveComment = findCommentInList(result.positiveComment, topLevelComments) 
     || (topLevelComments.length > 0 ? topLevelComments[0] : null);
@@ -171,14 +167,6 @@ function DeepDiveTab({ comments, result }: DeepDiveTabProps) {
   const negativeComment = topLevelComments.length > 0 
     ? topLevelComments[topLevelComments.length - 1]
     : null;
-  
-  // #region agent log
-  fetch('http://127.0.0.1:7243/ingest/c8966986-f336-4967-9725-2af59d2c095d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DeepDiveTab.tsx:120',message:'DeepDive - selected negative comment',data:{negativeAuthor:negativeComment?.author,negativeText:negativeComment?.text?.substring(0,80),negativeLikes:negativeComment?.likeCount},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
-  // #endregion
-
-  // #region agent log
-  fetch('http://127.0.0.1:7243/ingest/c8966986-f336-4967-9725-2af59d2c095d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DeepDiveTab.tsx:109',message:'FINAL display check',data:{hasPositive:!!positiveComment,hasNeutral:!!neutralComment,hasNegative:!!negativeComment,negativeText:negativeComment?.text?.substring(0,50)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
-  // #endregion
 
   const hasData = (positiveComment && positiveComment.text) || 
                   (negativeComment && negativeComment.text) || 

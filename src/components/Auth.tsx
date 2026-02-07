@@ -63,7 +63,7 @@ function Auth({ onAuthSuccess }: AuthProps) {
           }
 
           const userInfo = await userInfoResponse.json();
-
+          
           // サーバーに認証情報を送信（アクセストークンとユーザー情報を含める）
           const result = await authenticateWithGoogle(accessToken, userInfo);
 

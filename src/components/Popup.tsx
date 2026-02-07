@@ -28,6 +28,7 @@ function Popup() {
   const checkAuth = async () => {
     setLoading(true);
     const result = await verifySession();
+    
     if (result.success && result.user) {
       setUser(result.user);
       await loadCredits();
@@ -104,6 +105,7 @@ function Popup() {
 
   // 認証されていない場合は認証画面を表示
   if (loading) {
+    
     return (
       <div className="w-80 p-4 bg-gray-900 min-h-[400px]">
         <div className="text-center py-8">

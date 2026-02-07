@@ -141,6 +141,8 @@ export async function authenticateWithGoogle(
 
     if (data.success && data.sessionToken) {
       setSessionToken(data.sessionToken);
+      // chrome.storageにも保存（background.jsで使用するため）
+      chrome.storage.local.set({ sessionToken: data.sessionToken }).catch(console.error);
     }
 
     return data;

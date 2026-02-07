@@ -2,7 +2,7 @@
  * Side Panel メインコンポーネント
  */
 
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { useAnalysisStore } from '../store/analysisStore';
 import { analyzeViaServer } from '../services/apiServer';
 import LoadingView from './LoadingView';
@@ -23,25 +23,68 @@ function SidePanel() {
     setError,
   } = useAnalysisStore();
 
+  // 進捗タイマーを保存するためのref
+  const progressTimerRef = useRef<number | null>(null);
+
   const handleStartAnalysis = useCallback(
     async (videoId: string, title?: string) => {
+      // 既存のタイマーをクリーンアップ
+      if (progressTimerRef.current !== null) {
+        clearInterval(progressTimerRef.current);
+        progressTimerRef.current = null;
+      }
+
       try {
         startAnalysis(videoId, title);
 
-        // #region agent log
-        const totalStartTime = Date.now();
-        fetch('http://127.0.0.1:7243/ingest/c8966986-f336-4967-9725-2af59d2c095d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SidePanel.tsx:32',message:'Analysis request START',data:{videoId,startTime:totalStartTime},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'F'})}).catch(()=>{});
-        // #endregion
+        // 進捗シミュレーション用の変数
+        let currentProgress = 1; // 1%から開始
+        const totalProgress = 100;
+        let isAnalyzingPhase = false; // AI解析フェーズかどうか
 
-        // サーバー側で処理（コメント取得とAI解析）
-        // デフォルト値を使用: コメント数上限2000件、要約の長さmedium
+        // 進捗更新関数
+        const updateProgressTimer = () => {
+          if (!isAnalyzingPhase && currentProgress < 60) {
+            // コメント取得フェーズ（1-60%）
+            currentProgress += 2; // 2%ずつ増加
+            updateProgress({
+              stage: 'fetching',
+              message: 'サーバーで処理中...',
+              current: currentProgress,
+              total: totalProgress,
+            });
+          } else if (currentProgress < 98) {
+            // AI解析フェーズ（60-98%）
+            isAnalyzingPhase = true;
+            currentProgress += 1; // 1%ずつ増加（AI解析は時間がかかるため）
+            updateProgress({
+              stage: 'analyzing',
+              message: 'AI解析中...',
+              current: currentProgress,
+              total: totalProgress,
+            });
+          } else {
+            // 98%で停止（サーバー側の処理完了を待つ）
+            if (progressTimerRef.current !== null) {
+              clearInterval(progressTimerRef.current);
+              progressTimerRef.current = null;
+            }
+          }
+        };
+
+        // 進捗を初期化
         updateProgress({
           stage: 'fetching',
           message: 'サーバーで処理中...',
-          current: 0,
+          current: 1,
           total: 100,
         });
 
+        // 進捗タイマーを開始（300msごとに更新）
+        progressTimerRef.current = window.setInterval(updateProgressTimer, 300);
+
+        // サーバー側で処理（コメント取得とAI解析）
+        // デフォルト値を使用: コメント数上限2000件、要約の長さmedium
         const analysisResult = await analyzeViaServer(
           videoId,
           [],
@@ -49,15 +92,27 @@ function SidePanel() {
           'medium' // デフォルト: medium
         );
 
+        // サーバー側の処理が完了したら進捗を100%に設定
+        if (progressTimerRef.current !== null) {
+          clearInterval(progressTimerRef.current);
+          progressTimerRef.current = null;
+        }
+        
+        // 少し遅延を入れて100%に達するアニメーションを表示
+        await new Promise(resolve => setTimeout(resolve, 300));
+        updateProgress({
+          stage: 'analyzing',
+          message: '完了',
+          current: 100,
+          total: 100,
+        });
+        
+        // 100%表示を少し維持してから結果を表示
+        await new Promise(resolve => setTimeout(resolve, 500));
+
         // サーバーから返された結果を使用
         // analyzeViaServerはdata全体を返すので、resultプロパティを確認
         if (analysisResult.comments) {
-          // #region agent log
-          if (analysisResult.comments.length > 0) {
-            const firstThread = analysisResult.comments[0];
-            fetch('http://127.0.0.1:7243/ingest/c8966986-f336-4967-9725-2af59d2c095d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SidePanel.tsx:55',message:'Frontend received comments - first thread',data:{author:firstThread.topLevelComment?.author,hasAuthorProfileImageUrl:!!firstThread.topLevelComment?.authorProfileImageUrl,authorProfileImageUrl:firstThread.topLevelComment?.authorProfileImageUrl,topLevelCommentKeys:firstThread.topLevelComment ? Object.keys(firstThread.topLevelComment) : [],hasReplies:!!(firstThread.replies && firstThread.replies.length > 0),repliesCount:firstThread.replies?.length || 0},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
-          }
-          // #endregion
           setComments(analysisResult.comments);
         }
 
@@ -217,13 +272,14 @@ function SidePanel() {
           topics: resultData.topics,
         });
         
-        // #region agent log
-        const totalEndTime = Date.now();
-        fetch('http://127.0.0.1:7243/ingest/c8966986-f336-4967-9725-2af59d2c095d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SidePanel.tsx:212',message:'Analysis request END',data:{totalDuration:totalEndTime-totalStartTime,hasNeutralComment:!!resultData.neutralComment,neutralCommentPreview:resultData.neutralComment?.comment?.substring(0,50),commentCount:analysisResult.comments?.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'F'})}).catch(()=>{});
-        // #endregion
-        
         setResult(resultData);
       } catch (err) {
+        // エラーが発生した場合はタイマーを停止
+        if (progressTimerRef.current !== null) {
+          clearInterval(progressTimerRef.current);
+          progressTimerRef.current = null;
+        }
+
         const errorMessage =
           err instanceof Error ? err.message : '不明なエラーが発生しました';
 
@@ -239,6 +295,16 @@ function SidePanel() {
     },
     [startAnalysis, updateProgress, setComments, setResult, setError]
   );
+
+  // コンポーネントのアンマウント時にタイマーをクリーンアップ
+  useEffect(() => {
+    return () => {
+      if (progressTimerRef.current !== null) {
+        clearInterval(progressTimerRef.current);
+        progressTimerRef.current = null;
+      }
+    };
+  }, []);
 
   useEffect(() => {
     // chrome.storageの変更を監視して解析開始を検知
