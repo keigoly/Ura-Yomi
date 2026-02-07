@@ -100,7 +100,7 @@ function Auth({ onAuthSuccess }: AuthProps) {
     <div className="p-6 space-y-4">
       <div className="text-center">
         <h2 className="text-xl font-bold text-white mb-2">
-          YouTubeコメント withAI へようこそ
+          YouTubeコメント with Gemini へようこそ
         </h2>
         <p className="text-sm text-gray-400 mb-6">
           Googleアカウントでサインインして、すぐに解析を始めましょう

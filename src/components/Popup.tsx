@@ -3,8 +3,8 @@
  */
 
 import { useEffect, useState } from 'react';
-import { Settings, Play, AlertCircle, CreditCard } from 'lucide-react';
-import { getCurrentYouTubeVideo } from '../utils/youtube';
+import { Settings, Play, AlertCircle, CreditCard, Link } from 'lucide-react';
+import { getCurrentYouTubeVideo, extractVideoId } from '../utils/youtube';
 import { verifySession, getCredits, getVideoInfo } from '../services/apiServer';
 import type { User } from '../types';
 import { ANALYSIS_CREDIT_COST } from '../constants';
@@ -19,6 +19,11 @@ function Popup() {
   const [user, setUser] = useState<User | null>(null);
   const [credits, setCredits] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [urlInput, setUrlInput] = useState('');
+  const [urlLoading, setUrlLoading] = useState(false);
+
+  const urlVideoId = extractVideoId(urlInput);
+  const isValidUrl = urlVideoId !== null;
 
   useEffect(() => {
     checkAuth();
@@ -80,8 +85,10 @@ function Popup() {
     }
   };
 
-  const handleAnalyze = async () => {
-    if (!videoInfo) return;
+  const handleAnalyze = async (targetVideoId?: string, targetTitle?: string) => {
+    const vid = targetVideoId || videoInfo?.videoId;
+    const title = targetTitle || videoInfo?.title;
+    if (!vid) return;
 
     // Side Panelを開く
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -91,11 +98,25 @@ function Popup() {
       // chrome.storageを使用してSide Panelに解析開始を通知
       await chrome.storage.local.set({
         pendingAnalysis: {
-          videoId: videoInfo.videoId,
-          title: videoInfo.title,
+          videoId: vid,
+          title: title,
           timestamp: Date.now(),
         },
       });
+    }
+  };
+
+  const handleUrlAnalyze = async () => {
+    if (!urlVideoId) return;
+    setUrlLoading(true);
+    try {
+      const videoData = await getVideoInfo(urlVideoId);
+      const title = videoData.success ? videoData.title : undefined;
+      await handleAnalyze(urlVideoId, title);
+    } catch {
+      await handleAnalyze(urlVideoId);
+    } finally {
+      setUrlLoading(false);
     }
   };
 
@@ -119,7 +140,7 @@ function Popup() {
     return (
       <div className="w-80 p-4 bg-gray-900 min-h-[400px]">
         <div className="flex items-center justify-between mb-4">
-          <h1 className="text-xl font-bold text-white">YouTubeコメント withAI</h1>
+          <h1 className="text-xl font-bold text-white">YouTubeコメント with Gemini</h1>
         </div>
         <Auth onAuthSuccess={handleAuthSuccess} />
       </div>
@@ -132,7 +153,7 @@ function Popup() {
     <div className="w-80 p-4 bg-gray-900 min-h-[400px]">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-xl font-bold text-white">YouTubeコメント withAI</h1>
+        <h1 className="text-xl font-bold text-white">YouTubeコメント with Gemini</h1>
         <div className="flex items-center gap-2">
           {credits !== null && (
             <div className="flex items-center gap-1 px-2 py-1 bg-gray-700 rounded-lg">
@@ -174,7 +195,7 @@ function Popup() {
 
           {/* Analyze Button */}
           <button
-            onClick={handleAnalyze}
+            onClick={() => handleAnalyze()}
             disabled={hasInsufficientCredits}
             className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -210,10 +231,37 @@ function Popup() {
           )}
         </div>
       ) : (
-        <div className="text-center py-8">
-          <p className="text-gray-400 text-sm">
+        <div className="space-y-4">
+          <p className="text-gray-400 text-sm text-center">
             YouTube動画ページを開いてください
           </p>
+          <div className="flex items-center gap-2 text-gray-500 text-xs">
+            <div className="flex-1 border-t border-gray-700" />
+            <span>またはURLを貼り付け</span>
+            <div className="flex-1 border-t border-gray-700" />
+          </div>
+          <div className="relative">
+            <Link className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+            <input
+              type="text"
+              value={urlInput}
+              onChange={(e) => setUrlInput(e.target.value)}
+              placeholder="https://www.youtube.com/watch?v=..."
+              className="w-full pl-9 pr-3 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
+            />
+          </div>
+          <button
+            onClick={handleUrlAnalyze}
+            disabled={!isValidUrl || hasInsufficientCredits || urlLoading}
+            className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-all ${
+              isValidUrl && !hasInsufficientCredits
+                ? 'bg-blue-600 text-white hover:bg-blue-700 cursor-pointer'
+                : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+            }`}
+          >
+            <Play className="w-5 h-5" />
+            {urlLoading ? '読み込み中...' : `解析を開始する (${ANALYSIS_CREDIT_COST}クレジット)`}
+          </button>
         </div>
       )}
     </div>

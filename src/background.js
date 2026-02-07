@@ -1,6 +1,6 @@
 // Service Worker for Chrome Extension
 chrome.runtime.onInstalled.addListener(() => {
-  console.log('YouTubeコメントwithAI installed');
+  console.log('YouTubeコメントwith Gemini installed');
 });
 
 // Content Scriptからのメッセージを処理

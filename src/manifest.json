@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "YouTubeコメントwithAI",
+  "name": "YouTubeコメントwith Gemini",
   "version": "1.0.1",
   "description": "YouTube動画のコメントをAIで解析し、真の価値と本音を可視化する",
   "permissions": [
