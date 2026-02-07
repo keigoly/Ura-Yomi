@@ -81,14 +81,18 @@ function addAnalyzeButton() {
   // ボタンを作成
   const button = document.createElement('button');
   button.id = 'youtube-comment-analyzer-btn';
-  
+  button.title = '解析を開始する';
+
   // ボタンの内部構造を作成
   const buttonContent = document.createElement('div');
   buttonContent.style.cssText = `
     display: flex;
     align-items: center;
     gap: 8px;
-    width: 100%;
+    background: #0f0f0f;
+    border-radius: 16px;
+    padding: 6px 14px;
+    line-height: 1;
   `;
   
   // Geminiアイコンを追加
@@ -96,9 +100,11 @@ function addAnalyzeButton() {
   icon.src = chrome.runtime.getURL('icons/gemini-icon.png');
   icon.alt = 'Gemini';
   icon.style.cssText = `
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
     flex-shrink: 0;
+    vertical-align: middle;
+    display: block;
   `;
   buttonContent.appendChild(icon);
   
@@ -106,15 +112,23 @@ function addAnalyzeButton() {
   const textSpan = document.createElement('span');
   textSpan.textContent = '解析を開始';
   textSpan.id = 'youtube-comment-analyzer-text';
+  textSpan.style.cssText = `
+    line-height: 1;
+    display: flex;
+    align-items: center;
+  `;
   buttonContent.appendChild(textSpan);
   
   // クレジット数表示部分
   const creditsSpan = document.createElement('span');
   creditsSpan.id = 'youtube-comment-analyzer-credits';
   creditsSpan.style.cssText = `
-    margin-left: auto;
     font-size: 12px;
+    font-weight: 600;
     opacity: 0.9;
+    line-height: 1;
+    display: flex;
+    align-items: center;
   `;
   buttonContent.appendChild(creditsSpan);
   
@@ -122,20 +136,19 @@ function addAnalyzeButton() {
   
   button.style.cssText = `
     margin-left: 0;
-    padding: 8px 16px;
-    background-color: #2563eb;
+    padding: 2px;
+    background: conic-gradient(from 180deg, #0000FF, #00FFFF, #00FF00, #FFFF00, #FF8C00, #FF0000, #0000FF);
     color: white;
     border: none;
-    border-radius: 18px;
-    font-size: 14px;
-    font-weight: 500;
+    border-radius: 19px;
+    font-size: 13px;
+    font-weight: 600;
     cursor: pointer;
-    transition: background-color 0.2s;
+    transition: filter 0.2s, box-shadow 0.2s;
     display: inline-flex;
     align-items: center;
     white-space: nowrap;
     flex-shrink: 0;
-    min-width: 140px;
   `;
   
   // クレジット数を取得して表示
@@ -146,12 +159,27 @@ function addAnalyzeButton() {
     updateCreditsDisplay(creditsSpan);
   }, 30000);
 
-  // ホバー効果
+  // ホバー効果 + 親要素のaria-labelツールチップ抑制
+  let savedAriaLabel: string | null = null;
   button.addEventListener('mouseenter', () => {
-    button.style.backgroundColor = '#1d4ed8';
+    button.style.filter = 'brightness(1.3)';
+    button.style.boxShadow = '0 0 12px 2px rgba(100, 100, 255, 0.5)';
+    // 親のtp-yt-paper-buttonのaria-labelを一時的に除去してツールチップを抑制
+    const parentLabel = button.closest('#trigger')?.querySelector('[aria-label]') as HTMLElement | null;
+    if (parentLabel) {
+      savedAriaLabel = parentLabel.getAttribute('aria-label');
+      parentLabel.removeAttribute('aria-label');
+    }
   });
   button.addEventListener('mouseleave', () => {
-    button.style.backgroundColor = '#2563eb';
+    button.style.filter = 'none';
+    button.style.boxShadow = 'none';
+    // 親のaria-labelを復元
+    const parentLabel = button.closest('#trigger')?.querySelector('tp-yt-paper-button') as HTMLElement | null;
+    if (parentLabel && savedAriaLabel) {
+      parentLabel.setAttribute('aria-label', savedAriaLabel);
+      savedAriaLabel = null;
+    }
   });
 
   // クリックイベント
