@@ -120,8 +120,12 @@ function Popup() {
     }
   };
 
-  const handleSettings = () => {
-    chrome.tabs.create({ url: chrome.runtime.getURL('settings.html') });
+  const handleSettings = async () => {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab.id && tab.windowId !== undefined) {
+      await chrome.sidePanel.open({ windowId: tab.windowId });
+      await chrome.storage.local.set({ openSettings: true });
+    }
   };
 
   // 認証されていない場合は認証画面を表示

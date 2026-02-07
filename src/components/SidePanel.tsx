@@ -2,13 +2,15 @@
  * Side Panel メインコンポーネント
  */
 
-import { useEffect, useCallback, useRef } from 'react';
+import { useEffect, useCallback, useRef, useState } from 'react';
 import { useAnalysisStore } from '../store/analysisStore';
 import { analyzeViaServer } from '../services/apiServer';
 import LoadingView from './LoadingView';
 import ResultDashboard from './ResultDashboard';
+import SettingsView from './SettingsView';
 
 function SidePanel() {
+  const [showSettings, setShowSettings] = useState(false);
   const {
     isAnalyzing,
     progress,
@@ -318,8 +320,18 @@ function SidePanel() {
       }
     };
 
+    // 設定画面を開くリクエストがあるか確認
+    const checkOpenSettings = async () => {
+      const result = await chrome.storage.local.get(['openSettings']);
+      if (result.openSettings) {
+        await chrome.storage.local.remove(['openSettings']);
+        setShowSettings(true);
+      }
+    };
+
     // 初回チェック
     checkPendingAnalysis();
+    checkOpenSettings();
 
     // storage変更を監視
     const handleStorageChange = (changes: {
@@ -328,7 +340,12 @@ function SidePanel() {
       if (changes.pendingAnalysis?.newValue) {
         const { videoId, title } = changes.pendingAnalysis.newValue;
         chrome.storage.local.remove(['pendingAnalysis']);
+        setShowSettings(false);
         handleStartAnalysis(videoId, title);
+      }
+      if (changes.openSettings?.newValue) {
+        chrome.storage.local.remove(['openSettings']);
+        setShowSettings(true);
       }
     };
 
@@ -340,8 +357,12 @@ function SidePanel() {
   }, [handleStartAnalysis]);
 
   const handleOpenSettings = () => {
-    chrome.tabs.create({ url: chrome.runtime.getURL('settings.html') });
+    setShowSettings(true);
   };
+
+  if (showSettings) {
+    return <SettingsView onBack={() => setShowSettings(false)} />;
+  }
 
   if (error) {
     const isApiKeyError = error.includes('API Key');
