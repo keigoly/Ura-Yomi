@@ -160,9 +160,14 @@ function Popup() {
         <h1 className="text-xl font-bold text-white">YouTubeコメント with Gemini</h1>
         <div className="flex items-center gap-2">
           {credits !== null && (
-            <div className="flex items-center gap-1 px-2 py-1 bg-gray-700 rounded-lg">
-              <CreditCard className="w-4 h-4 text-gray-300" />
-              <span className="text-xs font-medium text-white">{credits}</span>
+            <div
+              className="rounded-full p-[1.5px]"
+              style={{ background: 'conic-gradient(from 180deg, #0000FF, #00FFFF, #00FF00, #FFFF00, #FF8C00, #FF0000, #0000FF)' }}
+            >
+              <div className="flex items-center gap-1 px-2.5 py-1 bg-[#0f0f0f] rounded-full">
+                <CreditCard className="w-3.5 h-3.5 text-gray-300" />
+                <span className="text-xs font-bold text-white">{credits}</span>
+              </div>
             </div>
           )}
           <button
@@ -201,10 +206,17 @@ function Popup() {
           <button
             onClick={() => handleAnalyze()}
             disabled={hasInsufficientCredits}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            className={`w-full rounded-[20px] p-[2px] transition-all ${
+              hasInsufficientCredits
+                ? 'opacity-40 cursor-not-allowed'
+                : 'cursor-pointer hover:brightness-125 hover:shadow-[0_0_12px_2px_rgba(100,100,255,0.5)]'
+            }`}
+            style={{ background: 'conic-gradient(from 180deg, #0000FF, #00FFFF, #00FF00, #FFFF00, #FF8C00, #FF0000, #0000FF)' }}
           >
-            <Play className="w-5 h-5" />
-            解析を開始する ({ANALYSIS_CREDIT_COST}クレジット)
+            <div className="flex items-center justify-center gap-2 px-4 py-3 bg-[#0f0f0f] rounded-[18px] text-white font-semibold">
+              <Play className="w-5 h-5" />
+              解析を開始する ({ANALYSIS_CREDIT_COST}クレジット)
+            </div>
           </button>
 
           {/* Insufficient Credits Warning */}
@@ -257,14 +269,17 @@ function Popup() {
           <button
             onClick={handleUrlAnalyze}
             disabled={!isValidUrl || hasInsufficientCredits || urlLoading}
-            className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-all ${
+            className={`w-full rounded-[20px] p-[2px] transition-all ${
               isValidUrl && !hasInsufficientCredits
-                ? 'bg-blue-600 text-white hover:bg-blue-700 cursor-pointer'
-                : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                ? 'cursor-pointer hover:brightness-125 hover:shadow-[0_0_12px_2px_rgba(100,100,255,0.5)]'
+                : 'opacity-40 cursor-not-allowed'
             }`}
+            style={{ background: 'conic-gradient(from 180deg, #0000FF, #00FFFF, #00FF00, #FFFF00, #FF8C00, #FF0000, #0000FF)' }}
           >
-            <Play className="w-5 h-5" />
-            {urlLoading ? '読み込み中...' : `解析を開始する (${ANALYSIS_CREDIT_COST}クレジット)`}
+            <div className={`flex items-center justify-center gap-2 px-4 py-3 bg-[#0f0f0f] rounded-[18px] font-semibold ${isValidUrl && !hasInsufficientCredits ? 'text-white' : 'text-gray-500'}`}>
+              <Play className="w-5 h-5" />
+              {urlLoading ? '読み込み中...' : `解析を開始する (${ANALYSIS_CREDIT_COST}クレジット)`}
+            </div>
           </button>
         </div>
       )}

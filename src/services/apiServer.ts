@@ -203,7 +203,9 @@ export async function analyzeViaServer(
   videoId: string,
   comments: any[],
   commentLimit?: number,
-  summaryLength?: string
+  summaryLength?: string,
+  signal?: AbortSignal,
+  language?: string
 ): Promise<any> {
   const sessionToken = getSessionToken();
   if (!sessionToken) {
@@ -218,7 +220,9 @@ export async function analyzeViaServer(
         comments,
         commentLimit,
         summaryLength,
+        language,
       }),
+      signal,
     });
 
     if (!data.success) {

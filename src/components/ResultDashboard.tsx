@@ -3,9 +3,10 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
-import { FileDown, Copy, Check, Moon, Sun, Menu, X } from 'lucide-react';
+import { FileDown, Copy, Check, Menu, X, ArrowLeft, Bookmark } from 'lucide-react';
 import type { AnalysisResult, VideoInfo, YouTubeCommentThread } from '../types';
-import { useThemeStore } from '../store/themeStore';
+import { useDesignStore, BG_COLORS, isLightMode } from '../store/designStore';
+import { useTranslation } from '../i18n/useTranslation';
 import SummaryTab from './tabs/SummaryTab';
 import DeepDiveTab from './tabs/DeepDiveTab';
 import CommentsTab from './tabs/CommentsTab';
@@ -19,19 +20,21 @@ interface ResultDashboardProps {
   result: AnalysisResult;
   videoInfo: VideoInfo | null;
   comments: YouTubeCommentThread[];
+  onBack?: () => void;
+  onSave?: () => void;
 }
 
-function ResultDashboard({ result, videoInfo, comments }: ResultDashboardProps) {
+function ResultDashboard({ result, videoInfo, comments, onBack, onSave }: ResultDashboardProps) {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<TabType>('summary');
   const [copied, setCopied] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  const { theme, toggleTheme } = useThemeStore();
-
-  // テーマをbodyに適用
-  useEffect(() => {
-    document.documentElement.classList.toggle('dark', theme === 'dark');
-  }, [theme]);
+  const { fontSize, bgMode } = useDesignStore();
+  const bgColor = BG_COLORS[bgMode];
+  const isLight = isLightMode(bgMode);
 
   // メニューの外側をクリックしたら閉じる
   useEffect(() => {
@@ -51,20 +54,20 @@ function ResultDashboard({ result, videoInfo, comments }: ResultDashboardProps) 
   }, [menuOpen]);
 
 
+  const showToast = (message: string) => {
+    setToast(message);
+    setTimeout(() => setToast(null), 2000);
+  };
+
   const handleCopySummary = async () => {
     await navigator.clipboard.writeText(result.summary);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-    setMenuOpen(false); // メニューを閉じる
-  };
-
-  const handleToggleTheme = () => {
-    toggleTheme();
-    setMenuOpen(false); // メニューを閉じる
+    setMenuOpen(false);
+    showToast(t('result.toastCopied'));
   };
 
   const handleExportJson = () => {
-    // 既存のhandleExportJsonの処理をここに移動
     const allComments: Array<{
       id: string;
       text: string;
@@ -135,40 +138,56 @@ function ResultDashboard({ result, videoInfo, comments }: ResultDashboardProps) 
     a.download = `youtube-comments-with-ai-analysis-${videoInfo?.videoId || 'unknown'}-${Date.now()}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    setMenuOpen(false); // メニューを閉じる
+    setMenuOpen(false);
+  };
+
+  const handleSave = () => {
+    if (onSave) {
+      onSave();
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+      showToast(t('result.toastSaved'));
+    }
+    setMenuOpen(false);
   };
 
   const tabs: { id: TabType; label: string }[] = [
-    { id: 'summary', label: '要約' },
-    { id: 'deepdive', label: '深掘り' },
-    { id: 'comments', label: `コメント一覧 (${comments.length})` },
+    { id: 'summary', label: t('result.tabSummary') },
+    { id: 'deepdive', label: t('result.tabDeepDive') },
+    { id: 'comments', label: `${t('result.tabComments')} (${comments.length})` },
   ];
 
   return (
-    <div 
-      className={`h-full flex flex-col ${theme === 'dark' ? 'bg-[#0f0f0f]' : 'bg-white'}`}
-      style={{ height: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
+    <div
+      className="h-full flex flex-col"
+      style={{ height: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column', fontSize: `${fontSize}px`, backgroundColor: bgColor }}
     >
       {/* Header - 固定 */}
-      <div 
-        className={`p-4 border-b ${theme === 'dark' ? 'bg-[#0f0f0f] border-gray-800' : 'bg-white border-gray-200'}`}
-        style={{ flexShrink: 0 }}
+      <div
+        className={`p-4 border-b ${isLight ? 'border-gray-200' : 'border-gray-800'}`}
+        style={{ flexShrink: 0, backgroundColor: bgColor }}
       >
         {/* 解析結果タイトルとハンバーガーメニューを同じ行に配置 */}
         <div className="flex items-center justify-between mb-2">
-          <h2 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
-            解析結果
-          </h2>
+          <div className="flex items-center gap-3">
+            {onBack && (
+              <button
+                onClick={onBack}
+                className={`p-1.5 rounded-lg transition-colors ${isLight ? 'hover:bg-gray-100' : 'hover:bg-gray-800'}`}
+              >
+                <ArrowLeft className={`w-5 h-5 ${isLight ? 'text-gray-600' : 'text-gray-300'}`} />
+              </button>
+            )}
+            <h2 className={`text-xl font-bold ${isLight ? 'text-gray-900' : 'text-white'}`}>
+              {t('result.title')}
+            </h2>
+          </div>
           {/* ハンバーガーメニュー */}
           <div className="relative" ref={menuRef}>
             <button
               onClick={() => setMenuOpen(!menuOpen)}
-              className={`p-2 rounded-lg transition-colors ${
-                theme === 'dark' 
-                  ? 'hover:bg-gray-800 text-gray-300' 
-                  : 'hover:bg-gray-100 text-gray-600'
-              }`}
-              title="メニュー"
+              className={`p-2 rounded-lg transition-colors ${isLight ? 'hover:bg-gray-100 text-gray-600' : 'hover:bg-gray-800 text-gray-300'}`}
+              title={t('result.menu')}
             >
               {menuOpen ? (
                 <X className="w-5 h-5" />
@@ -179,62 +198,30 @@ function ResultDashboard({ result, videoInfo, comments }: ResultDashboardProps) 
 
             {/* ドロップダウンメニュー */}
             {menuOpen && (
-              <div 
-                className={`absolute right-0 top-full mt-2 w-48 rounded-lg shadow-2xl border z-[100] ${
-                  theme === 'dark' 
-                    ? 'border-gray-700' 
-                    : 'border-gray-200'
-                }`}
-                style={{ 
-                  backgroundColor: theme === 'dark' ? '#1f2937' : '#ffffff',
+              <div
+                className={`absolute right-0 top-full mt-2 w-48 rounded-lg shadow-2xl border z-[100] ${isLight ? 'border-gray-200' : 'border-gray-700'}`}
+                style={{
+                  backgroundColor: isLight ? '#ffffff' : '#1f2937',
                   opacity: 1,
                   backdropFilter: 'none',
-                  boxShadow: theme === 'dark' 
-                    ? '0 10px 25px rgba(0, 0, 0, 0.5)' 
-                    : '0 10px 25px rgba(0, 0, 0, 0.15)'
+                  boxShadow: isLight ? '0 10px 25px rgba(0, 0, 0, 0.15)' : '0 10px 25px rgba(0, 0, 0, 0.5)'
                 }}
               >
                 <div className="py-1">
-                  {/* ライトモード/ダークモード切り替え */}
-                  <button
-                    onClick={handleToggleTheme}
-                    className={`w-full px-4 py-2 text-left flex items-center gap-3 transition-colors ${
-                      theme === 'dark' 
-                        ? 'hover:bg-gray-700 text-gray-200' 
-                        : 'hover:bg-gray-100 text-gray-700'
-                    }`}
-                  >
-                    {theme === 'dark' ? (
-                      <>
-                        <Sun className="w-4 h-4" />
-                        <span className="text-sm">ライトモードに切り替え</span>
-                      </>
-                    ) : (
-                      <>
-                        <Moon className="w-4 h-4" />
-                        <span className="text-sm">ダークモードに切り替え</span>
-                      </>
-                    )}
-                  </button>
-
                   {/* 要約をコピー */}
                   <button
                     onClick={handleCopySummary}
-                    className={`w-full px-4 py-2 text-left flex items-center gap-3 transition-colors ${
-                      theme === 'dark' 
-                        ? 'hover:bg-gray-700 text-gray-200' 
-                        : 'hover:bg-gray-100 text-gray-700'
-                    }`}
+                    className={`w-full px-4 py-2 text-left flex items-center gap-3 transition-colors ${isLight ? 'hover:bg-gray-100 text-gray-700' : 'hover:bg-gray-700 text-gray-200'}`}
                   >
                     {copied ? (
                       <>
                         <Check className="w-4 h-4 text-green-500" />
-                        <span className="text-sm">コピーしました</span>
+                        <span className="text-sm">{t('result.copied')}</span>
                       </>
                     ) : (
                       <>
                         <Copy className="w-4 h-4" />
-                        <span className="text-sm">要約をコピー</span>
+                        <span className="text-sm">{t('result.copySummary')}</span>
                       </>
                     )}
                   </button>
@@ -242,33 +229,49 @@ function ResultDashboard({ result, videoInfo, comments }: ResultDashboardProps) 
                   {/* JSONでエクスポート */}
                   <button
                     onClick={handleExportJson}
-                    className={`w-full px-4 py-2 text-left flex items-center gap-3 transition-colors ${
-                      theme === 'dark' 
-                        ? 'hover:bg-gray-700 text-gray-200' 
-                        : 'hover:bg-gray-100 text-gray-700'
-                    }`}
+                    className={`w-full px-4 py-2 text-left flex items-center gap-3 transition-colors ${isLight ? 'hover:bg-gray-100 text-gray-700' : 'hover:bg-gray-700 text-gray-200'}`}
                   >
                     <FileDown className="w-4 h-4" />
-                    <span className="text-sm">JSONでエクスポート</span>
+                    <span className="text-sm">{t('result.exportJson')}</span>
                   </button>
+
+                  {/* 解析結果を保存 */}
+                  {onSave && (
+                    <button
+                      onClick={handleSave}
+                      className={`w-full px-4 py-2 text-left flex items-center gap-3 transition-colors ${isLight ? 'hover:bg-gray-100 text-gray-700' : 'hover:bg-gray-700 text-gray-200'}`}
+                    >
+                      {saved ? (
+                        <>
+                          <Check className="w-4 h-4 text-green-500" />
+                          <span className="text-sm">{t('result.saved')}</span>
+                        </>
+                      ) : (
+                        <>
+                          <Bookmark className="w-4 h-4" />
+                          <span className="text-sm">{t('result.saveResult')}</span>
+                        </>
+                      )}
+                    </button>
+                  )}
                 </div>
               </div>
             )}
           </div>
         </div>
-        
+
         {/* 動画情報（2行目） */}
         {videoInfo && (
-          <p className={`text-sm mt-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-            {videoInfo.title || videoInfo.videoId} ({comments.length.toLocaleString()}件のコメント)
+          <p className={`text-sm mt-1 ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>
+            {videoInfo.title || videoInfo.videoId} ({comments.length.toLocaleString()}{t('result.commentsCount')})
           </p>
         )}
       </div>
 
       {/* Tabs - 固定 */}
-      <div 
-        className={`flex justify-center border-b ${theme === 'dark' ? 'bg-[#0f0f0f] border-gray-800' : 'bg-white border-gray-200'}`}
-        style={{ flexShrink: 0, position: 'sticky', top: 0, zIndex: 10 }}
+      <div
+        className={`flex justify-center border-b ${isLight ? 'border-gray-200' : 'border-gray-800'}`}
+        style={{ flexShrink: 0, position: 'sticky', top: 0, zIndex: 10, backgroundColor: bgColor }}
       >
         {tabs.map((tab) => (
           <button
@@ -276,38 +279,43 @@ function ResultDashboard({ result, videoInfo, comments }: ResultDashboardProps) 
             onClick={() => setActiveTab(tab.id)}
             className={`px-6 py-3 font-medium transition-colors relative ${
               activeTab === tab.id
-                ? theme === 'dark'
-                  ? 'text-blue-400'
-                  : 'text-blue-600'
-                : theme === 'dark'
-                  ? 'text-gray-400 hover:text-gray-200'
-                  : 'text-gray-600 hover:text-gray-800'
+                ? 'text-blue-500'
+                : isLight ? 'text-gray-500 hover:text-gray-700' : 'text-gray-400 hover:text-gray-200'
             }`}
           >
             {tab.label}
             {activeTab === tab.id && (
-              <div className={`absolute bottom-0 left-0 right-0 h-0.5 ${
-                theme === 'dark' ? 'bg-blue-400' : 'bg-blue-600'
-              }`} />
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-400" />
             )}
           </button>
         ))}
       </div>
 
       {/* Tab Content - スクロール可能 */}
-      <div 
-        className={`flex-1 ${theme === 'dark' ? 'bg-[#0f0f0f]' : 'bg-white'}`}
-        style={{ 
+      <div
+        className="flex-1"
+        style={{
           overflowY: 'auto',
           overflowX: 'hidden',
           minHeight: 0,
-          flex: '1 1 auto'
+          flex: '1 1 auto',
+          backgroundColor: bgColor,
         }}
       >
         {activeTab === 'summary' && <SummaryTab result={result} />}
         {activeTab === 'deepdive' && <DeepDiveTab comments={comments} result={result} />}
         {activeTab === 'comments' && <CommentsTab comments={comments} />}
       </div>
+
+      {/* トースト通知 */}
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] animate-toast-in">
+          <div className={`flex items-center gap-2 px-4 py-2.5 rounded-lg shadow-lg text-sm font-medium ${isLight ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-900'}`}>
+            <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
+            {toast}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

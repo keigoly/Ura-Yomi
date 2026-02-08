@@ -3,64 +3,55 @@
  */
 
 import { useEffect, useState, useRef } from 'react';
-import { X } from 'lucide-react';
-import { useAnalysisStore } from '../store/analysisStore';
-import { useThemeStore } from '../store/themeStore';
+import { StopCircle } from 'lucide-react';
+import { useDesignStore, BG_COLORS, isLightMode } from '../store/designStore';
+import { useTranslation } from '../i18n/useTranslation';
 import type { AnalysisProgress, AnalysisStage } from '../types';
 
 interface LoadingViewProps {
   progress: AnalysisProgress;
+  onCancel: () => void;
 }
 
-/**
- * ステージ表示ラベル
- */
-const STAGE_LABELS: Record<AnalysisStage, string> = {
-  fetching: 'コメント取得中',
-  analyzing: 'AI解析中',
-  complete: '完了',
-};
-
-function LoadingView({ progress }: LoadingViewProps) {
-  const { reset } = useAnalysisStore();
-  const { theme } = useThemeStore();
+function LoadingView({ progress, onCancel }: LoadingViewProps) {
+  const { t } = useTranslation();
+  const { fontSize, bgMode } = useDesignStore();
+  const isLight = isLightMode(bgMode);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [showOverloadMessage, setShowOverloadMessage] = useState(false);
   const startTimeRef = useRef<number | null>(null);
   const timerRef = useRef<number | null>(null);
 
+  const STAGE_LABELS: Record<AnalysisStage, string> = {
+    fetching: t('loading.fetching'),
+    analyzing: t('loading.analyzing'),
+    complete: t('loading.complete'),
+  };
+
   // 進捗率を計算（1%から100%）
-  const percentage = progress.total > 0 
+  const percentage = progress.total > 0
     ? Math.max(1, Math.min(100, Math.round((progress.current / progress.total) * 100)))
     : 1;
-
-  // テーマをbodyに適用
-  useEffect(() => {
-    document.documentElement.classList.toggle('dark', theme === 'dark');
-  }, [theme]);
 
   // 過負荷状態の検出（analyzingステージで20秒経過）
   useEffect(() => {
     if (progress.stage === 'analyzing') {
-      // 解析開始時刻を記録
       if (startTimeRef.current === null) {
         startTimeRef.current = Date.now();
         setShowOverloadMessage(false);
       }
 
-      // 20秒経過をチェック
       const checkOverload = () => {
         if (startTimeRef.current !== null) {
           const elapsed = Date.now() - startTimeRef.current;
           if (elapsed > 20000) {
-            // 20秒（20000ミリ秒）を超えたらメッセージを表示
             setShowOverloadMessage(true);
           }
         }
       };
 
-      // 定期的にチェック（1秒ごと）
       timerRef.current = setInterval(checkOverload, 1000);
-      checkOverload(); // 即座にチェック
+      checkOverload();
 
       return () => {
         if (timerRef.current) {
@@ -69,7 +60,6 @@ function LoadingView({ progress }: LoadingViewProps) {
         }
       };
     } else {
-      // analyzingステージでない場合はリセット
       startTimeRef.current = null;
       setShowOverloadMessage(false);
       if (timerRef.current) {
@@ -79,71 +69,79 @@ function LoadingView({ progress }: LoadingViewProps) {
     }
   }, [progress.stage]);
 
-  const isDark = theme === 'dark';
-
   return (
-    <div className={`min-h-screen flex flex-col items-center justify-center p-6 relative ${
-      isDark ? 'bg-[#0f0f0f]' : 'bg-gray-100'
-    }`}>
-      {/* 閉じるボタン（右上） */}
-      <button
-        onClick={reset}
-        className={`absolute top-4 right-4 p-1.5 rounded-lg transition-colors ${
-          isDark 
-            ? 'hover:bg-gray-800 text-gray-300' 
-            : 'hover:bg-gray-100 text-gray-600'
-        }`}
-        title="キャンセル"
-      >
-        <X className="w-5 h-5" />
-      </button>
-
-      {/* 中央揃えのコンテンツ */}
-      <div className={`flex flex-col items-center justify-center space-y-6 ${
-        isDark ? 'text-white' : 'text-gray-800'
-      }`}>
-        {/* タイトル（中央揃え） */}
-        <h2 className={`text-xl font-bold text-center ${isDark ? 'text-white' : 'text-gray-800'}`}>
+    <div
+      className="min-h-screen flex flex-col items-center justify-center p-6 relative"
+      style={{ backgroundColor: BG_COLORS[bgMode], fontSize: `${fontSize}px` }}
+    >
+      <div className={`flex flex-col items-center justify-center space-y-6 ${isLight ? 'text-gray-900' : 'text-white'}`}>
+        <h2 className={`text-xl font-bold text-center ${isLight ? 'text-gray-900' : 'text-white'}`}>
           {STAGE_LABELS[progress.stage]}
         </h2>
 
-        {/* ローダーアニメーション（中央、大きく） */}
         <div className="flex justify-center">
           <div className="loader"></div>
         </div>
 
-        {/* Now Loadingメッセージ（中央揃え、アニメーション付き） */}
         <div className="flex flex-col items-center">
-          <span className={`now-loading-text text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+          <span className={`now-loading-text text-sm ${isLight ? 'text-gray-500' : 'text-gray-300'}`}>
             Now Loading
           </span>
         </div>
 
-        {/* プログレスバー（進捗に応じて変化、アニメーション付き、サイズ固定） */}
-        <div className={`w-full max-w-2xl rounded-full h-4 overflow-hidden ${
-          isDark ? 'bg-gray-800' : 'bg-gray-200'
-        }`} style={{ minHeight: '1rem' }}>
-          <div 
+        <div className={`w-full max-w-2xl rounded-full h-4 overflow-hidden ${isLight ? 'bg-gray-200' : 'bg-gray-800'}`} style={{ minHeight: '1rem' }}>
+          <div
             className="progress-bar-loader h-full rounded-full transition-all duration-300 ease-out"
             style={{ width: `${percentage}%`, minWidth: percentage > 0 ? '4px' : '0' }}
           ></div>
         </div>
 
-        {/* 過負荷状態のメッセージ（analyzingステージで20秒経過後） */}
         {progress.stage === 'analyzing' && showOverloadMessage && (
-          <div className={`mt-3 p-3 rounded-lg ${
-            isDark 
-              ? 'bg-yellow-900/30 border border-yellow-700' 
-              : 'bg-yellow-50 border border-yellow-200'
-          }`}>
-            <p className={`text-xs leading-relaxed text-center ${
-              isDark ? 'text-yellow-300' : 'text-yellow-800'
-            }`}>
-              ⚠️ Geminiの要約に時間がかかっております。今しばらくお待ちください
+          <div className={`mt-3 p-3 rounded-lg border ${isLight ? 'bg-yellow-50 border-yellow-300' : 'bg-yellow-900/30 border-yellow-700'}`}>
+            <p className={`text-xs leading-relaxed text-center ${isLight ? 'text-yellow-700' : 'text-yellow-300'}`}>
+              {t('loading.overload')}
             </p>
           </div>
         )}
+
+        <button
+          onClick={() => setShowCancelDialog(true)}
+          className="mt-8 flex items-center justify-center gap-2 px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+        >
+          <StopCircle className="w-5 h-5" />
+          {t('loading.cancel')}
+        </button>
       </div>
+
+      {showCancelDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)' }}>
+          <div className={`mx-4 w-full max-w-xs rounded-xl p-6 shadow-2xl ${isLight ? 'bg-white' : 'bg-gray-800'}`}>
+            <p className={`text-center font-semibold mb-1 ${isLight ? 'text-gray-900' : 'text-white'}`}>
+              {t('loading.confirmCancel')}
+            </p>
+            <p className={`text-center text-xs mb-6 ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>
+              {t('loading.creditWarning')}
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowCancelDialog(false)}
+                className={`flex-1 py-2.5 rounded-lg font-medium transition-colors ${isLight ? 'bg-gray-100 text-gray-700 hover:bg-gray-200' : 'bg-gray-700 text-gray-200 hover:bg-gray-600'}`}
+              >
+                {t('loading.no')}
+              </button>
+              <button
+                onClick={() => {
+                  setShowCancelDialog(false);
+                  onCancel();
+                }}
+                className="flex-1 py-2.5 rounded-lg font-medium bg-red-600 text-white hover:bg-red-700 transition-colors"
+              >
+                {t('loading.yes')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

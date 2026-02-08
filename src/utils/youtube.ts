@@ -18,20 +18,24 @@ export async function getCurrentYouTubeVideo(): Promise<YouTubeVideoInfo | null>
   }
 
   const url = new URL(tab.url);
-  if (url.hostname !== 'www.youtube.com' || url.pathname !== '/watch') {
+  if (url.hostname !== 'www.youtube.com') {
     return null;
   }
 
-  const videoId = url.searchParams.get('v');
-  if (!videoId) {
-    return null;
+  // 通常動画 (/watch?v=...)
+  if (url.pathname === '/watch') {
+    const videoId = url.searchParams.get('v');
+    if (!videoId) return null;
+    return { videoId, title: tab.title || undefined, url: tab.url };
   }
 
-  return {
-    videoId,
-    title: tab.title || undefined,
-    url: tab.url,
-  };
+  // ショート動画 (/shorts/VIDEO_ID)
+  const shortsMatch = url.pathname.match(/^\/shorts\/([a-zA-Z0-9_-]+)/);
+  if (shortsMatch) {
+    return { videoId: shortsMatch[1], title: tab.title || undefined, url: tab.url };
+  }
+
+  return null;
 }
 
 /**
@@ -45,6 +49,11 @@ export function extractVideoId(url: string): string | null {
     if (urlObj.hostname === 'www.youtube.com' || urlObj.hostname === 'youtube.com') {
       if (urlObj.pathname === '/watch') {
         return urlObj.searchParams.get('v');
+      }
+      // ショート動画 (/shorts/VIDEO_ID)
+      const shortsMatch = urlObj.pathname.match(/^\/shorts\/([a-zA-Z0-9_-]+)/);
+      if (shortsMatch) {
+        return shortsMatch[1];
       }
       if (urlObj.pathname.startsWith('/embed/')) {
         return urlObj.pathname.split('/embed/')[1];

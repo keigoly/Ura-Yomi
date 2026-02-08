@@ -3,8 +3,9 @@
  */
 
 import { useState } from 'react';
-import { useThemeStore } from '../../store/themeStore';
 import type { AnalysisResult } from '../../types';
+import { useDesignStore, isLightMode } from '../../store/designStore';
+import { useTranslation } from '../../i18n/useTranslation';
 
 interface SummaryTabProps {
   result: AnalysisResult;
@@ -16,7 +17,7 @@ interface SummaryTabProps {
  */
 function formatSummary(summary: string): string {
   if (!summary || typeof summary !== 'string') {
-    return '要約がありません';
+    return '';
   }
 
   let text = summary.trim();
@@ -51,9 +52,9 @@ function formatSummary(summary: string): string {
       let jsonText = text;
       jsonText = jsonText.replace(/,\s*([}\]])/g, '$1'); // 末尾の余分なカンマを削除
       jsonText = jsonText.replace(/([,\[])\s*([}\]])/g, '$1$2'); // 空の配列/オブジェクトの修正
-      
+
       const parsed = JSON.parse(jsonText);
-      
+
       // summaryフィールドがある場合はそれを使用
       if (parsed.summary && typeof parsed.summary === 'string') {
         // エスケープシーケンスを実際の改行に変換
@@ -62,7 +63,7 @@ function formatSummary(summary: string): string {
         summaryText = summaryText.replace(/\n{3,}/g, '\n\n');
         return summaryText.trim();
       }
-      
+
       // summaryフィールドがない場合は、オブジェクト全体を文字列化（通常は発生しない）
       console.warn('[SummaryTab] ⚠️ JSONにsummaryフィールドがありません:', parsed);
       return JSON.stringify(parsed, null, 2);
@@ -79,12 +80,14 @@ function formatSummary(summary: string): string {
 }
 
 function SummaryTab({ result }: SummaryTabProps) {
-  const { theme } = useThemeStore();
+  const { t, lang } = useTranslation();
+  const { bgMode } = useDesignStore();
+  const isLight = isLightMode(bgMode);
   const [hoveredSegment, setHoveredSegment] = useState<{
     label: string;
     percent: number;
   } | null>(null);
-  
+
   // デバッグ用ログ
   console.log('[SummaryTab] 📥 Received result:', result);
   console.log('[SummaryTab] result.sentiment:', result.sentiment);
@@ -99,10 +102,10 @@ function SummaryTab({ result }: SummaryTabProps) {
 
   if (typeof result.summary === 'string') {
     const summaryText = result.summary.trim();
-    
+
     // JSONコードブロックを検出してパース（複数パターンを試す）
     let jsonText = null;
-    
+
     // パターン1: ```json ... ``` (非貪欲)
     let jsonBlockMatch = summaryText.match(/```json\s*([\s\S]*?)\s*```/);
     if (jsonBlockMatch) {
@@ -125,25 +128,25 @@ function SummaryTab({ result }: SummaryTabProps) {
         }
       }
     }
-    
+
     if (jsonText && (jsonText.startsWith('{') || jsonText.startsWith('['))) {
       try {
         // JSONの修正を試みる
         let cleanedJson = jsonText;
         cleanedJson = cleanedJson.replace(/,\s*([}\]])/g, '$1');
         cleanedJson = cleanedJson.replace(/([,\[])\s*([}\]])/g, '$1$2');
-        
+
         const parsed = JSON.parse(cleanedJson);
-        
+
         // summaryフィールドを抽出
         if (parsed.summary && typeof parsed.summary === 'string') {
           let summaryText = parsed.summary.replace(/\\n/g, '\n').replace(/\\t/g, '\t');
           summaryText = summaryText.replace(/\n{3,}/g, '\n\n');
           formattedSummary = summaryText.trim();
         } else {
-          formattedSummary = '要約がありません';
+          formattedSummary = t('summary.noSummary');
         }
-        
+
         // sentimentを抽出
         if (parsed.sentiment && typeof parsed.sentiment === 'object' && !Array.isArray(parsed.sentiment)) {
           extractedSentiment = {
@@ -152,12 +155,12 @@ function SummaryTab({ result }: SummaryTabProps) {
             neutral: typeof parsed.sentiment.neutral === 'number' ? parsed.sentiment.neutral : (typeof parsed.sentiment.neutral === 'string' ? parseFloat(parsed.sentiment.neutral) || 0 : 0),
           };
         }
-        
+
         // topicsを抽出
         if (Array.isArray(parsed.topics)) {
           extractedTopics = parsed.topics.filter((t: any) => t && typeof t === 'string' && t.trim().length > 0);
         }
-        
+
         console.log('[SummaryTab] ✅ Extracted from JSON code block:', {
           hasSummary: !!formattedSummary,
           sentiment: extractedSentiment,
@@ -172,20 +175,20 @@ function SummaryTab({ result }: SummaryTabProps) {
       formattedSummary = formatSummary(result.summary);
     }
   } else {
-    formattedSummary = result.summary || '要約がありません';
+    formattedSummary = result.summary || t('summary.noSummary');
   }
 
-  // 要約の整形処理：冒頭の冗長なフレーズを削除し、句読点の後に改行を追加
+  // 要約の整形処理
   if (formattedSummary && typeof formattedSummary === 'string') {
-    // 「このYouTube動画のコメントは」という冒頭フレーズを削除
-    formattedSummary = formattedSummary.replace(/^このYouTube動画のコメントは[、。，．\s]*/i, '');
-    
-    // 丸の句読点（。）の後に改行を追加（ただし、既に改行がある場合は追加しない）
-    formattedSummary = formattedSummary.replace(/。([^\n])/g, '。\n$1');
-    
+    if (lang === 'ja') {
+      // 日本語のみ：冒頭の冗長なフレーズを削除し、句読点の後に改行を追加
+      formattedSummary = formattedSummary.replace(/^このYouTube動画のコメントは[、。，．\s]*/i, '');
+      formattedSummary = formattedSummary.replace(/。([^\n])/g, '。\n$1');
+    }
+
     // 余分な空白行を削除（3行以上連続する改行を2行に）
     formattedSummary = formattedSummary.replace(/\n{3,}/g, '\n\n');
-    
+
     // 先頭と末尾の空白を削除
     formattedSummary = formattedSummary.trim();
   }
@@ -223,7 +226,7 @@ function SummaryTab({ result }: SummaryTabProps) {
   // sentimentがオブジェクトでない場合はデフォルト値を使用
   // 抽出されたsentimentがある場合はそれを使用、なければresult.sentimentを使用
   let sentiment = extractedSentiment || { positive: 0, negative: 0, neutral: 0 };
-  
+
   if (!extractedSentiment && result.sentiment && typeof result.sentiment === 'object' && !Array.isArray(result.sentiment)) {
     // オブジェクトの場合
     const sent = result.sentiment as any;
@@ -247,13 +250,13 @@ function SummaryTab({ result }: SummaryTabProps) {
       console.warn('[SummaryTab] sentiment文字列のパースに失敗:', e);
     }
   }
-  
+
   console.log('[SummaryTab] 📊 Final extracted data:', {
     sentiment,
     topics,
     summaryLength: formattedSummary.length,
   });
-  
+
   const { positive, negative, neutral } = sentiment;
   const total = positive + negative + neutral;
   const positivePercent = total > 0 ? (positive / total) * 100 : 0;
@@ -264,68 +267,58 @@ function SummaryTab({ result }: SummaryTabProps) {
   const radius = 130; // 円の半径
   const centerX = 140;
   const centerY = 140;
-  
+
   // 各セグメントの開始角度と終了角度を計算
   let currentAngle = -90; // 12時から開始
   const positiveAngle = (positivePercent / 100) * 360;
   const neutralAngle = (neutralPercent / 100) * 360;
   const negativeAngle = (negativePercent / 100) * 360;
-  
+
   // 円グラフのアークパスを生成する関数（中心から始まる完全な円）
   const createPieArcPath = (startAngle: number, endAngle: number) => {
     const startRad = (startAngle * Math.PI) / 180;
     const endRad = (endAngle * Math.PI) / 180;
-    
+
     // 外側の円の座標
     const x1 = centerX + radius * Math.cos(startRad);
     const y1 = centerY + radius * Math.sin(startRad);
     const x2 = centerX + radius * Math.cos(endRad);
     const y2 = centerY + radius * Math.sin(endRad);
-    
+
     const largeArcFlag = endAngle - startAngle > 180 ? 1 : 0;
-    
+
     // 円グラフのパス（中心→外側の円弧→中心）
-    return `M ${centerX} ${centerY} 
+    return `M ${centerX} ${centerY}
             L ${x1} ${y1}
             A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x2} ${y2}
             Z`;
   };
 
   return (
-    <div className={`min-h-full ${theme === 'dark' ? 'bg-[#0f0f0f]' : 'bg-white'}`}>
+    <div className="min-h-full bg-inherit">
       <div className="max-w-4xl mx-auto px-6 py-12 space-y-16">
         {/* 全体の要約 */}
         <div className="space-y-4">
-          <h2 className={`text-center text-xs uppercase tracking-widest ${
-            theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
-          }`}>
-            全体の要約
+          <h2 className={`text-center text-xs uppercase tracking-widest ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>
+            {t('summary.overallSummary')}
           </h2>
-          <div className={`rounded-2xl p-8 ${
-            theme === 'dark' 
-              ? 'bg-[#1a1a1a] border border-gray-800 shadow-lg' 
-              : 'bg-gray-50 border border-gray-200 shadow-md'
-          }`}>
-            <p className={`whitespace-pre-line leading-relaxed text-base ${
-              theme === 'dark' ? 'text-gray-200' : 'text-gray-800'
-            }`}>
-              {formattedSummary || '要約を取得できませんでした'}
+          <div className={`rounded-2xl p-8 shadow-lg ${isLight ? 'bg-gray-50 border border-gray-200' : 'bg-[#1a1a1a] border border-gray-800'}`}>
+            <p className={`whitespace-pre-line leading-relaxed text-base ${isLight ? 'text-gray-700' : 'text-gray-200'}`}>
+              {formattedSummary || t('summary.noSummaryAvailable')}
             </p>
           </div>
         </div>
 
         {/* 感情分析 */}
         <div className="space-y-2">
-          <h2 className={`text-center text-xs uppercase tracking-widest ${
-            theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
-          }`}>
-            感情分析
+          <h2 className={`text-center text-xs uppercase tracking-widest ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>
+            {t('summary.sentimentAnalysis')}
           </h2>
           <div className="flex flex-col items-center">
             <div className="relative w-80 h-80 flex items-center justify-center">
-              <svg 
-                width="280" 
-                height="280" 
+              <svg
+                width="280"
+                height="280"
                 className="transform"
                 onMouseLeave={() => setHoveredSegment(null)}
               >
@@ -335,10 +328,10 @@ function SummaryTab({ result }: SummaryTabProps) {
                     d={createPieArcPath(currentAngle, currentAngle + positiveAngle)}
                     fill="#10B981"
                     className="transition-all cursor-pointer hover:opacity-90"
-                    style={{ filter: hoveredSegment?.label === 'ポジティブ' ? 'drop-shadow(0 0 8px rgba(16, 185, 129, 0.6))' : 'none' }}
+                    style={{ filter: hoveredSegment?.label === t('summary.positive') ? 'drop-shadow(0 0 8px rgba(16, 185, 129, 0.6))' : 'none' }}
                     onMouseEnter={() => {
                       setHoveredSegment({
-                        label: 'ポジティブ',
+                        label: t('summary.positive'),
                         percent: positivePercent,
                       });
                     }}
@@ -351,12 +344,12 @@ function SummaryTab({ result }: SummaryTabProps) {
                       currentAngle + positiveAngle,
                       currentAngle + positiveAngle + neutralAngle
                     )}
-                    fill={theme === 'dark' ? '#9CA3AF' : '#6B7280'}
+                    fill="#9CA3AF"
                     className="transition-all cursor-pointer hover:opacity-90"
-                    style={{ filter: hoveredSegment?.label === 'ニュートラル' ? 'drop-shadow(0 0 8px rgba(156, 163, 175, 0.6))' : 'none' }}
+                    style={{ filter: hoveredSegment?.label === t('summary.neutral') ? 'drop-shadow(0 0 8px rgba(156, 163, 175, 0.6))' : 'none' }}
                     onMouseEnter={() => {
                       setHoveredSegment({
-                        label: 'ニュートラル',
+                        label: t('summary.neutral'),
                         percent: neutralPercent,
                       });
                     }}
@@ -371,10 +364,10 @@ function SummaryTab({ result }: SummaryTabProps) {
                     )}
                     fill="#EF4444"
                     className="transition-all cursor-pointer hover:opacity-90"
-                    style={{ filter: hoveredSegment?.label === 'ネガティブ' ? 'drop-shadow(0 0 8px rgba(239, 68, 68, 0.6))' : 'none' }}
+                    style={{ filter: hoveredSegment?.label === t('summary.negative') ? 'drop-shadow(0 0 8px rgba(239, 68, 68, 0.6))' : 'none' }}
                     onMouseEnter={() => {
                       setHoveredSegment({
-                        label: 'ネガティブ',
+                        label: t('summary.negative'),
                         percent: negativePercent,
                       });
                     }}
@@ -384,22 +377,10 @@ function SummaryTab({ result }: SummaryTabProps) {
               {/* 中心の表示（ホバー時のみ表示、小数点1桁） */}
               {hoveredSegment && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                  <div className={`text-5xl font-bold mb-1 ${
-                    theme === 'dark' 
-                      ? 'text-white' 
-                      : hoveredSegment.label === 'ポジティブ'
-                        ? 'text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]'
-                        : hoveredSegment.label === 'ネガティブ'
-                          ? 'text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]'
-                          : 'text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]'
-                  }`}>
+                  <div className={`text-5xl font-bold mb-1 ${isLight ? 'text-gray-900' : 'text-white'}`}>
                     {hoveredSegment.percent.toFixed(1)}%
                   </div>
-                  <div className={`text-base uppercase tracking-wider opacity-90 ${
-                    theme === 'dark' 
-                      ? 'text-white' 
-                      : 'text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]'
-                  }`}>
+                  <div className={`text-base uppercase tracking-wider opacity-90 ${isLight ? 'text-gray-700' : 'text-white'}`}>
                     {hoveredSegment.label.toUpperCase()}
                   </div>
                 </div>
@@ -411,44 +392,30 @@ function SummaryTab({ result }: SummaryTabProps) {
             {/* ポジティブ */}
             <div className="flex items-center gap-3 w-fit">
               <div className="w-4 h-4 rounded-full bg-[#10B981] flex-shrink-0"></div>
-              <span className={`text-sm whitespace-nowrap text-left ${
-                theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-              }`} style={{ minWidth: '80px' }}>
-                ポジティブ
+              <span className={`text-sm whitespace-nowrap text-left ${isLight ? 'text-gray-600' : 'text-gray-300'}`} style={{ minWidth: '80px' }}>
+                {t('summary.positive')}
               </span>
-              <span className={`text-sm font-semibold text-right ${
-                theme === 'dark' ? 'text-white' : 'text-gray-800'
-              }`} style={{ minWidth: '50px' }}>
+              <span className={`text-sm font-semibold text-right ${isLight ? 'text-gray-900' : 'text-white'}`} style={{ minWidth: '50px' }}>
                 {positivePercent.toFixed(1)}%
               </span>
             </div>
             {/* ニュートラル */}
             <div className="flex items-center gap-3 w-fit">
-              <div className={`w-4 h-4 rounded-full flex-shrink-0 ${
-                theme === 'dark' ? 'bg-[#9CA3AF]' : 'bg-[#6B7280]'
-              }`}></div>
-              <span className={`text-sm whitespace-nowrap text-left ${
-                theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-              }`} style={{ minWidth: '80px' }}>
-                ニュートラル
+              <div className="w-4 h-4 rounded-full flex-shrink-0 bg-[#9CA3AF]"></div>
+              <span className={`text-sm whitespace-nowrap text-left ${isLight ? 'text-gray-600' : 'text-gray-300'}`} style={{ minWidth: '80px' }}>
+                {t('summary.neutral')}
               </span>
-              <span className={`text-sm font-semibold text-right ${
-                theme === 'dark' ? 'text-white' : 'text-gray-800'
-              }`} style={{ minWidth: '50px' }}>
+              <span className={`text-sm font-semibold text-right ${isLight ? 'text-gray-900' : 'text-white'}`} style={{ minWidth: '50px' }}>
                 {neutralPercent.toFixed(1)}%
               </span>
             </div>
             {/* ネガティブ */}
             <div className="flex items-center gap-3 w-fit">
               <div className="w-4 h-4 rounded-full bg-[#EF4444] flex-shrink-0"></div>
-              <span className={`text-sm whitespace-nowrap text-left ${
-                theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-              }`} style={{ minWidth: '80px' }}>
-                ネガティブ
+              <span className={`text-sm whitespace-nowrap text-left ${isLight ? 'text-gray-600' : 'text-gray-300'}`} style={{ minWidth: '80px' }}>
+                {t('summary.negative')}
               </span>
-              <span className={`text-sm font-semibold text-right ${
-                theme === 'dark' ? 'text-white' : 'text-gray-800'
-              }`} style={{ minWidth: '50px' }}>
+              <span className={`text-sm font-semibold text-right ${isLight ? 'text-gray-900' : 'text-white'}`} style={{ minWidth: '50px' }}>
                 {negativePercent.toFixed(1)}%
               </span>
             </div>
@@ -458,24 +425,16 @@ function SummaryTab({ result }: SummaryTabProps) {
         {/* 主なトピック */}
         {topics.length > 0 && (
           <div className="space-y-6">
-            <h2 className={`text-center text-xs uppercase tracking-widest ${
-              theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
-            }`}>
-              主なトピック
+            <h2 className={`text-center text-xs uppercase tracking-widest ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>
+              {t('summary.mainTopics')}
             </h2>
             <div className="space-y-3">
               {processedTopics.slice(0, 10).map((topic, index) => (
                 <div
                   key={index}
-                  className={`p-4 rounded-xl transition-all hover:scale-[1.01] w-full overflow-hidden ${
-                    theme === 'dark' 
-                      ? 'bg-[#1a1a1a] border border-gray-800 hover:border-gray-700' 
-                      : 'bg-gray-50 border border-gray-200 hover:border-gray-300'
-                  }`}
+                  className={`p-4 rounded-xl transition-all hover:scale-[1.01] w-full overflow-hidden ${isLight ? 'bg-gray-50 border border-gray-200 hover:border-gray-300' : 'bg-[#1a1a1a] border border-gray-800 hover:border-gray-700'}`}
                 >
-                  <p className={`text-sm text-center whitespace-nowrap ${
-                    theme === 'dark' ? 'text-white' : 'text-gray-800'
-                  }`} style={{ 
+                  <p className={`text-sm text-center whitespace-nowrap ${isLight ? 'text-gray-800' : 'text-white'}`} style={{
                     maxWidth: '100%',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
