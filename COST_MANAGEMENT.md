@@ -198,3 +198,4 @@ Authorization: Bearer {ADMIN_SECRET}
 - ✅ 管理者API
 - ⚠️ アラート通知（要実装）
 - ⚠️ 使用量制限（要実装）
+
