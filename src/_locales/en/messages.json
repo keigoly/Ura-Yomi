@@ -1,0 +1,10 @@
+{
+  "extName": {
+    "message": "THE☆Real Talk! Powered by Google Gemini",
+    "description": "Extension name shown in Chrome"
+  },
+  "extDescription": {
+    "message": "Analyze YouTube video comments with AI to reveal true viewer sentiment and insights",
+    "description": "Extension description shown in Chrome"
+  }
+}

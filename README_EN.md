@@ -71,7 +71,7 @@ Instantly analyze thousands of comments to reveal viewer sentiment and trending 
 ### Authentication & Credits
 
 - **Google Account Auth** — Secure OAuth via Chrome Identity API
-- **Credit-based Usage** — 20 credits per analysis
+- **Credit-based Usage** — 2 credits per analysis
 - **Server-side API Key Management** — No API key setup required for users
 - **Credit Purchase & Subscriptions** — Available from the settings page
 
@@ -328,7 +328,7 @@ npm run dev
 
 | Item | Value |
 |------|-------|
-| Cost per analysis | 20 credits |
+| Cost per analysis | 2 credits |
 | Initial credits (development) | 999 credits |
 | Initial credits (production) | 100 credits |
 | Max credits | 9,999 credits |

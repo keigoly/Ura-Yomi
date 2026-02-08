@@ -7,12 +7,14 @@ import { CreditCard } from 'lucide-react';
 import { authenticateWithGoogle, verifySession, getCredits } from '../services/apiServer';
 import type { User } from '../types';
 import { ANALYSIS_CREDIT_COST } from '../constants';
+import { useTranslation } from '../i18n/useTranslation';
 
 interface AuthProps {
   onAuthSuccess: (user: User) => void;
 }
 
 function Auth({ onAuthSuccess }: AuthProps) {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [credits, setCredits] = useState<number | null>(null);
 
@@ -42,7 +44,7 @@ function Auth({ onAuthSuccess }: AuthProps) {
       chrome.identity.getAuthToken({ interactive: true }, async (accessToken) => {
         if (chrome.runtime.lastError || !accessToken) {
           console.error('Auth error:', chrome.runtime.lastError);
-          alert('認証に失敗しました: ' + chrome.runtime.lastError?.message);
+          alert(t('auth.authFailed') + ': ' + chrome.runtime.lastError?.message);
           setLoading(false);
           return;
         }
@@ -59,7 +61,7 @@ function Auth({ onAuthSuccess }: AuthProps) {
           );
 
           if (!userInfoResponse.ok) {
-            throw new Error('ユーザー情報の取得に失敗しました');
+            throw new Error(t('auth.userInfoError'));
           }
 
           const userInfo = await userInfoResponse.json();
@@ -71,19 +73,19 @@ function Auth({ onAuthSuccess }: AuthProps) {
             onAuthSuccess(result.user);
             await loadCredits();
           } else {
-            const errorMsg = result.error || '認証に失敗しました';
+            const errorMsg = result.error || t('auth.authFailed');
             console.error('Auth error:', errorMsg);
-            alert(`認証エラー: ${errorMsg}`);
+            alert(`${t('auth.authError')}: ${errorMsg}`);
           }
         } catch (error) {
           console.error('Auth request error:', error);
-          const errorMessage = error instanceof Error ? error.message : '認証エラーが発生しました';
+          const errorMessage = error instanceof Error ? error.message : t('auth.authError');
           
           // サーバー接続エラーの場合は詳細なメッセージを表示
-          if (errorMessage.includes('サーバーに接続できませんでした') || errorMessage.includes('Failed to fetch')) {
+          if (errorMessage.includes('サーバーに接続できませんでした') || errorMessage.includes('Failed to fetch') || errorMessage.includes('server')) {
             alert(errorMessage);
           } else {
-            alert(`認証エラー: ${errorMessage}`);
+            alert(`${t('auth.authError')}: ${errorMessage}`);
           }
         } finally {
           setLoading(false);
@@ -91,7 +93,7 @@ function Auth({ onAuthSuccess }: AuthProps) {
       });
     } catch (error) {
       console.error('Sign in error:', error);
-      alert('認証エラーが発生しました');
+      alert(t('auth.authError'));
       setLoading(false);
     }
   };
@@ -100,10 +102,10 @@ function Auth({ onAuthSuccess }: AuthProps) {
     <div className="p-6 space-y-4">
       <div className="text-center">
         <h2 className="text-xl font-bold text-white mb-2">
-          YouTubeコメント with Gemini へようこそ
+          {t('auth.welcome')}
         </h2>
         <p className="text-sm text-gray-400 mb-6">
-          Googleアカウントでサインインして、すぐに解析を始めましょう
+          {t('auth.description')}
         </p>
       </div>
 
@@ -125,7 +127,7 @@ function Auth({ onAuthSuccess }: AuthProps) {
             </svg>
           </div>
           <span className="gsi-material-button-contents">
-            {loading ? '読み込み中...' : 'Googleアカウントでサインイン'}
+            {loading ? t('auth.loading') : t('auth.signInWithGoogle')}
           </span>
           <span style={{ display: 'none' }}>Sign in with Google</span>
         </div>
@@ -137,7 +139,7 @@ function Auth({ onAuthSuccess }: AuthProps) {
             <div className="flex items-center gap-2">
               <CreditCard className="w-5 h-5 text-gray-300" />
               <span className="text-sm font-medium text-white">
-                クレジット残高
+                {t('auth.creditBalance')}
               </span>
             </div>
             <span className="text-lg font-bold text-white">
@@ -146,12 +148,12 @@ function Auth({ onAuthSuccess }: AuthProps) {
           </div>
           {credits === 999 && (
             <p className="text-xs text-gray-300 mt-2">
-              開発モード: 999クレジット無料プレゼント！
+              {t('auth.devModeCredits')}
             </p>
           )}
           {credits === 100 && (
             <p className="text-xs text-gray-300 mt-2">
-              新規登録特典で100クレジット無料プレゼント！
+              {t('auth.welcomeCredits')}
             </p>
           )}
         </div>
@@ -159,11 +161,11 @@ function Auth({ onAuthSuccess }: AuthProps) {
 
       <div className="text-xs text-gray-400 text-center space-y-1">
         <p className="font-semibold text-blue-400">
-          新規登録で100クレジット無料プレゼント！
+          {t('auth.freeCredits')}
         </p>
-        <p>・解析1回につき{ANALYSIS_CREDIT_COST}クレジット消費</p>
-        <p>・クレジットが不足した場合は追加購入できます</p>
-        <p>・クレジットは有効期限なし</p>
+        <p>・{t('auth.creditCostInfo', { cost: ANALYSIS_CREDIT_COST })}</p>
+        <p>・{t('auth.creditPurchaseInfo')}</p>
+        <p>・{t('auth.creditNoExpiry')}</p>
       </div>
     </div>
   );

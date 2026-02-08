@@ -4,8 +4,8 @@
 
 import { useState, useEffect } from 'react';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
-import { ArrowLeft, CreditCard, Trash2 } from 'lucide-react';
-import { getCredits, purchaseCredits } from '../services/apiServer';
+import { ArrowLeft, CreditCard, Trash2, LogOut } from 'lucide-react';
+import { getCredits, purchaseCredits, clearSessionToken } from '../services/apiServer';
 import { ANALYSIS_CREDIT_COST } from '../constants';
 import { useDesignStore, BG_COLORS, isLightMode } from '../store/designStore';
 import type { FontSize } from '../store/designStore';
@@ -27,6 +27,7 @@ interface ReleaseData {
 interface SettingsViewProps {
   onBack: () => void;
   onLoadHistory?: (id: string) => void;
+  onLogout?: () => void;
 }
 
 // ---- ストレージキー ----
@@ -121,7 +122,7 @@ const PURCHASE_PLANS_BASE: Array<{ id: string; credits: number; price: number; n
 ];
 
 // ---- メインコンポーネント ----
-function SettingsView({ onBack, onLoadHistory }: SettingsViewProps) {
+function SettingsView({ onBack, onLoadHistory, onLogout }: SettingsViewProps) {
   const { t } = useTranslation();
   const PURCHASE_PLANS: PurchasePlan[] = PURCHASE_PLANS_BASE.map(p => ({
     id: p.id,
@@ -718,6 +719,29 @@ function SettingsView({ onBack, onLoadHistory }: SettingsViewProps) {
               </a>
             </div>
           </SettingsAccordion>
+
+          {/* ===== 9. ログアウト ===== */}
+          <button
+            onClick={() => {
+              if (!confirm(t('settings.confirmLogout'))) return;
+              clearSessionToken();
+              chrome.storage.local.remove('sessionToken').catch(console.error);
+              if (onLogout) {
+                onLogout();
+              } else {
+                location.reload();
+              }
+            }}
+            className={`w-full flex items-center gap-3 p-4 rounded-lg border transition-colors ${isLight ? 'border-gray-200 bg-white hover:bg-red-50 hover:border-red-300' : 'border-gray-700 bg-gray-800 hover:bg-red-900/20 hover:border-red-700'}`}
+          >
+            <div className="p-2 rounded-full bg-red-500/10 text-red-400">
+              <LogOut className="w-5 h-5" />
+            </div>
+            <div className="flex-1 text-left">
+              <div className={`text-sm font-bold ${isLight ? 'text-red-600' : 'text-red-400'}`}>{t('settings.logout')}</div>
+              <div className={`text-xs ${isLight ? 'text-gray-500' : 'text-gray-500'}`}>{t('settings.logoutDescription')}</div>
+            </div>
+          </button>
 
         </div>
       </div>

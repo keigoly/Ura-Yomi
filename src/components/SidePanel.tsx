@@ -492,7 +492,7 @@ function SidePanel() {
   if (showSettings) {
     return (
       <div style={wrapperStyle}>
-        <SettingsView onBack={() => setShowSettings(false)} onLoadHistory={loadHistoryEntry} />
+        <SettingsView onBack={() => setShowSettings(false)} onLoadHistory={loadHistoryEntry} onLogout={() => location.reload()} />
       </div>
     );
   }

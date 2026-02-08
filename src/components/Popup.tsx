@@ -9,8 +9,10 @@ import { verifySession, getCredits, getVideoInfo } from '../services/apiServer';
 import type { User } from '../types';
 import { ANALYSIS_CREDIT_COST } from '../constants';
 import Auth from './Auth';
+import { useTranslation } from '../i18n/useTranslation';
 
 function Popup() {
+  const { t } = useTranslation();
   const [videoInfo, setVideoInfo] = useState<{
     videoId: string;
     title?: string;
@@ -134,7 +136,7 @@ function Popup() {
     return (
       <div className="w-80 p-4 bg-gray-900 min-h-[400px]">
         <div className="text-center py-8">
-          <p className="text-gray-400 text-sm">読み込み中...</p>
+          <p className="text-gray-400 text-sm">{t('auth.loading')}</p>
         </div>
       </div>
     );
@@ -144,7 +146,7 @@ function Popup() {
     return (
       <div className="w-80 p-4 bg-gray-900 min-h-[400px]">
         <div className="flex items-center justify-between mb-4">
-          <h1 className="text-xl font-bold text-white">YouTubeコメント with Gemini</h1>
+          <h1 className="text-xl font-bold text-white">{t('app.nameShort')}</h1>
         </div>
         <Auth onAuthSuccess={handleAuthSuccess} />
       </div>
@@ -157,7 +159,7 @@ function Popup() {
     <div className="w-80 p-4 bg-gray-900 min-h-[400px]">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-xl font-bold text-white">YouTubeコメント with Gemini</h1>
+        <h1 className="text-xl font-bold text-white">{t('app.nameShort')}</h1>
         <div className="flex items-center gap-2">
           {credits !== null && (
             <div
@@ -173,7 +175,7 @@ function Popup() {
           <button
             onClick={handleSettings}
             className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
-            title="設定"
+            title={t('popup.settings')}
           >
             <Settings className="w-5 h-5 text-gray-300" />
           </button>
@@ -186,7 +188,7 @@ function Popup() {
           <div className="p-4 bg-gray-800 rounded-lg">
             {videoInfo.title && (
               <>
-                <p className="text-xs text-gray-400 mb-1">タイトル</p>
+                <p className="text-xs text-gray-400 mb-1">{t('side.title')}</p>
                 <p className="text-sm text-white line-clamp-2 mb-3">
                   {videoInfo.title}
                 </p>
@@ -194,9 +196,9 @@ function Popup() {
             )}
             {videoInfo.commentCount !== undefined && (
               <>
-                <p className="text-xs text-gray-400 mb-1">コメント総数</p>
+                <p className="text-xs text-gray-400 mb-1">{t('side.commentCount')}</p>
                 <p className="text-lg font-semibold text-white">
-                  {videoInfo.commentCount.toLocaleString()}件
+                  {videoInfo.commentCount.toLocaleString()}{t('side.commentUnit')}
                 </p>
               </>
             )}
@@ -215,7 +217,7 @@ function Popup() {
           >
             <div className="flex items-center justify-center gap-2 px-4 py-3 bg-[#0f0f0f] rounded-[18px] text-white font-semibold">
               <Play className="w-5 h-5" />
-              解析を開始する ({ANALYSIS_CREDIT_COST}クレジット)
+              {t('side.startAnalysis')} ({ANALYSIS_CREDIT_COST} {t('side.credits')})
             </div>
           </button>
 
@@ -226,10 +228,10 @@ function Popup() {
                 <AlertCircle className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" />
                 <div className="flex-1">
                   <p className="text-sm font-medium text-yellow-400 mb-1">
-                    クレジットが不足しています
+                    {t('popup.insufficientCredits')}
                   </p>
                   <p className="text-xs text-yellow-300 mb-2">
-                    解析には{ANALYSIS_CREDIT_COST}クレジット必要です。現在の残高: {credits}クレジット
+                    {t('popup.creditsRequired', { cost: ANALYSIS_CREDIT_COST, balance: credits })}
                   </p>
                   <button
                     onClick={() =>
@@ -239,7 +241,7 @@ function Popup() {
                     }
                     className="text-xs text-yellow-400 underline hover:text-yellow-300"
                   >
-                    クレジットを購入 →
+                    {t('popup.purchaseCredits')}
                   </button>
                 </div>
               </div>
@@ -249,11 +251,11 @@ function Popup() {
       ) : (
         <div className="space-y-4">
           <p className="text-gray-400 text-sm text-center">
-            YouTube動画ページを開いてください
+            {t('popup.openYoutube')}
           </p>
           <div className="flex items-center gap-2 text-gray-500 text-xs">
             <div className="flex-1 border-t border-gray-700" />
-            <span>またはURLを貼り付け</span>
+            <span>{t('popup.orPasteUrl')}</span>
             <div className="flex-1 border-t border-gray-700" />
           </div>
           <div className="relative">
@@ -278,7 +280,7 @@ function Popup() {
           >
             <div className={`flex items-center justify-center gap-2 px-4 py-3 bg-[#0f0f0f] rounded-[18px] font-semibold ${isValidUrl && !hasInsufficientCredits ? 'text-white' : 'text-gray-500'}`}>
               <Play className="w-5 h-5" />
-              {urlLoading ? '読み込み中...' : `解析を開始する (${ANALYSIS_CREDIT_COST}クレジット)`}
+              {urlLoading ? t('auth.loading') : `${t('side.startAnalysis')} (${ANALYSIS_CREDIT_COST} ${t('side.credits')})`}
             </div>
           </button>
         </div>

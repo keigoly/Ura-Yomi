@@ -1,0 +1,10 @@
+{
+  "extName": {
+    "message": "ウラヨミ！ Powered by Google Gemini",
+    "description": "Extension name shown in Chrome"
+  },
+  "extDescription": {
+    "message": "YouTube動画のコメントをAIで解析し、真の価値と本音を可視化する",
+    "description": "Extension description shown in Chrome"
+  }
+}

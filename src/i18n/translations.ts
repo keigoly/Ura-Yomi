@@ -7,6 +7,34 @@ export type Language = 'ja' | 'en';
 export type TranslationKey = keyof typeof ja;
 
 const ja = {
+  // ---- App ----
+  'app.name': 'ウラヨミ！ Powered by Google Gemini',
+  'app.nameShort': 'ウラヨミ！',
+
+  // ---- Auth ----
+  'auth.welcome': 'ウラヨミ！ へようこそ',
+  'auth.description': 'Googleアカウントでサインインして、すぐに解析を始めましょう',
+  'auth.signInWithGoogle': 'Googleアカウントでサインイン',
+  'auth.loading': '読み込み中...',
+  'auth.creditBalance': 'クレジット残高',
+  'auth.devModeCredits': '開発モード: 999クレジット無料プレゼント！',
+  'auth.welcomeCredits': '新規登録特典で100クレジット無料プレゼント！',
+  'auth.freeCredits': '新規登録で100クレジット無料プレゼント！',
+  'auth.creditCostInfo': '解析1回につき{cost}クレジット消費',
+  'auth.creditPurchaseInfo': 'クレジットが不足した場合は追加購入できます',
+  'auth.creditNoExpiry': 'クレジットは有効期限なし',
+  'auth.authFailed': '認証に失敗しました',
+  'auth.authError': '認証エラー',
+  'auth.userInfoError': 'ユーザー情報の取得に失敗しました',
+
+  // ---- Popup ----
+  'popup.insufficientCredits': 'クレジットが不足しています',
+  'popup.creditsRequired': '解析には{cost}クレジット必要です。現在の残高: {balance}クレジット',
+  'popup.purchaseCredits': 'クレジットを購入 →',
+  'popup.openYoutube': 'YouTube動画ページを開いてください',
+  'popup.orPasteUrl': 'またはURLを貼り付け',
+  'popup.settings': '設定',
+
   // ---- SidePanel ----
   'side.settings': '設定',
   'side.title': 'タイトル',
@@ -153,6 +181,9 @@ const ja = {
   'settings.supportDescription': 'Amazon 欲しいものリスト',
   'settings.developerSite': '開発者のオフィシャルサイト',
   'settings.developerSiteUrl': 'keigoly.jp',
+  'settings.logout': 'ログアウト',
+  'settings.logoutDescription': 'Googleアカウントとの連携を解除します',
+  'settings.confirmLogout': 'ログアウトしますか？',
   'settings.current': '現在',
   'settings.confirmReset': '設定を初期値に戻しますか？',
   'settings.confirmClear': '全てのデータを削除しますか？',
@@ -170,6 +201,34 @@ const ja = {
 } as const;
 
 const en: Record<keyof typeof ja, string> = {
+  // ---- App ----
+  'app.name': 'THE☆Real Talk! Powered by Google Gemini',
+  'app.nameShort': 'THE☆Real Talk!',
+
+  // ---- Auth ----
+  'auth.welcome': 'Welcome to THE☆Real Talk!',
+  'auth.description': 'Sign in with your Google account to start analyzing',
+  'auth.signInWithGoogle': 'Sign in with Google',
+  'auth.loading': 'Loading...',
+  'auth.creditBalance': 'Credit Balance',
+  'auth.devModeCredits': 'Dev mode: 999 free credits!',
+  'auth.welcomeCredits': 'Welcome bonus: 100 free credits!',
+  'auth.freeCredits': '100 free credits for new users!',
+  'auth.creditCostInfo': '{cost} credits per analysis',
+  'auth.creditPurchaseInfo': 'Purchase more credits when you run out',
+  'auth.creditNoExpiry': 'Credits never expire',
+  'auth.authFailed': 'Authentication failed',
+  'auth.authError': 'Authentication error',
+  'auth.userInfoError': 'Failed to fetch user information',
+
+  // ---- Popup ----
+  'popup.insufficientCredits': 'Insufficient credits',
+  'popup.creditsRequired': '{cost} credits required. Current balance: {balance} credits',
+  'popup.purchaseCredits': 'Purchase credits →',
+  'popup.openYoutube': 'Open a YouTube video page',
+  'popup.orPasteUrl': 'or paste a URL',
+  'popup.settings': 'Settings',
+
   // ---- SidePanel ----
   'side.settings': 'Settings',
   'side.title': 'Title',
@@ -316,6 +375,9 @@ const en: Record<keyof typeof ja, string> = {
   'settings.supportDescription': 'Amazon Wish List',
   'settings.developerSite': "Developer's Official Site",
   'settings.developerSiteUrl': 'keigoly.jp',
+  'settings.logout': 'Log out',
+  'settings.logoutDescription': 'Disconnect your Google account',
+  'settings.confirmLogout': 'Are you sure you want to log out?',
   'settings.current': 'Current',
   'settings.confirmReset': 'Reset all settings to defaults?',
   'settings.confirmClear': 'Delete all data?',

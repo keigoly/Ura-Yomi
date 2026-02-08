@@ -37,6 +37,13 @@ export default defineConfig({
           resolve(distDir, 'background.js')
         );
 
+        // _localesフォルダをコピー
+        cpSync(
+          resolve(srcDir, '_locales'),
+          resolve(distDir, '_locales'),
+          { recursive: true }
+        );
+
         // HTMLファイルをdist/src/からdist/に移動
         const htmlFiles = ['popup.html', 'sidepanel.html', 'settings.html'];
         htmlFiles.forEach((file) => {

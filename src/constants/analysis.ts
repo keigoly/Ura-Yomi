@@ -20,8 +20,9 @@ export const SUMMARY_LENGTH_MAP = {
 
 /**
  * 解析に必要なクレジット数
+ * Flash-Liteの低原価（約0.7円/回）を活かし、ユーザーが気軽に利用できる設定
  */
-export const ANALYSIS_CREDIT_COST = 20;
+export const ANALYSIS_CREDIT_COST = 2;
 
 /**
  * デフォルトのコメント取得上限
