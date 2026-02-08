@@ -109,3 +109,5 @@ npm run build
 - [APIキー設定ガイド](./API_KEY_SETUP.md) - 詳細なAPIキー取得方法
 - [Google OAuth設定ガイド](./GOOGLE_OAUTH_SETUP.md) - 詳細なOAuth設定方法
 - [実装ガイド](./IMPLEMENTATION_GUIDE.md) - アーキテクチャの詳細
+
+<!-- Updated -->

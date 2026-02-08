@@ -101,3 +101,5 @@ YTDLP_FALLBACK=false
 ### パフォーマンスの問題
 - `USE_YTDLP=false`に設定してYouTube APIのみを使用してください
 - または`YTDLP_FALLBACK=true`でフォールバック方式に切り替えてください
+
+<!-- Updated -->

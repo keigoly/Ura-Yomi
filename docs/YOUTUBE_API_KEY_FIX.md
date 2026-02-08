@@ -74,3 +74,5 @@ YouTube API Error: Requests from referer <empty> are blocked.
 - 本番環境では、必ずIPアドレス制限を使用してください
 - APIキーは絶対に公開しないでください
 - 定期的にAPIキーをローテーションしてください
+
+<!-- Updated -->

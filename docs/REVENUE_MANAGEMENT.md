@@ -132,3 +132,5 @@ curl -H "Authorization: Bearer YOUR_ADMIN_SECRET" \
 2. **決済システム統合**: Stripe、PayPal等の実際の決済処理
 3. **支払い管理**: 開発者への実際の支払い履歴を管理
 4. **ダッシュボード**: 収益統計を可視化する管理者ダッシュボード
+
+<!-- Updated -->

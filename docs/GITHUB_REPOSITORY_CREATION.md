@@ -168,3 +168,5 @@ git commit -m "Add Git LFS tracking for images"
 - ✅ すべてのファイルが表示されている
 - ✅ README.mdが正しく表示されている
 - ✅ .envファイルが含まれていない（セキュリティ）
+
+<!-- Updated -->
