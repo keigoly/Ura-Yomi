@@ -134,7 +134,7 @@ function Popup() {
   if (loading) {
     
     return (
-      <div className="w-80 p-4 bg-gray-900 min-h-[400px]">
+      <div className="w-80 p-4 bg-gray-900">
         <div className="text-center py-8">
           <p className="text-gray-400 text-sm">{t('auth.loading')}</p>
         </div>
@@ -144,9 +144,9 @@ function Popup() {
 
   if (!user) {
     return (
-      <div className="w-80 p-4 bg-gray-900 min-h-[400px]">
+      <div className="w-80 p-4 bg-gray-900">
         <div className="flex items-center justify-between mb-4">
-          <h1 className="text-xl font-bold text-white">{t('app.nameShort')}</h1>
+          <img src={chrome.runtime.getURL('icons/logo-urayomi.png')} alt="ウラヨミ！" className="h-16" />
         </div>
         <Auth onAuthSuccess={handleAuthSuccess} />
       </div>
@@ -156,10 +156,10 @@ function Popup() {
   const hasInsufficientCredits = credits !== null && credits < ANALYSIS_CREDIT_COST;
 
   return (
-    <div className="w-80 p-4 bg-gray-900 min-h-[400px]">
+    <div className="w-80 p-4 bg-gray-900">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-xl font-bold text-white">{t('app.nameShort')}</h1>
+        <img src={chrome.runtime.getURL('icons/logo-urayomi.png')} alt="ウラヨミ！" className="h-16" />
         <div className="flex items-center gap-2">
           {credits !== null && (
             <div

@@ -99,12 +99,17 @@ function Auth({ onAuthSuccess }: AuthProps) {
   };
 
   return (
-    <div className="p-6 space-y-4">
+    <div className="p-4 space-y-3">
       <div className="text-center">
-        <h2 className="text-xl font-bold text-white mb-2">
+        <img
+          src={chrome.runtime.getURL('icons/mascot-duo.png')}
+          alt="ウラヨミ！ マスコット"
+          className="w-44 mx-auto mb-2 animate-bounce-in"
+        />
+        <h2 className="text-xl font-bold text-white mb-1">
           {t('auth.welcome')}
         </h2>
-        <p className="text-sm text-gray-400 mb-6">
+        <p className="text-xs text-gray-400 mb-4 leading-relaxed whitespace-pre-line">
           {t('auth.description')}
         </p>
       </div>
@@ -151,7 +156,7 @@ function Auth({ onAuthSuccess }: AuthProps) {
               {t('auth.devModeCredits')}
             </p>
           )}
-          {credits === 100 && (
+          {credits === 20 && (
             <p className="text-xs text-gray-300 mt-2">
               {t('auth.welcomeCredits')}
             </p>
@@ -159,13 +164,15 @@ function Auth({ onAuthSuccess }: AuthProps) {
         </div>
       )}
 
-      <div className="text-xs text-gray-400 text-center space-y-1">
-        <p className="font-semibold text-blue-400">
+      <div className="p-3 bg-gray-800/50 rounded-lg text-center">
+        <p className="text-xs font-semibold text-blue-400 mb-2">
           {t('auth.freeCredits')}
         </p>
-        <p>・{t('auth.creditCostInfo', { cost: ANALYSIS_CREDIT_COST })}</p>
-        <p>・{t('auth.creditPurchaseInfo')}</p>
-        <p>・{t('auth.creditNoExpiry')}</p>
+        <div className="text-[11px] text-gray-400 space-y-0.5 leading-relaxed">
+          <p>{t('auth.creditCostInfo', { cost: ANALYSIS_CREDIT_COST })}</p>
+          <p>{t('auth.creditPurchaseInfo')}</p>
+          <p>{t('auth.creditNoExpiry')}</p>
+        </div>
       </div>
     </div>
   );
