@@ -3,14 +3,18 @@
  * Geminiが選定したポジティブ/ニュートラル/ネガティブコメントを表示
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ThumbsUp, ThumbsDown, MessageSquare, Settings, ChevronDown, ChevronUp } from 'lucide-react';
 import type { YouTubeCommentThread, AnalysisResult } from '../../types';
 import { useDesignStore, isLightMode } from '../../store/designStore';
 import { useCharacterStore } from '../../store/characterStore';
 import { useTranslation } from '../../i18n/useTranslation';
+import { rewriteWithCharacter } from '../../services/apiServer';
 import geminiIcon from '../../icons/gemini-icon.png';
 import mascotGemini from '../../icons/mascot-gemini.png';
+import bubblePositive from '../../icons/bubble-positive.png';
+import bubbleNeutral from '../../icons/bubble-neutral.png';
+import bubbleNegative from '../../icons/bubble-negative.png';
 
 interface DeepDiveTabProps {
   comments: YouTubeCommentThread[];
@@ -50,6 +54,7 @@ function findCommentInList(
     id: string;
     text: string;
     author: string;
+    authorProfileImageUrl?: string;
     likeCount: number;
     publishedAt: string;
     replyCount: number;
@@ -127,8 +132,13 @@ function DeepDiveTab({ comments, result }: DeepDiveTabProps) {
   const { t } = useTranslation();
   const { bgMode } = useDesignStore();
   const isLight = isLightMode(bgMode);
-  const { deepdiveCharacterMode, setDeepdiveCharacterMode } = useCharacterStore();
+  const { deepdiveCharacterMode, setDeepdiveCharacterMode, cacheDeepdive, getCachedDeepdive } = useCharacterStore();
   const [expandedReplies, setExpandedReplies] = useState<Set<string>>(new Set());
+  const [positiveCharacterReason, setPositiveCharacterReason] = useState<string | null>(null);
+  const [neutralCharacterReason, setNeutralCharacterReason] = useState<string | null>(null);
+  const [positiveCharacterLoading, setPositiveCharacterLoading] = useState(false);
+  const [neutralCharacterLoading, setNeutralCharacterLoading] = useState(false);
+  const lang = (localStorage.getItem('yt-gemini-language') || 'ja') as 'ja' | 'en';
 
   // 返信の表示/非表示を切り替え
   const toggleReplies = (commentId: string) => {
@@ -155,6 +165,7 @@ function DeepDiveTab({ comments, result }: DeepDiveTabProps) {
       id: thread.topLevelComment.id,
       text: thread.topLevelComment.text,
       author: thread.topLevelComment.author,
+      authorProfileImageUrl: thread.topLevelComment.authorProfileImageUrl,
       likeCount: thread.topLevelComment.likeCount,
       publishedAt: thread.topLevelComment.publishedAt,
       replyCount: thread.topLevelComment.replyCount,
@@ -174,67 +185,162 @@ function DeepDiveTab({ comments, result }: DeepDiveTabProps) {
     ? topLevelComments[topLevelComments.length - 1]
     : null;
 
+  // ポジティブのreason取得
+  const positiveReason = (positiveComment as any)?.reason as string | undefined;
+  const neutralReason = (neutralComment as any)?.reason as string | undefined;
+
+  // キャラクターモードON時にポジティブreasonをジェミニーちゃんペルソナで書き換え
+  useEffect(() => {
+    if (!deepdiveCharacterMode || !positiveReason || positiveCharacterReason !== null) return;
+
+    const cached = getCachedDeepdive(positiveReason);
+    if (cached) {
+      setPositiveCharacterReason(cached);
+      return;
+    }
+
+    let cancelled = false;
+    setPositiveCharacterLoading(true);
+
+    rewriteWithCharacter(positiveReason, 'geminny', lang)
+      .then((rewritten) => {
+        if (!cancelled) {
+          setPositiveCharacterReason(rewritten);
+          cacheDeepdive(positiveReason, rewritten);
+        }
+      })
+      .catch((err) => {
+        console.error('[DeepDiveTab] Positive character rewrite failed:', err);
+        if (!cancelled) setPositiveCharacterReason(positiveReason);
+      })
+      .finally(() => {
+        if (!cancelled) setPositiveCharacterLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [deepdiveCharacterMode, positiveReason, positiveCharacterReason, lang, getCachedDeepdive, cacheDeepdive]);
+
+  // キャラクターモードON時にニュートラルreasonをジェミニーちゃんペルソナで書き換え
+  useEffect(() => {
+    if (!deepdiveCharacterMode || !neutralReason || neutralCharacterReason !== null) return;
+
+    const cached = getCachedDeepdive(neutralReason);
+    if (cached) {
+      setNeutralCharacterReason(cached);
+      return;
+    }
+
+    let cancelled = false;
+    setNeutralCharacterLoading(true);
+
+    rewriteWithCharacter(neutralReason, 'geminny', lang)
+      .then((rewritten) => {
+        if (!cancelled) {
+          setNeutralCharacterReason(rewritten);
+          cacheDeepdive(neutralReason, rewritten);
+        }
+      })
+      .catch((err) => {
+        console.error('[DeepDiveTab] Neutral character rewrite failed:', err);
+        if (!cancelled) setNeutralCharacterReason(neutralReason);
+      })
+      .finally(() => {
+        if (!cancelled) setNeutralCharacterLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [deepdiveCharacterMode, neutralReason, neutralCharacterReason, lang, getCachedDeepdive, cacheDeepdive]);
+
+  // キャラクターモードOFF時にリセット
+  useEffect(() => {
+    if (!deepdiveCharacterMode) {
+      setPositiveCharacterReason(null);
+      setNeutralCharacterReason(null);
+    }
+  }, [deepdiveCharacterMode]);
+
   const hasData = (positiveComment && positiveComment.text) ||
                   (negativeComment && negativeComment.text) ||
                   (neutralComment && neutralComment.text);
 
   return (
-    <div className="p-6 space-y-6 bg-inherit">
+    <div className="min-h-full bg-inherit">
+      <div className="max-w-4xl mx-auto px-6 pt-3 pb-8 space-y-6">
       {hasData ? (
         <>
-          {/* タイトル + キャラクターモード トグル */}
+          {/* キャラクターモード トグル */}
+          <div className="flex items-center justify-end gap-3 -mb-2">
+            <span className={`text-xs ${isLight ? 'text-gray-600' : 'text-gray-400'}`}>
+              {t('character.toggle')}
+            </span>
+            <button
+              onClick={() => setDeepdiveCharacterMode(!deepdiveCharacterMode)}
+              className={`relative w-11 h-6 rounded-full transition-colors ${
+                deepdiveCharacterMode
+                  ? 'bg-purple-500'
+                  : isLight ? 'bg-gray-300' : 'bg-gray-600'
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
+                  deepdiveCharacterMode ? 'translate-x-5' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
+
+          {/* タイトル */}
           <div className="mb-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <img
-                  src={deepdiveCharacterMode ? mascotGemini : geminiIcon}
-                  alt="Gemini"
-                  className={`w-6 h-6 flex-shrink-0 ${deepdiveCharacterMode ? 'rounded-full object-cover' : ''}`}
-                />
-                <h2 className={`text-2xl font-bold ${isLight ? 'text-gray-900' : 'text-white'}`}>
-                  {deepdiveCharacterMode ? t('character.geminny') : t('deepdive.title')}
-                </h2>
-              </div>
-              <div className="flex items-center gap-3">
-                <img src={mascotGemini} alt="" className="w-6 h-6 rounded-full object-cover" />
-                <span className={`text-xs ${isLight ? 'text-gray-600' : 'text-gray-400'}`}>
-                  {t('character.toggle')}
-                </span>
-                <button
-                  onClick={() => setDeepdiveCharacterMode(!deepdiveCharacterMode)}
-                  className={`relative w-11 h-6 rounded-full transition-colors ${
-                    deepdiveCharacterMode
-                      ? 'bg-purple-500'
-                      : isLight ? 'bg-gray-300' : 'bg-gray-600'
-                  }`}
-                >
-                  <span
-                    className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
-                      deepdiveCharacterMode ? 'translate-x-5' : 'translate-x-0'
-                    }`}
-                  />
-                </button>
-              </div>
+            <div className="flex items-center gap-2">
+              <img
+                src={deepdiveCharacterMode ? mascotGemini : geminiIcon}
+                alt="Gemini"
+                className={`w-6 h-6 flex-shrink-0 ${deepdiveCharacterMode ? 'rounded-full object-cover' : ''}`}
+              />
+              <h2 className={`text-2xl font-bold ${isLight ? 'text-gray-900' : 'text-white'}`}>
+                {deepdiveCharacterMode ? t('character.geminny') : t('deepdive.title')}
+              </h2>
             </div>
           </div>
 
           {/* 1. ポジティブの分析 */}
           {positiveComment && positiveComment.text && (
             <div>
-              <div className="flex items-center gap-2 mb-4">
-                <ThumbsUp className="w-5 h-5 text-green-400" />
-                <h3 className="text-lg font-semibold text-green-400">
-                  {t('deepdive.positiveAnalysis')}
-                </h3>
-              </div>
+              {deepdiveCharacterMode ? (
+                <div className="flex justify-center px-2 py-1 mb-4 animate-bounce-in" style={{ animationFillMode: 'both' }}>
+                  <img
+                    src={bubblePositive}
+                    alt={t('deepdive.positiveAnalysis')}
+                    className="w-full object-contain"
+                    style={{
+                      filter: 'drop-shadow(0 0 0 #fff) drop-shadow(2px 0 0 #fff) drop-shadow(-2px 0 0 #fff) drop-shadow(0 2px 0 #fff) drop-shadow(0 -2px 0 #fff) drop-shadow(1.5px 1.5px 0 #fff) drop-shadow(-1.5px 1.5px 0 #fff) drop-shadow(1.5px -1.5px 0 #fff) drop-shadow(-1.5px -1.5px 0 #fff)',
+                    }}
+                  />
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 mb-4">
+                  <ThumbsUp className="w-5 h-5 text-green-400" />
+                  <h3 className="text-lg font-semibold text-green-400">
+                    {t('deepdive.positiveAnalysis')}
+                  </h3>
+                </div>
+              )}
               <div className="rounded-lg p-4 bg-green-950/30 border border-green-800/50">
                 {/* ユーザー情報 */}
                 <div className="flex items-start gap-3 mb-3">
-                  <div className="w-10 h-10 rounded flex items-center justify-center flex-shrink-0 bg-green-800/50">
-                    <span className="text-sm font-medium text-green-300">
-                      {getAvatarInitial(positiveComment.author)}
-                    </span>
-                  </div>
+                  {positiveComment.authorProfileImageUrl ? (
+                    <img
+                      src={positiveComment.authorProfileImageUrl}
+                      alt={positiveComment.author}
+                      className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 bg-green-800/50">
+                      <span className="text-sm font-medium text-green-300">
+                        {getAvatarInitial(positiveComment.author)}
+                      </span>
+                    </div>
+                  )}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-1">
                       <p className={`text-sm font-medium ${isLight ? 'text-gray-900' : 'text-white'}`}>
@@ -257,17 +363,22 @@ function DeepDiveTab({ comments, result }: DeepDiveTabProps) {
                 </p>
 
                 {/* AI REASONINGブロック */}
-                {(positiveComment as any).reason && (
+                {positiveReason && (
                   deepdiveCharacterMode ? (
-                    <div className="flex items-start gap-2 mb-3">
-                      <img src={mascotGemini} alt="ジェミニーちゃん" className="w-8 h-8 rounded-full object-cover flex-shrink-0 border-2 border-purple-400" />
-                      <div className="relative flex-1">
-                        <div className="absolute top-3 -left-2 w-0 h-0" style={{ borderTop: '5px solid transparent', borderBottom: '5px solid transparent', borderRight: isLight ? '7px solid #f3e8ff' : '7px solid #3b1f5e' }} />
-                        <div className={`rounded-xl p-3 ${isLight ? 'bg-purple-50 border border-purple-200' : 'bg-[#3b1f5e] border border-purple-700/50'}`}>
+                    <div className="mb-3">
+                      <div className={`rounded-xl p-3 ${isLight ? 'bg-purple-50 border border-purple-200' : 'bg-[#3b1f5e] border border-purple-700/50'}`}>
+                        {positiveCharacterLoading ? (
+                          <div className="flex items-center justify-center gap-2 py-2">
+                            <div className="w-5 h-5 border-2 border-purple-400 border-t-transparent rounded-full animate-spin" />
+                            <span className={`text-sm ${isLight ? 'text-purple-600' : 'text-purple-300'}`}>
+                              {lang === 'ja' ? 'ジェミニーちゃんが解説中...' : 'Geminny is analyzing...'}
+                            </span>
+                          </div>
+                        ) : (
                           <p className={`text-sm leading-relaxed ${isLight ? 'text-gray-700' : 'text-gray-200'}`}>
-                            {(positiveComment as any).reason}
+                            {positiveCharacterReason || positiveReason}
                           </p>
-                        </div>
+                        )}
                       </div>
                     </div>
                   ) : (
@@ -279,7 +390,7 @@ function DeepDiveTab({ comments, result }: DeepDiveTabProps) {
                         </span>
                       </div>
                       <p className={`text-sm leading-relaxed ${isLight ? 'text-gray-600' : 'text-gray-300'}`}>
-                        {(positiveComment as any).reason}
+                        {positiveReason}
                       </p>
                     </div>
                   )
@@ -343,20 +454,41 @@ function DeepDiveTab({ comments, result }: DeepDiveTabProps) {
           {/* 2. ニュートラルの分析 */}
           {neutralComment && neutralComment.text && (
             <div>
-              <div className="flex items-center gap-2 mb-4">
-                <MessageSquare className="w-5 h-5 text-orange-400" />
-                <h3 className="text-lg font-semibold text-orange-400">
-                  {t('deepdive.neutralAnalysis')}
-                </h3>
-              </div>
+              {deepdiveCharacterMode ? (
+                <div className="flex justify-center px-2 py-1 mb-4 animate-bounce-in" style={{ animationFillMode: 'both' }}>
+                  <img
+                    src={bubbleNeutral}
+                    alt={t('deepdive.neutralAnalysis')}
+                    className="w-full object-contain"
+                    style={{
+                      filter: 'drop-shadow(0 0 0 #fff) drop-shadow(2px 0 0 #fff) drop-shadow(-2px 0 0 #fff) drop-shadow(0 2px 0 #fff) drop-shadow(0 -2px 0 #fff) drop-shadow(1.5px 1.5px 0 #fff) drop-shadow(-1.5px 1.5px 0 #fff) drop-shadow(1.5px -1.5px 0 #fff) drop-shadow(-1.5px -1.5px 0 #fff)',
+                    }}
+                  />
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 mb-4">
+                  <MessageSquare className="w-5 h-5 text-orange-400" />
+                  <h3 className="text-lg font-semibold text-orange-400">
+                    {t('deepdive.neutralAnalysis')}
+                  </h3>
+                </div>
+              )}
               <div className="rounded-lg p-4 bg-orange-950/30 border border-orange-800/50">
                 {/* ユーザー情報 */}
                 <div className="flex items-start gap-3 mb-3">
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 bg-orange-800/50">
-                    <span className="text-sm font-medium text-orange-300">
-                      {getAvatarInitial(neutralComment.author)}
-                    </span>
-                  </div>
+                  {neutralComment.authorProfileImageUrl ? (
+                    <img
+                      src={neutralComment.authorProfileImageUrl}
+                      alt={neutralComment.author}
+                      className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 bg-orange-800/50">
+                      <span className="text-sm font-medium text-orange-300">
+                        {getAvatarInitial(neutralComment.author)}
+                      </span>
+                    </div>
+                  )}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-1">
                       <p className={`text-sm font-medium ${isLight ? 'text-gray-900' : 'text-white'}`}>
@@ -379,17 +511,22 @@ function DeepDiveTab({ comments, result }: DeepDiveTabProps) {
                 </p>
 
                 {/* AI REASONINGブロック */}
-                {(neutralComment as any).reason && (
+                {neutralReason && (
                   deepdiveCharacterMode ? (
-                    <div className="flex items-start gap-2 mb-3">
-                      <img src={mascotGemini} alt="ジェミニーちゃん" className="w-8 h-8 rounded-full object-cover flex-shrink-0 border-2 border-purple-400" />
-                      <div className="relative flex-1">
-                        <div className="absolute top-3 -left-2 w-0 h-0" style={{ borderTop: '5px solid transparent', borderBottom: '5px solid transparent', borderRight: isLight ? '7px solid #f3e8ff' : '7px solid #3b1f5e' }} />
-                        <div className={`rounded-xl p-3 ${isLight ? 'bg-purple-50 border border-purple-200' : 'bg-[#3b1f5e] border border-purple-700/50'}`}>
+                    <div className="mb-3">
+                      <div className={`rounded-xl p-3 ${isLight ? 'bg-purple-50 border border-purple-200' : 'bg-[#3b1f5e] border border-purple-700/50'}`}>
+                        {neutralCharacterLoading ? (
+                          <div className="flex items-center justify-center gap-2 py-2">
+                            <div className="w-5 h-5 border-2 border-purple-400 border-t-transparent rounded-full animate-spin" />
+                            <span className={`text-sm ${isLight ? 'text-purple-600' : 'text-purple-300'}`}>
+                              {lang === 'ja' ? 'ジェミニーちゃんが解説中...' : 'Geminny is analyzing...'}
+                            </span>
+                          </div>
+                        ) : (
                           <p className={`text-sm leading-relaxed ${isLight ? 'text-gray-700' : 'text-gray-200'}`}>
-                            {(neutralComment as any).reason}
+                            {neutralCharacterReason || neutralReason}
                           </p>
-                        </div>
+                        )}
                       </div>
                     </div>
                   ) : (
@@ -401,7 +538,7 @@ function DeepDiveTab({ comments, result }: DeepDiveTabProps) {
                         </span>
                       </div>
                       <p className={`text-sm leading-relaxed ${isLight ? 'text-gray-600' : 'text-gray-300'}`}>
-                        {(neutralComment as any).reason}
+                        {neutralReason}
                       </p>
                     </div>
                   )
@@ -465,20 +602,41 @@ function DeepDiveTab({ comments, result }: DeepDiveTabProps) {
           {/* 3. ネガティブの分析 */}
           {negativeComment && negativeComment.text && (
             <div>
-              <div className="flex items-center gap-2 mb-4">
-                <ThumbsDown className="w-5 h-5 text-red-400" />
-                <h3 className="text-lg font-semibold text-red-400">
-                  {t('deepdive.negativeAnalysis')}
-                </h3>
-              </div>
+              {deepdiveCharacterMode ? (
+                <div className="flex justify-center px-2 py-1 mb-4 animate-bounce-in" style={{ animationFillMode: 'both' }}>
+                  <img
+                    src={bubbleNegative}
+                    alt={t('deepdive.negativeAnalysis')}
+                    className="w-full object-contain"
+                    style={{
+                      filter: 'drop-shadow(0 0 0 #fff) drop-shadow(2px 0 0 #fff) drop-shadow(-2px 0 0 #fff) drop-shadow(0 2px 0 #fff) drop-shadow(0 -2px 0 #fff) drop-shadow(1.5px 1.5px 0 #fff) drop-shadow(-1.5px 1.5px 0 #fff) drop-shadow(1.5px -1.5px 0 #fff) drop-shadow(-1.5px -1.5px 0 #fff)',
+                    }}
+                  />
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 mb-4">
+                  <ThumbsDown className="w-5 h-5 text-red-400" />
+                  <h3 className="text-lg font-semibold text-red-400">
+                    {t('deepdive.negativeAnalysis')}
+                  </h3>
+                </div>
+              )}
               <div className="rounded-lg p-4 bg-red-950/30 border border-red-800/50">
                 {/* ユーザー情報 */}
                 <div className="flex items-start gap-3 mb-3">
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 bg-red-800/50">
-                    <span className="text-sm font-medium text-red-300">
-                      {getAvatarInitial(negativeComment.author)}
-                    </span>
-                  </div>
+                  {negativeComment.authorProfileImageUrl ? (
+                    <img
+                      src={negativeComment.authorProfileImageUrl}
+                      alt={negativeComment.author}
+                      className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 bg-red-800/50">
+                      <span className="text-sm font-medium text-red-300">
+                        {getAvatarInitial(negativeComment.author)}
+                      </span>
+                    </div>
+                  )}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-1">
                       <p className={`text-sm font-medium ${isLight ? 'text-gray-900' : 'text-white'}`}>
@@ -503,15 +661,11 @@ function DeepDiveTab({ comments, result }: DeepDiveTabProps) {
                 {/* AI REASONINGブロック */}
                 {(negativeComment as any).reason && (
                   deepdiveCharacterMode ? (
-                    <div className="flex items-start gap-2 mb-3">
-                      <img src={mascotGemini} alt="ジェミニーちゃん" className="w-8 h-8 rounded-full object-cover flex-shrink-0 border-2 border-purple-400" />
-                      <div className="relative flex-1">
-                        <div className="absolute top-3 -left-2 w-0 h-0" style={{ borderTop: '5px solid transparent', borderBottom: '5px solid transparent', borderRight: isLight ? '7px solid #f3e8ff' : '7px solid #3b1f5e' }} />
-                        <div className={`rounded-xl p-3 ${isLight ? 'bg-purple-50 border border-purple-200' : 'bg-[#3b1f5e] border border-purple-700/50'}`}>
-                          <p className={`text-sm leading-relaxed ${isLight ? 'text-gray-700' : 'text-gray-200'}`}>
-                            {(negativeComment as any).reason}
-                          </p>
-                        </div>
+                    <div className="mb-3">
+                      <div className={`rounded-xl p-3 ${isLight ? 'bg-purple-50 border border-purple-200' : 'bg-[#3b1f5e] border border-purple-700/50'}`}>
+                        <p className={`text-sm leading-relaxed ${isLight ? 'text-gray-700' : 'text-gray-200'}`}>
+                          {(negativeComment as any).reason}
+                        </p>
                       </div>
                     </div>
                   ) : (
@@ -589,6 +743,7 @@ function DeepDiveTab({ comments, result }: DeepDiveTabProps) {
           <p>{t('deepdive.noData')}</p>
         </div>
       )}
+      </div>
     </div>
   );
 }
