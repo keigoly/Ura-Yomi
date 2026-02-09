@@ -6,7 +6,8 @@ import { useEffect, useCallback, useRef, useState } from 'react';
 import { Play, Link, Settings } from 'lucide-react';
 import { useAnalysisStore } from '../store/analysisStore';
 import { useDesignStore, BG_COLORS, isLightMode } from '../store/designStore';
-import { analyzeViaServer, getVideoInfo } from '../services/apiServer';
+import { analyzeViaServer, getVideoInfo, verifySession } from '../services/apiServer';
+import type { User } from '../types';
 import { saveHistory, getHistoryEntry } from '../services/historyStorage';
 import { getCurrentYouTubeVideo, extractVideoId } from '../utils/youtube';
 import { ANALYSIS_CREDIT_COST } from '../constants';
@@ -15,6 +16,7 @@ import { getLanguage } from '../i18n/useTranslation';
 import LoadingView from './LoadingView';
 import ResultDashboard from './ResultDashboard';
 import SettingsView from './SettingsView';
+import Auth from './Auth';
 
 function SidePanel() {
   const { t } = useTranslation();
@@ -27,6 +29,8 @@ function SidePanel() {
     }
     return false;
   });
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [urlInput, setUrlInput] = useState('');
   const [urlLoading, setUrlLoading] = useState(false);
   const [currentVideo, setCurrentVideo] = useState<{ videoId: string; title?: string; commentCount?: number } | null>(null);
@@ -47,6 +51,19 @@ function SidePanel() {
     setError,
     reset,
   } = useAnalysisStore();
+
+  // 認証チェック
+  useEffect(() => {
+    const checkAuth = async () => {
+      setAuthLoading(true);
+      const result = await verifySession();
+      if (result.success && result.user) {
+        setUser(result.user);
+      }
+      setAuthLoading(false);
+    };
+    checkAuth();
+  }, []);
 
   // 進捗タイマーを保存するためのref
   const progressTimerRef = useRef<number | null>(null);
@@ -489,6 +506,29 @@ function SidePanel() {
   // 全画面共通のラッパースタイル
   const wrapperStyle = { backgroundColor: bgColor, fontSize: `${fontSize}px`, minHeight: '100vh' };
 
+  // 認証ロード中
+  if (authLoading) {
+    return (
+      <div style={wrapperStyle} className="flex items-center justify-center">
+        <p className={`text-sm ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>{t('auth.loading')}</p>
+      </div>
+    );
+  }
+
+  // 未ログイン時はAuth画面を表示
+  if (!user) {
+    return (
+      <div style={wrapperStyle} className="flex flex-col items-center justify-center px-6">
+        <img
+          src={chrome.runtime.getURL('icons/logo-urayomi.png')}
+          alt="ウラヨミ！"
+          className="h-16 mb-2"
+        />
+        <Auth onAuthSuccess={(u) => setUser(u)} />
+      </div>
+    );
+  }
+
   if (showSettings) {
     return (
       <div style={wrapperStyle}>
@@ -581,6 +621,15 @@ function SidePanel() {
             </>
           ) : (
             <>
+              {/* マスコットキャラクター */}
+              <div className="flex justify-center">
+                <img
+                  src={chrome.runtime.getURL('icons/mascot.png')}
+                  alt="ウラヨミ！ マスコット"
+                  className="w-48 animate-bounce-in"
+                />
+              </div>
+
               {/* YouTube動画ページを開いてくださいメッセージ */}
               <p className={`text-center font-semibold ${isLight ? 'text-gray-700' : 'text-gray-200'}`}>
                 {t('side.openYoutube')}
