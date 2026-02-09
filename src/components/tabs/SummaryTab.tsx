@@ -2,10 +2,79 @@
  * Summary Tab コンポーネント
  */
 
-import { useState } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import type { AnalysisResult } from '../../types';
 import { useDesignStore, isLightMode } from '../../store/designStore';
+import { useCharacterStore } from '../../store/characterStore';
 import { useTranslation } from '../../i18n/useTranslation';
+import { rewriteWithCharacter } from '../../services/apiServer';
+import tsubechanSummary from '../../icons/tsubechan-summary.png';
+import tsubechanSentiment from '../../icons/tsubechan-sentiment.png';
+import tsubechanTopics from '../../icons/tsubechan-topics.png';
+
+/** ホバー時にSpotify風マーキースクロールするテキスト */
+function MarqueeText({ text, className, style }: { text: string; className?: string; style?: React.CSSProperties }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const textRef = useRef<HTMLSpanElement>(null);
+  const [isOverflowing, setIsOverflowing] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const [scrollDuration, setScrollDuration] = useState(5);
+
+  const checkOverflow = useCallback(() => {
+    if (containerRef.current && textRef.current) {
+      const containerWidth = containerRef.current.clientWidth;
+      const textWidth = textRef.current.scrollWidth;
+      const overflows = textWidth > containerWidth;
+      setIsOverflowing(overflows);
+      if (overflows) {
+        const overflow = textWidth - containerWidth;
+        setScrollDuration(Math.max(4, overflow / 22));
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    checkOverflow();
+    window.addEventListener('resize', checkOverflow);
+    return () => window.removeEventListener('resize', checkOverflow);
+  }, [text, checkOverflow]);
+
+  return (
+    <div
+      ref={containerRef}
+      className={className}
+      style={{ ...style, overflow: 'hidden', position: 'relative' }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <span
+        ref={textRef}
+        style={{
+          display: 'inline-block',
+          whiteSpace: 'nowrap',
+          animation: isOverflowing && isHovered
+            ? `marquee-scroll ${scrollDuration}s linear infinite`
+            : 'none',
+          paddingRight: isOverflowing && isHovered ? '3em' : '0',
+        }}
+      >
+        {text}
+      </span>
+      {/* CSSの場合のellipsis表示用オーバーレイ */}
+      {isOverflowing && !isHovered && (
+        <span style={{
+          position: 'absolute',
+          right: 0,
+          top: 0,
+          bottom: 0,
+          width: '3em',
+          background: 'linear-gradient(to right, transparent, var(--topic-bg, #1a1a1a))',
+          pointerEvents: 'none',
+        }} />
+      )}
+    </div>
+  );
+}
 
 interface SummaryTabProps {
   result: AnalysisResult;
@@ -83,10 +152,22 @@ function SummaryTab({ result }: SummaryTabProps) {
   const { t, lang } = useTranslation();
   const { bgMode } = useDesignStore();
   const isLight = isLightMode(bgMode);
+  const { summaryCharacterMode, setSummaryCharacterMode } = useCharacterStore();
+  const [characterSummary, setCharacterSummary] = useState<string | null>(null);
+  const [characterLoading, setCharacterLoading] = useState(false);
+  const [cachedOriginal, setCachedOriginal] = useState<string>('');
   const [hoveredSegment, setHoveredSegment] = useState<{
     label: string;
     percent: number;
   } | null>(null);
+
+  // キャラクターモードON時にアニメーションを再発火させるキー
+  const [animKey, setAnimKey] = useState(0);
+  useEffect(() => {
+    if (summaryCharacterMode) {
+      setAnimKey((k) => k + 1);
+    }
+  }, [summaryCharacterMode]);
 
   // デバッグ用ログ
   console.log('[SummaryTab] 📥 Received result:', result);
@@ -209,19 +290,10 @@ function SummaryTab({ result }: SummaryTabProps) {
     }
   }
 
-  // トピックのテキストが長すぎる場合は短縮またはスキップ
-  // 1行に収まるように、最大20文字程度に制限（絶対にはみ出さない安全な値）
-  const MAX_TOPIC_LENGTH = 20;
+  // トピックの空文字を除外（全文を保持し、表示はCSSで制御）
   const processedTopics = topics
-    .map(topic => {
-      const topicStr = typeof topic === 'string' ? topic.trim() : String(topic).trim();
-      // 長すぎる場合は短縮
-      if (topicStr.length > MAX_TOPIC_LENGTH) {
-        return topicStr.substring(0, MAX_TOPIC_LENGTH) + '...';
-      }
-      return topicStr;
-    })
-    .filter(topic => topic.length > 0); // 空のトピックを除外
+    .map(topic => (typeof topic === 'string' ? topic.trim() : String(topic).trim()))
+    .filter(topic => topic.length > 0);
 
   // sentimentがオブジェクトでない場合はデフォルト値を使用
   // 抽出されたsentimentがある場合はそれを使用、なければresult.sentimentを使用
@@ -256,6 +328,56 @@ function SummaryTab({ result }: SummaryTabProps) {
     topics,
     summaryLength: formattedSummary.length,
   });
+
+  // キャラクターモード: 要約が変わったらキャッシュをクリア
+  useEffect(() => {
+    if (formattedSummary !== cachedOriginal) {
+      setCharacterSummary(null);
+      setCachedOriginal(formattedSummary);
+    }
+  }, [formattedSummary, cachedOriginal]);
+
+  // キャラクターモードON時にGeminiで口調変換（キャッシュがあればAPIを呼ばない）
+  const { cacheSummary, getCachedSummary } = useCharacterStore();
+
+  useEffect(() => {
+    if (!summaryCharacterMode || !formattedSummary || characterSummary !== null) return;
+
+    // キャッシュを先にチェック
+    const cached = getCachedSummary(formattedSummary);
+    if (cached) {
+      setCharacterSummary(cached);
+      return;
+    }
+
+    let cancelled = false;
+    setCharacterLoading(true);
+
+    rewriteWithCharacter(formattedSummary, 'tsubechan', lang)
+      .then((rewritten) => {
+        if (!cancelled) {
+          setCharacterSummary(rewritten);
+          // キャッシュに保存
+          cacheSummary(formattedSummary, rewritten);
+        }
+      })
+      .catch((err) => {
+        console.error('[SummaryTab] Character rewrite failed:', err);
+        if (!cancelled) {
+          setCharacterSummary(formattedSummary);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setCharacterLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [summaryCharacterMode, formattedSummary, characterSummary, lang, getCachedSummary, cacheSummary]);
+
+  // 表示する要約テキスト
+  const displaySummary = summaryCharacterMode && characterSummary
+    ? characterSummary
+    : formattedSummary;
 
   const { positive, negative, neutral } = sentiment;
   const total = positive + negative + neutral;
@@ -296,24 +418,96 @@ function SummaryTab({ result }: SummaryTabProps) {
 
   return (
     <div className="min-h-full bg-inherit">
-      <div className="max-w-4xl mx-auto px-6 py-12 space-y-16">
+      <div className="max-w-4xl mx-auto px-6 pt-3 pb-8 space-y-6">
+        {/* キャラクターモード トグル */}
+        <div className="flex items-center justify-end gap-3 -mb-2">
+          <span className={`text-xs ${isLight ? 'text-gray-600' : 'text-gray-400'}`}>
+            {t('character.toggle')}
+          </span>
+          <button
+            onClick={() => setSummaryCharacterMode(!summaryCharacterMode)}
+            className={`relative w-11 h-6 rounded-full transition-colors ${
+              summaryCharacterMode
+                ? 'bg-pink-500'
+                : isLight ? 'bg-gray-300' : 'bg-gray-600'
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
+                summaryCharacterMode ? 'translate-x-5' : 'translate-x-0'
+              }`}
+            />
+          </button>
+        </div>
+
         {/* 全体の要約 */}
         <div className="space-y-4">
-          <h2 className={`text-center text-xs uppercase tracking-widest ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>
-            {t('summary.overallSummary')}
-          </h2>
-          <div className={`rounded-2xl p-8 shadow-lg ${isLight ? 'bg-gray-50 border border-gray-200' : 'bg-[#1a1a1a] border border-gray-800'}`}>
-            <p className={`whitespace-pre-line leading-relaxed text-base ${isLight ? 'text-gray-700' : 'text-gray-200'}`}>
-              {formattedSummary || t('summary.noSummaryAvailable')}
-            </p>
-          </div>
+          {summaryCharacterMode ? (
+            /* キャラクターモード */
+            <>
+              {/* キャラ+吹き出し一体画像（ステッカー＋ポップイン） */}
+              <div key={`summary-${animKey}`} className="flex justify-center px-2 py-1 animate-bounce-in" style={{ animationFillMode: 'both' }}>
+                <img
+                  src={tsubechanSummary}
+                  alt={t('character.summaryBubble')}
+                  className="w-full object-contain"
+                  style={{
+                    filter: 'drop-shadow(0 0 0 #fff) drop-shadow(2px 0 0 #fff) drop-shadow(-2px 0 0 #fff) drop-shadow(0 2px 0 #fff) drop-shadow(0 -2px 0 #fff) drop-shadow(1.5px 1.5px 0 #fff) drop-shadow(-1.5px 1.5px 0 #fff) drop-shadow(1.5px -1.5px 0 #fff) drop-shadow(-1.5px -1.5px 0 #fff)',
+                  }}
+                />
+              </div>
+              {/* 要約テキスト */}
+              <div className={`rounded-2xl p-6 shadow-lg ${isLight ? 'bg-pink-50 border border-pink-200' : 'bg-[#4a1942] border border-pink-800/50'}`}>
+                {characterLoading ? (
+                  <div className="flex items-center justify-center gap-2 py-4">
+                    <div className="w-5 h-5 border-2 border-pink-400 border-t-transparent rounded-full animate-spin" />
+                    <span className={`text-sm ${isLight ? 'text-pink-600' : 'text-pink-300'}`}>
+                      {lang === 'ja' ? '夕ちゃんが要約中...' : 'Yu-chan is summarizing...'}
+                    </span>
+                  </div>
+                ) : (
+                  <p className={`whitespace-pre-line leading-relaxed text-base ${isLight ? 'text-gray-700' : 'text-gray-200'}`}>
+                    {displaySummary || t('summary.noSummaryAvailable')}
+                  </p>
+                )}
+              </div>
+            </>
+          ) : (
+            /* 通常モード */
+            <>
+              <h2 className={`text-center text-xs uppercase tracking-widest ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>
+                {t('summary.overallSummary')}
+              </h2>
+              <div className={`rounded-2xl p-8 shadow-lg ${isLight ? 'bg-gray-50 border border-gray-200' : 'bg-[#1a1a1a] border border-gray-800'}`}>
+                <p className={`whitespace-pre-line leading-relaxed text-base ${isLight ? 'text-gray-700' : 'text-gray-200'}`}>
+                  {formattedSummary || t('summary.noSummaryAvailable')}
+                </p>
+              </div>
+            </>
+          )}
         </div>
 
         {/* 感情分析 */}
         <div className="space-y-2">
-          <h2 className={`text-center text-xs uppercase tracking-widest ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>
-            {t('summary.sentimentAnalysis')}
-          </h2>
+          {summaryCharacterMode ? (
+            /* キャラクターモード: 一体画像（ステッカー＋スクロールポップイン） */
+            <>
+              <div key={`sentiment-${animKey}`} className="flex justify-center px-2 py-1 animate-bounce-in" style={{ animationFillMode: 'both' }}>
+                <img
+                  src={tsubechanSentiment}
+                  alt={t('summary.sentimentAnalysis')}
+                  className="w-full object-contain"
+                  style={{
+                    filter: 'drop-shadow(0 0 0 #fff) drop-shadow(2px 0 0 #fff) drop-shadow(-2px 0 0 #fff) drop-shadow(0 2px 0 #fff) drop-shadow(0 -2px 0 #fff) drop-shadow(1.5px 1.5px 0 #fff) drop-shadow(-1.5px 1.5px 0 #fff) drop-shadow(1.5px -1.5px 0 #fff) drop-shadow(-1.5px -1.5px 0 #fff)',
+                  }}
+                />
+              </div>
+            </>
+          ) : (
+            <h2 className={`text-center text-xs uppercase tracking-widest ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>
+              {t('summary.sentimentAnalysis')}
+            </h2>
+          )}
           <div className="flex flex-col items-center">
             <div className="relative w-80 h-80 flex items-center justify-center">
               <svg
@@ -425,24 +619,39 @@ function SummaryTab({ result }: SummaryTabProps) {
         {/* 主なトピック */}
         {topics.length > 0 && (
           <div className="space-y-6">
-            <h2 className={`text-center text-xs uppercase tracking-widest ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>
-              {t('summary.mainTopics')}
-            </h2>
+            {summaryCharacterMode ? (
+              /* キャラクターモード: 一体画像（ステッカー＋スクロールポップイン） */
+              <div key={`topics-${animKey}`} className="flex justify-center px-2 py-1 animate-bounce-in" style={{ animationDelay: '0.15s', animationFillMode: 'both' }}>
+                <img
+                  src={tsubechanTopics}
+                  alt={t('summary.mainTopics')}
+                  className="w-full object-contain"
+                  style={{
+                    filter: 'drop-shadow(0 0 0 #fff) drop-shadow(2px 0 0 #fff) drop-shadow(-2px 0 0 #fff) drop-shadow(0 2px 0 #fff) drop-shadow(0 -2px 0 #fff) drop-shadow(1.5px 1.5px 0 #fff) drop-shadow(-1.5px 1.5px 0 #fff) drop-shadow(1.5px -1.5px 0 #fff) drop-shadow(-1.5px -1.5px 0 #fff)',
+                  }}
+                />
+              </div>
+            ) : (
+              <h2 className={`text-center text-xs uppercase tracking-widest ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>
+                {t('summary.mainTopics')}
+              </h2>
+            )}
             <div className="space-y-3">
               {processedTopics.slice(0, 10).map((topic, index) => (
                 <div
                   key={index}
-                  className={`p-4 rounded-xl transition-all hover:scale-[1.01] w-full overflow-hidden ${isLight ? 'bg-gray-50 border border-gray-200 hover:border-gray-300' : 'bg-[#1a1a1a] border border-gray-800 hover:border-gray-700'}`}
+                  className={`p-4 rounded-xl transition-all hover:scale-[1.01] w-full overflow-hidden ${
+                    summaryCharacterMode
+                      ? isLight ? 'bg-pink-50 border border-pink-200 hover:border-pink-300' : 'bg-[#4a1942] border border-pink-800/50 hover:border-pink-700'
+                      : isLight ? 'bg-gray-50 border border-gray-200 hover:border-gray-300' : 'bg-[#1a1a1a] border border-gray-800 hover:border-gray-700'
+                  }`}
+                  style={{ '--topic-bg': isLight ? (summaryCharacterMode ? '#fdf2f8' : '#f9fafb') : (summaryCharacterMode ? '#4a1942' : '#1a1a1a') } as React.CSSProperties}
                 >
-                  <p className={`text-sm text-center whitespace-nowrap ${isLight ? 'text-gray-800' : 'text-white'}`} style={{
-                    maxWidth: '100%',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    display: 'block',
-                    boxSizing: 'border-box'
-                  }}>
-                    {topic}
-                  </p>
+                  <MarqueeText
+                    text={topic}
+                    className={`text-sm text-center ${isLight ? 'text-gray-800' : 'text-white'}`}
+                    style={{ maxWidth: '100%', boxSizing: 'border-box' }}
+                  />
                 </div>
               ))}
             </div>

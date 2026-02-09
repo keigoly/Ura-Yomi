@@ -7,8 +7,10 @@ import { useState } from 'react';
 import { ThumbsUp, ThumbsDown, MessageSquare, Settings, ChevronDown, ChevronUp } from 'lucide-react';
 import type { YouTubeCommentThread, AnalysisResult } from '../../types';
 import { useDesignStore, isLightMode } from '../../store/designStore';
+import { useCharacterStore } from '../../store/characterStore';
 import { useTranslation } from '../../i18n/useTranslation';
 import geminiIcon from '../../icons/gemini-icon.png';
+import mascotGemini from '../../icons/mascot-gemini.png';
 
 interface DeepDiveTabProps {
   comments: YouTubeCommentThread[];
@@ -125,6 +127,7 @@ function DeepDiveTab({ comments, result }: DeepDiveTabProps) {
   const { t } = useTranslation();
   const { bgMode } = useDesignStore();
   const isLight = isLightMode(bgMode);
+  const { deepdiveCharacterMode, setDeepdiveCharacterMode } = useCharacterStore();
   const [expandedReplies, setExpandedReplies] = useState<Set<string>>(new Set());
 
   // 返信の表示/非表示を切り替え
@@ -179,17 +182,39 @@ function DeepDiveTab({ comments, result }: DeepDiveTabProps) {
     <div className="p-6 space-y-6 bg-inherit">
       {hasData ? (
         <>
-          {/* タイトル */}
-          <div className="mb-6">
-            <div className="flex items-center gap-2">
-              <img
-                src={geminiIcon}
-                alt="Gemini"
-                className="w-6 h-6 flex-shrink-0"
-              />
-              <h2 className={`text-2xl font-bold ${isLight ? 'text-gray-900' : 'text-white'}`}>
-                {t('deepdive.title')}
-              </h2>
+          {/* タイトル + キャラクターモード トグル */}
+          <div className="mb-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <img
+                  src={deepdiveCharacterMode ? mascotGemini : geminiIcon}
+                  alt="Gemini"
+                  className={`w-6 h-6 flex-shrink-0 ${deepdiveCharacterMode ? 'rounded-full object-cover' : ''}`}
+                />
+                <h2 className={`text-2xl font-bold ${isLight ? 'text-gray-900' : 'text-white'}`}>
+                  {deepdiveCharacterMode ? t('character.geminny') : t('deepdive.title')}
+                </h2>
+              </div>
+              <div className="flex items-center gap-3">
+                <img src={mascotGemini} alt="" className="w-6 h-6 rounded-full object-cover" />
+                <span className={`text-xs ${isLight ? 'text-gray-600' : 'text-gray-400'}`}>
+                  {t('character.toggle')}
+                </span>
+                <button
+                  onClick={() => setDeepdiveCharacterMode(!deepdiveCharacterMode)}
+                  className={`relative w-11 h-6 rounded-full transition-colors ${
+                    deepdiveCharacterMode
+                      ? 'bg-purple-500'
+                      : isLight ? 'bg-gray-300' : 'bg-gray-600'
+                  }`}
+                >
+                  <span
+                    className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
+                      deepdiveCharacterMode ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
             </div>
           </div>
 
@@ -233,17 +258,31 @@ function DeepDiveTab({ comments, result }: DeepDiveTabProps) {
 
                 {/* AI REASONINGブロック */}
                 {(positiveComment as any).reason && (
-                  <div className="rounded-lg p-3 mb-3 bg-green-900/30 border border-green-800/50">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Settings className="w-4 h-4 text-green-400" />
-                      <span className="text-xs font-semibold text-green-400">
-                        AI REASONING
-                      </span>
+                  deepdiveCharacterMode ? (
+                    <div className="flex items-start gap-2 mb-3">
+                      <img src={mascotGemini} alt="ジェミニーちゃん" className="w-8 h-8 rounded-full object-cover flex-shrink-0 border-2 border-purple-400" />
+                      <div className="relative flex-1">
+                        <div className="absolute top-3 -left-2 w-0 h-0" style={{ borderTop: '5px solid transparent', borderBottom: '5px solid transparent', borderRight: isLight ? '7px solid #f3e8ff' : '7px solid #3b1f5e' }} />
+                        <div className={`rounded-xl p-3 ${isLight ? 'bg-purple-50 border border-purple-200' : 'bg-[#3b1f5e] border border-purple-700/50'}`}>
+                          <p className={`text-sm leading-relaxed ${isLight ? 'text-gray-700' : 'text-gray-200'}`}>
+                            {(positiveComment as any).reason}
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                    <p className={`text-sm leading-relaxed ${isLight ? 'text-gray-600' : 'text-gray-300'}`}>
-                      {(positiveComment as any).reason}
-                    </p>
-                  </div>
+                  ) : (
+                    <div className="rounded-lg p-3 mb-3 bg-green-900/30 border border-green-800/50">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Settings className="w-4 h-4 text-green-400" />
+                        <span className="text-xs font-semibold text-green-400">
+                          AI REASONING
+                        </span>
+                      </div>
+                      <p className={`text-sm leading-relaxed ${isLight ? 'text-gray-600' : 'text-gray-300'}`}>
+                        {(positiveComment as any).reason}
+                      </p>
+                    </div>
+                  )
                 )}
 
                 {/* 返信表示リンク */}
@@ -341,17 +380,31 @@ function DeepDiveTab({ comments, result }: DeepDiveTabProps) {
 
                 {/* AI REASONINGブロック */}
                 {(neutralComment as any).reason && (
-                  <div className="rounded-lg p-3 mb-3 bg-orange-900/30 border border-orange-800/50">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Settings className="w-4 h-4 text-orange-400" />
-                      <span className="text-xs font-semibold text-orange-400">
-                        AI REASONING
-                      </span>
+                  deepdiveCharacterMode ? (
+                    <div className="flex items-start gap-2 mb-3">
+                      <img src={mascotGemini} alt="ジェミニーちゃん" className="w-8 h-8 rounded-full object-cover flex-shrink-0 border-2 border-purple-400" />
+                      <div className="relative flex-1">
+                        <div className="absolute top-3 -left-2 w-0 h-0" style={{ borderTop: '5px solid transparent', borderBottom: '5px solid transparent', borderRight: isLight ? '7px solid #f3e8ff' : '7px solid #3b1f5e' }} />
+                        <div className={`rounded-xl p-3 ${isLight ? 'bg-purple-50 border border-purple-200' : 'bg-[#3b1f5e] border border-purple-700/50'}`}>
+                          <p className={`text-sm leading-relaxed ${isLight ? 'text-gray-700' : 'text-gray-200'}`}>
+                            {(neutralComment as any).reason}
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                    <p className={`text-sm leading-relaxed ${isLight ? 'text-gray-600' : 'text-gray-300'}`}>
-                      {(neutralComment as any).reason}
-                    </p>
-                  </div>
+                  ) : (
+                    <div className="rounded-lg p-3 mb-3 bg-orange-900/30 border border-orange-800/50">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Settings className="w-4 h-4 text-orange-400" />
+                        <span className="text-xs font-semibold text-orange-400">
+                          AI REASONING
+                        </span>
+                      </div>
+                      <p className={`text-sm leading-relaxed ${isLight ? 'text-gray-600' : 'text-gray-300'}`}>
+                        {(neutralComment as any).reason}
+                      </p>
+                    </div>
+                  )
                 )}
 
                 {/* 返信表示リンク */}
@@ -449,17 +502,31 @@ function DeepDiveTab({ comments, result }: DeepDiveTabProps) {
 
                 {/* AI REASONINGブロック */}
                 {(negativeComment as any).reason && (
-                  <div className="rounded-lg p-3 mb-3 bg-red-900/30 border border-red-800/50">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Settings className="w-4 h-4 text-red-400" />
-                      <span className="text-xs font-semibold text-red-400">
-                        AI REASONING
-                      </span>
+                  deepdiveCharacterMode ? (
+                    <div className="flex items-start gap-2 mb-3">
+                      <img src={mascotGemini} alt="ジェミニーちゃん" className="w-8 h-8 rounded-full object-cover flex-shrink-0 border-2 border-purple-400" />
+                      <div className="relative flex-1">
+                        <div className="absolute top-3 -left-2 w-0 h-0" style={{ borderTop: '5px solid transparent', borderBottom: '5px solid transparent', borderRight: isLight ? '7px solid #f3e8ff' : '7px solid #3b1f5e' }} />
+                        <div className={`rounded-xl p-3 ${isLight ? 'bg-purple-50 border border-purple-200' : 'bg-[#3b1f5e] border border-purple-700/50'}`}>
+                          <p className={`text-sm leading-relaxed ${isLight ? 'text-gray-700' : 'text-gray-200'}`}>
+                            {(negativeComment as any).reason}
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                    <p className={`text-sm leading-relaxed ${isLight ? 'text-gray-600' : 'text-gray-300'}`}>
-                      {(negativeComment as any).reason}
-                    </p>
-                  </div>
+                  ) : (
+                    <div className="rounded-lg p-3 mb-3 bg-red-900/30 border border-red-800/50">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Settings className="w-4 h-4 text-red-400" />
+                        <span className="text-xs font-semibold text-red-400">
+                          AI REASONING
+                        </span>
+                      </div>
+                      <p className={`text-sm leading-relaxed ${isLight ? 'text-gray-600' : 'text-gray-300'}`}>
+                        {(negativeComment as any).reason}
+                      </p>
+                    </div>
+                  )
                 )}
 
                 {/* 返信表示リンク */}

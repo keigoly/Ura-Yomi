@@ -5,7 +5,7 @@
 import type { AnalysisResult, VideoInfo, YouTubeCommentThread } from '../types';
 
 const STORAGE_KEY = 'yt-gemini-history';
-const MAX_ENTRIES = 20;
+const MAX_ENTRIES = 30;
 
 export interface HistoryEntry {
   id: string;

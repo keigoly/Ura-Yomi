@@ -27,6 +27,9 @@ export const API_ENDPOINTS = {
     INFO: '/api/video/info',
   },
   ANALYZE: '/api/analyze',
+  CHARACTER: {
+    REWRITE: '/api/character/rewrite',
+  },
   BILLING: {
     PURCHASE: '/api/billing/purchase',
   },

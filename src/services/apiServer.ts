@@ -252,6 +252,34 @@ export async function analyzeViaServer(
 }
 
 /**
+ * キャラクター口調変換
+ */
+export async function rewriteWithCharacter(
+  text: string,
+  character: 'tsubechan' | 'geminny',
+  language?: string
+): Promise<string> {
+  const sessionToken = getSessionToken();
+  if (!sessionToken) {
+    throw new Error('認証が必要です');
+  }
+
+  const data = await apiRequest<{ success: boolean; rewritten: string; error?: string }>(
+    API_ENDPOINTS.CHARACTER.REWRITE,
+    {
+      method: 'POST',
+      body: JSON.stringify({ text, character, language }),
+    }
+  );
+
+  if (!data.success) {
+    throw new Error(data.error || 'キャラクター変換エラー');
+  }
+
+  return data.rewritten;
+}
+
+/**
  * 動画情報取得（タイトルとコメント総数）
  */
 export async function getVideoInfo(videoId: string): Promise<{

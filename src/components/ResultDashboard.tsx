@@ -169,18 +169,21 @@ function ResultDashboard({ result, videoInfo, comments, onBack, onSave }: Result
       >
         {/* 解析結果タイトルとハンバーガーメニューを同じ行に配置 */}
         <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-1 min-w-0">
             {onBack && (
               <button
                 onClick={onBack}
-                className={`p-1.5 rounded-lg transition-colors ${isLight ? 'hover:bg-gray-100' : 'hover:bg-gray-800'}`}
+                className={`p-1.5 rounded-lg transition-colors flex-shrink-0 ${isLight ? 'hover:bg-gray-100' : 'hover:bg-gray-800'}`}
               >
                 <ArrowLeft className={`w-5 h-5 ${isLight ? 'text-gray-600' : 'text-gray-300'}`} />
               </button>
             )}
-            <h2 className={`text-xl font-bold ${isLight ? 'text-gray-900' : 'text-white'}`}>
-              {t('result.title')}
-            </h2>
+            <img
+              src={chrome.runtime.getURL('icons/result-title.png')}
+              alt={t('result.title')}
+              className="object-contain"
+              style={{ height: '36px', maxWidth: 'calc(100% - 40px)' }}
+            />
           </div>
           {/* ハンバーガーメニュー */}
           <div className="relative" ref={menuRef}>

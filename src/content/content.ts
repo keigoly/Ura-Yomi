@@ -143,8 +143,10 @@ function createAnalyzeButton(compact: boolean): HTMLButtonElement {
     }
   });
 
-  // クリックイベント
-  button.addEventListener('click', async () => {
+  // クリックイベント（並べ替えメニューへのバブリングを防止）
+  button.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    e.preventDefault();
     button.disabled = true;
     const txt = button.querySelector('#youtube-comment-analyzer-text') as HTMLElement;
     if (txt) txt.textContent = '解析中...';
@@ -268,38 +270,70 @@ function addAnalyzeButton() {
 
   const button = createAnalyzeButton(false);
 
-  // 「並べ替え」ボタンの右隣に追加する
-  const sortButton = Array.from(headerElement.querySelectorAll('button, ytd-button-renderer, yt-button-shape, [role="button"]')).find(
-    (el) => {
-      const text = el.textContent?.trim();
-      return (
-        text === '並べ替え' || text === 'Sort by' ||
-        (text?.includes('並べ替え') && text.length < 20) ||
-        (text?.includes('Sort by') && text.length < 20)
-      );
-    }
-  );
+  // 「並べ替え」のドロップダウン全体を探す（yt-sort-filter-sub-menu-renderer が最適）
+  const sortRenderer = headerElement.querySelector('yt-sort-filter-sub-menu-renderer') as HTMLElement | null;
 
-  if (sortButton) {
-    let container = sortButton.parentElement;
-    if (container) {
-      const computedStyle = window.getComputedStyle(container);
-      const display = computedStyle.display;
-      if (display !== 'flex' && display !== 'inline-flex') {
-        container.style.display = 'flex';
-        container.style.alignItems = 'center';
-        container.style.gap = '8px';
+  if (sortRenderer) {
+    // sortRenderer の直接の親要素内で、sortRenderer の右隣に独立ラッパーを挿入
+    // ドロップダウンの内部には入れず、兄弟要素として配置
+    const sortParent = sortRenderer.parentElement!;
+
+    // 親要素をflex化して横並びにする
+    sortParent.style.display = 'flex';
+    sortParent.style.alignItems = 'center';
+    sortParent.style.gap = '8px';
+    sortParent.style.flexWrap = 'nowrap';
+
+    // 独立ラッパーで囲んでバブリングを完全に遮断
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = 'display: inline-flex; align-items: center;';
+    wrapper.addEventListener('click', (e) => e.stopPropagation());
+    wrapper.appendChild(button);
+
+    // sortRendererの直後に挿入
+    if (sortRenderer.nextSibling) {
+      sortParent.insertBefore(wrapper, sortRenderer.nextSibling);
+    } else {
+      sortParent.appendChild(wrapper);
+    }
+  } else {
+    // フォールバック: 並べ替えテキストを持つ要素を探す
+    const sortEl = Array.from(headerElement.querySelectorAll('*')).find(
+      (el) => {
+        const text = el.textContent?.trim();
+        return (
+          (text === '並べ替え' || text === 'Sort by') &&
+          (el.tagName.includes('-') || el.matches('button, [role="button"]'))
+        );
       }
-      if (sortButton.nextSibling) {
-        container.insertBefore(button, sortButton.nextSibling);
+    );
+
+    if (sortEl) {
+      // 最も近い行レベルの親を探す（flexまたはinline要素）
+      let rowParent = sortEl.parentElement;
+      while (rowParent && rowParent !== headerElement) {
+        const display = window.getComputedStyle(rowParent).display;
+        if (display === 'flex' || display === 'inline-flex') break;
+        rowParent = rowParent.parentElement;
+      }
+
+      const target = rowParent || sortEl.parentElement;
+      if (target) {
+        target.style.display = 'flex';
+        target.style.alignItems = 'center';
+        target.style.gap = '8px';
+
+        const wrapper = document.createElement('div');
+        wrapper.style.cssText = 'display: inline-flex; align-items: center;';
+        wrapper.addEventListener('click', (e) => e.stopPropagation());
+        wrapper.appendChild(button);
+        target.appendChild(wrapper);
       } else {
-        container.appendChild(button);
+        headerElement.appendChild(button);
       }
     } else {
       headerElement.appendChild(button);
     }
-  } else {
-    headerElement.appendChild(button);
   }
 }
 

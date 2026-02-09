@@ -33,6 +33,7 @@ function SidePanel() {
   const [authLoading, setAuthLoading] = useState(true);
   const [urlInput, setUrlInput] = useState('');
   const [urlLoading, setUrlLoading] = useState(false);
+  const [isFromHistory, setIsFromHistory] = useState(false);
   const [currentVideo, setCurrentVideo] = useState<{ videoId: string; title?: string; commentCount?: number } | null>(null);
   const { fontSize, bgMode } = useDesignStore();
   const bgColor = BG_COLORS[bgMode];
@@ -457,6 +458,7 @@ function SidePanel() {
     setResult(entry.result);
     // videoInfoはstartAnalysisで設定されるが、履歴読み込み時は直接storeに設定
     useAnalysisStore.setState({ videoInfo: entry.videoInfo });
+    setIsFromHistory(true);
     setShowSettings(false);
   }, [setComments, setResult]);
 
@@ -522,7 +524,7 @@ function SidePanel() {
         <img
           src={chrome.runtime.getURL('icons/logo-urayomi.png')}
           alt="ウラヨミ！"
-          className="h-16 mb-2"
+          className="w-full max-w-[320px] px-4 mb-2"
         />
         <Auth onAuthSuccess={(u) => setUser(u)} />
       </div>
@@ -565,7 +567,16 @@ function SidePanel() {
 
   if (result) {
     return (
-      <ResultDashboard result={result} videoInfo={videoInfo} comments={comments} onBack={reset} onSave={saveCurrentResult} />
+      <ResultDashboard result={result} videoInfo={videoInfo} comments={comments} onBack={() => {
+        if (isFromHistory) {
+          // 履歴から来た場合は設定画面（履歴一覧）に戻る
+          reset();
+          setShowSettings(true);
+          setIsFromHistory(false);
+        } else {
+          reset();
+        }
+      }} onSave={saveCurrentResult} />
     );
   }
 
@@ -621,6 +632,15 @@ function SidePanel() {
             </>
           ) : (
             <>
+              {/* ロゴ */}
+              <div className="flex justify-center">
+                <img
+                  src={chrome.runtime.getURL('icons/logo-urayomi.png')}
+                  alt="ウラヨミ！"
+                  className="w-full max-w-[320px] px-4"
+                />
+              </div>
+
               {/* マスコットキャラクター */}
               <div className="flex justify-center">
                 <img

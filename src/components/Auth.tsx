@@ -104,7 +104,7 @@ function Auth({ onAuthSuccess }: AuthProps) {
         <img
           src={chrome.runtime.getURL('icons/mascot-duo.png')}
           alt="ウラヨミ！ マスコット"
-          className="w-44 mx-auto mb-2 animate-bounce-in"
+          className="w-32 mx-auto mb-2 animate-bounce-in"
         />
         <h2 className="text-xl font-bold text-white mb-1">
           {t('auth.welcome')}

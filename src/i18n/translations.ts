@@ -44,7 +44,7 @@ const ja = {
   'side.credits': 'クレジット',
   'side.openYoutube': 'YouTube動画のページを開いてね！',
   'side.orPasteUrl': 'またはURLを貼り付け',
-  'side.urlPlaceholder': '動画またはショート動画のURLを貼り付け',
+  'side.urlPlaceholder': '動画やショートのURLを貼り付け',
   'side.loading': '読み込み中...',
   'side.error': 'エラー',
   'side.openSettings': '設定画面を開く',
@@ -198,6 +198,13 @@ const ja = {
   'settings.plan100': '100クレジット',
   'settings.plan500': '500クレジット',
   'settings.planMonthly': '月額サブスク',
+
+  // ---- Character Mode ----
+  'character.toggle': 'キャラクターモード',
+  'character.tsubechan': 'ツベちゃんの解説',
+  'character.geminny': 'ジェミニーちゃんの解説',
+  'character.summaryBubble': 'コメント全体の要約だよ！',
+  'character.summaryLoading': 'ツベちゃんが要約中...',
 } as const;
 
 const en: Record<keyof typeof ja, string> = {
@@ -392,6 +399,13 @@ const en: Record<keyof typeof ja, string> = {
   'settings.plan100': '100 Credits',
   'settings.plan500': '500 Credits',
   'settings.planMonthly': 'Monthly Sub',
+
+  // ---- Character Mode ----
+  'character.toggle': 'Character Mode',
+  'character.tsubechan': "Tube-chan's Commentary",
+  'character.geminny': "Geminny's Commentary",
+  'character.summaryBubble': "Here's the comment summary!",
+  'character.summaryLoading': 'Tube-chan is summarizing...',
 };
 
 export const translations: Record<Language, Record<string, string>> = { ja, en };

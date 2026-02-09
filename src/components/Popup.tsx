@@ -105,6 +105,7 @@ function Popup() {
           timestamp: Date.now(),
         },
       });
+      window.close();
     }
   };
 
@@ -127,6 +128,7 @@ function Popup() {
     if (tab.id && tab.windowId !== undefined) {
       await chrome.sidePanel.open({ windowId: tab.windowId });
       await chrome.storage.local.set({ openSettings: true });
+      window.close();
     }
   };
 
@@ -264,7 +266,7 @@ function Popup() {
               type="text"
               value={urlInput}
               onChange={(e) => setUrlInput(e.target.value)}
-              placeholder="https://www.youtube.com/watch?v=..."
+              placeholder={t('side.urlPlaceholder')}
               className="w-full pl-9 pr-3 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
             />
           </div>

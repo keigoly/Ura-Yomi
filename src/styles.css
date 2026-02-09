@@ -426,3 +426,13 @@ html {
 .animate-bounce-in {
   animation: bounceIn 0.75s cubic-bezier(0.215, 0.61, 0.355, 1) forwards;
 }
+
+/* トピックのマーキースクロールアニメーション（Spotify風） */
+@keyframes marquee-scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
