@@ -152,7 +152,7 @@ function Billing({ onPurchaseSuccess }: BillingProps) {
         <p className="font-semibold mb-1">クレジットについて</p>
         <ul className="list-disc list-inside space-y-1">
           <li>解析1回につき{ANALYSIS_CREDIT_COST}クレジット消費</li>
-          <li>クレジットは有効期限なし</li>
+          <li>購入クレジットは有効期限なし（月額付与分は90日）</li>
           <li>月額サブスクは毎月自動でクレジットが付与されます</li>
         </ul>
       </div>
