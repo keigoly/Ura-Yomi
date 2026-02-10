@@ -38,6 +38,7 @@ export interface NeutralComment {
   likeCount: number;
   id?: string;
   reason?: string;
+  reason_en?: string;
 }
 
 /**
@@ -45,14 +46,18 @@ export interface NeutralComment {
  */
 export interface AnalysisResult {
   summary: string;
+  summary_en?: string;
   sentiment: SentimentAnalysis;
   topics: string[];
+  topics_en?: string[];
   hiddenGems: HiddenGem[];
   controversy: Controversy[];
   keywords: string[];
   positiveComment?: NeutralComment;
   neutralComment?: NeutralComment;
   // negativeCommentはフロントエンドで人気順リストの一番下から選択
+  negativeCommentReason?: string;
+  negativeCommentReason_en?: string;
 }
 
 /**

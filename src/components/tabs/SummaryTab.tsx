@@ -8,6 +8,7 @@ import { useDesignStore, isLightMode } from '../../store/designStore';
 import { useCharacterStore } from '../../store/characterStore';
 import { useTranslation } from '../../i18n/useTranslation';
 import { rewriteWithCharacter } from '../../services/apiServer';
+import mascotGirl from '../../icons/mascot-girl.png';
 import tsubechanSummary from '../../icons/tsubechan-summary.png';
 import tsubechanSentiment from '../../icons/tsubechan-sentiment.png';
 import tsubechanTopics from '../../icons/tsubechan-topics.png';
@@ -176,13 +177,17 @@ function SummaryTab({ result }: SummaryTabProps) {
   console.log('[SummaryTab] result.summary type:', typeof result.summary);
   console.log('[SummaryTab] result.summary preview:', typeof result.summary === 'string' ? result.summary.substring(0, 200) : result.summary);
 
+  // 言語に応じたsummaryとtopicsを選択（バイリンガル対応）
+  const rawSummary = (lang === 'en' && result.summary_en) ? result.summary_en : result.summary;
+  const rawTopics = (lang === 'en' && result.topics_en) ? result.topics_en : result.topics;
+
   // summaryが文字列の場合は整形（JSONコードブロックをパース）
   let formattedSummary: string;
   let extractedSentiment: { positive: number; negative: number; neutral: number } | null = null;
   let extractedTopics: string[] = [];
 
-  if (typeof result.summary === 'string') {
-    const summaryText = result.summary.trim();
+  if (typeof rawSummary === 'string') {
+    const summaryText = rawSummary.trim();
 
     // JSONコードブロックを検出してパース（複数パターンを試す）
     let jsonText = null;
@@ -249,14 +254,14 @@ function SummaryTab({ result }: SummaryTabProps) {
         });
       } catch (e) {
         console.error('[SummaryTab] ❌ Failed to parse JSON code block:', e);
-        formattedSummary = formatSummary(result.summary);
+        formattedSummary = formatSummary(rawSummary);
       }
     } else {
       // JSONコードブロックがない場合は通常の処理
-      formattedSummary = formatSummary(result.summary);
+      formattedSummary = formatSummary(rawSummary);
     }
   } else {
-    formattedSummary = result.summary || t('summary.noSummary');
+    formattedSummary = rawSummary || t('summary.noSummary');
   }
 
   // 要約の整形処理
@@ -278,11 +283,11 @@ function SummaryTab({ result }: SummaryTabProps) {
   // 抽出されたtopicsがある場合はそれを使用、なければresult.topicsを使用
   let topics: string[] = extractedTopics.length > 0 ? extractedTopics : [];
   if (topics.length === 0) {
-    if (Array.isArray(result.topics)) {
-      topics = result.topics.filter(topic => topic && typeof topic === 'string' && topic.trim().length > 0);
-    } else if (typeof result.topics === 'string') {
+    if (Array.isArray(rawTopics)) {
+      topics = rawTopics.filter(topic => topic && typeof topic === 'string' && topic.trim().length > 0);
+    } else if (typeof rawTopics === 'string') {
       try {
-        const parsed = JSON.parse(result.topics);
+        const parsed = JSON.parse(rawTopics);
         topics = Array.isArray(parsed) ? parsed.filter((t: any) => t && typeof t === 'string' && t.trim().length > 0) : [];
       } catch {
         topics = [];
@@ -439,6 +444,22 @@ function SummaryTab({ result }: SummaryTabProps) {
             />
           </button>
         </div>
+
+        {/* キャラクターモード時のタイトル */}
+        {summaryCharacterMode && (
+          <div className="mb-3">
+            <div className="flex items-center gap-2">
+              <img
+                src={mascotGirl}
+                alt="Yu-chan"
+                className="w-6 h-6 flex-shrink-0 rounded-full object-cover"
+              />
+              <h2 className={`text-2xl font-bold ${isLight ? 'text-gray-900' : 'text-white'}`}>
+                {t('character.yuchanSummary')}
+              </h2>
+            </div>
+          </div>
+        )}
 
         {/* 全体の要約 */}
         <div className="space-y-4">

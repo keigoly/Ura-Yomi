@@ -11,6 +11,7 @@ const STORAGE_KEYS = {
   DEEPDIVE: 'yt-gemini-deepdive-character',
   CACHE: 'yt-gemini-character-cache',
   DEEPDIVE_CACHE: 'yt-gemini-deepdive-cache',
+  NEGATIVE_REASON_CACHE: 'yt-gemini-negative-reason-cache',
 } as const;
 
 const MAX_CACHE_ENTRIES = 30;
@@ -27,6 +28,8 @@ interface CharacterState {
   summaryCache: Map<string, string>;
   /** 深掘りタブ用キャッシュ（元テキスト → 変換済みテキスト） */
   deepdiveCache: Map<string, string>;
+  /** ネガティブコメントAI分析キャッシュ（コメントテキスト → 分析結果） */
+  negativeReasonCache: Map<string, string>;
   setSummaryCharacterMode: (enabled: boolean) => void;
   setDeepdiveCharacterMode: (enabled: boolean) => void;
   /** キャッシュに変換済みテキストを保存（localStorage永続化） */
@@ -37,6 +40,10 @@ interface CharacterState {
   cacheDeepdive: (original: string, rewritten: string) => void;
   /** 深掘りタブ用キャッシュから変換済みテキストを取得 */
   getCachedDeepdive: (original: string) => string | undefined;
+  /** ネガティブコメントAI分析をキャッシュに保存 */
+  cacheNegativeReason: (commentText: string, reason: string) => void;
+  /** ネガティブコメントAI分析をキャッシュから取得 */
+  getCachedNegativeReason: (commentText: string) => string | undefined;
 }
 
 const loadBool = (key: string, defaultValue: boolean): boolean => {
@@ -80,6 +87,7 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
   deepdiveCharacterMode: loadBool(STORAGE_KEYS.DEEPDIVE, false),
   summaryCache: loadCache(STORAGE_KEYS.CACHE),
   deepdiveCache: loadCache(STORAGE_KEYS.DEEPDIVE_CACHE),
+  negativeReasonCache: loadCache(STORAGE_KEYS.NEGATIVE_REASON_CACHE),
   setSummaryCharacterMode: (enabled) => {
     localStorage.setItem(STORAGE_KEYS.SUMMARY, String(enabled));
     set({ summaryCharacterMode: enabled });
@@ -105,5 +113,14 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
   },
   getCachedDeepdive: (original) => {
     return get().deepdiveCache.get(original);
+  },
+  cacheNegativeReason: (commentText, reason) => {
+    const cache = new Map(get().negativeReasonCache);
+    cache.set(commentText, reason);
+    persistCache(cache, STORAGE_KEYS.NEGATIVE_REASON_CACHE);
+    set({ negativeReasonCache: cache });
+  },
+  getCachedNegativeReason: (commentText) => {
+    return get().negativeReasonCache.get(commentText);
   },
 }));

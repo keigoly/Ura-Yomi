@@ -34,9 +34,11 @@ const ja = {
   'popup.openYoutube': 'YouTube動画のページを開いてね！',
   'popup.orPasteUrl': 'またはURLを貼り付け',
   'popup.settings': '設定',
+  'popup.openSidePanel': 'サイドパネルを開く',
 
   // ---- SidePanel ----
   'side.settings': '設定',
+  'side.openWindow': '新しいウィンドウで開く',
   'side.title': 'タイトル',
   'side.commentCount': 'コメント総数',
   'side.commentUnit': '件',
@@ -132,8 +134,10 @@ const ja = {
   'settings.processing': '処理中...',
   'settings.aboutCredits': 'クレジットについて',
   'settings.creditCostInfo': '解析1回につき{cost}クレジット消費',
-  'settings.creditNoExpiry': 'クレジットは有効期限なし',
-  'settings.subscriptionInfo': '月額サブスクは毎月自動でクレジットが付与されます',
+  'settings.creditNoExpiry': '都度購入クレジットは有効期限なし',
+  'settings.subscriptionInfo': '月額サブスクは毎月1000クレジット付与（有効期限90日）',
+  'settings.expiryWarning': 'クレジット期限切れ警告',
+  'settings.expiryDetails': '{amount}クレジットが{days}日後に期限切れになります',
   'settings.language': '言語',
   'settings.languageDescription': '表示言語を選択してください。',
   'settings.langJa': '日本語',
@@ -191,6 +195,7 @@ const ja = {
   'settings.importError': 'インポートに失敗しました。',
   'settings.purchaseComplete': '購入が完了しました！',
   'settings.purchaseError': '購入エラーが発生しました: ',
+  'settings.checkoutOpened': '決済ページを新しいタブで開きました。決済完了後、クレジットは自動的に反映されます。',
   'settings.confirmDeleteHistory': '全ての履歴を削除しますか？',
   'settings.analysisCount': '解析{count}回分',
   'settings.analysisCountDiscount': '解析{count}回分（20%割引）',
@@ -205,6 +210,7 @@ const ja = {
   'character.geminny': 'ジェミニーちゃんの解説',
   'character.summaryBubble': 'コメント全体の要約だよ！',
   'character.summaryLoading': 'ツベちゃんが要約中...',
+  'character.yuchanSummary': 'ユウちゃんの要約＆分析',
 } as const;
 
 const en: Record<keyof typeof ja, string> = {
@@ -235,9 +241,11 @@ const en: Record<keyof typeof ja, string> = {
   'popup.openYoutube': 'Open a YouTube video page',
   'popup.orPasteUrl': 'or paste a URL',
   'popup.settings': 'Settings',
+  'popup.openSidePanel': 'Open side panel',
 
   // ---- SidePanel ----
   'side.settings': 'Settings',
+  'side.openWindow': 'Open in new window',
   'side.title': 'Title',
   'side.commentCount': 'Total Comments',
   'side.commentUnit': '',
@@ -333,8 +341,10 @@ const en: Record<keyof typeof ja, string> = {
   'settings.processing': 'Processing...',
   'settings.aboutCredits': 'About Credits',
   'settings.creditCostInfo': '{cost} credits per analysis',
-  'settings.creditNoExpiry': 'Credits never expire',
-  'settings.subscriptionInfo': 'Monthly subscription auto-grants credits every month',
+  'settings.creditNoExpiry': 'Purchased credits never expire',
+  'settings.subscriptionInfo': 'Monthly sub grants 1000 credits (expires in 90 days)',
+  'settings.expiryWarning': 'Credit Expiry Warning',
+  'settings.expiryDetails': '{amount} credits will expire in {days} days',
   'settings.language': 'Language',
   'settings.languageDescription': 'Select display language.',
   'settings.langJa': '日本語',
@@ -392,6 +402,7 @@ const en: Record<keyof typeof ja, string> = {
   'settings.importError': 'Import failed.',
   'settings.purchaseComplete': 'Purchase complete!',
   'settings.purchaseError': 'Purchase error: ',
+  'settings.checkoutOpened': 'Checkout page opened in a new tab. Credits will be added automatically after payment.',
   'settings.confirmDeleteHistory': 'Delete all history?',
   'settings.analysisCount': '{count} analyses',
   'settings.analysisCountDiscount': '{count} analyses (20% off)',
@@ -404,6 +415,7 @@ const en: Record<keyof typeof ja, string> = {
   'character.toggle': 'Character Mode',
   'character.tsubechan': "Tube-chan's Commentary",
   'character.geminny': "Geminny's Commentary",
+  'character.yuchanSummary': "Yu-chan's Summary & Analysis",
   'character.summaryBubble': "Here's the comment summary!",
   'character.summaryLoading': 'Tube-chan is summarizing...',
 };

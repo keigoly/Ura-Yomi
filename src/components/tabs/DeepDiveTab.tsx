@@ -95,10 +95,11 @@ function findCommentInList(
       replyCount: 0,
       thread: null as unknown as YouTubeCommentThread,
       reason: (geminiComment as any).reason,
+      reason_en: (geminiComment as any).reason_en,
     };
   }
 
-  return found ? { ...found, reason: (geminiComment as any).reason } : null;
+  return found ? { ...found, reason: (geminiComment as any).reason, reason_en: (geminiComment as any).reason_en } : null;
 }
 
 /**
@@ -138,6 +139,9 @@ function DeepDiveTab({ comments, result }: DeepDiveTabProps) {
   const [neutralCharacterReason, setNeutralCharacterReason] = useState<string | null>(null);
   const [positiveCharacterLoading, setPositiveCharacterLoading] = useState(false);
   const [neutralCharacterLoading, setNeutralCharacterLoading] = useState(false);
+  const [negativeAIReason, setNegativeAIReason] = useState<string | null>(null);
+  const [negativeCharacterReason, setNegativeCharacterReason] = useState<string | null>(null);
+  const [negativeCharacterLoading, setNegativeCharacterLoading] = useState(false);
   const lang = (localStorage.getItem('yt-gemini-language') || 'ja') as 'ja' | 'en';
 
   // 返信の表示/非表示を切り替え
@@ -180,14 +184,19 @@ function DeepDiveTab({ comments, result }: DeepDiveTabProps) {
   const neutralComment = findCommentInList(result.neutralComment, topLevelComments);
 
   // ネガティブコメント: 人気順リストの一番下（投稿者除外済み）
-  // yt-dlpの人気順（comment_sort=top）で最後のコメントを使用
+  // 人気順（comment_sort=top）で最後のコメントを使用
   const negativeComment = topLevelComments.length > 0
     ? topLevelComments[topLevelComments.length - 1]
     : null;
 
-  // ポジティブのreason取得
-  const positiveReason = (positiveComment as any)?.reason as string | undefined;
-  const neutralReason = (neutralComment as any)?.reason as string | undefined;
+  // ポジティブのreason取得（バイリンガル対応）
+  const positiveReasonRaw = (positiveComment as any)?.reason as string | undefined;
+  const positiveReasonEn = (positiveComment as any)?.reason_en as string | undefined;
+  const positiveReason = (lang === 'en' && positiveReasonEn) ? positiveReasonEn : positiveReasonRaw;
+
+  const neutralReasonRaw = (neutralComment as any)?.reason as string | undefined;
+  const neutralReasonEn = (neutralComment as any)?.reason_en as string | undefined;
+  const neutralReason = (lang === 'en' && neutralReasonEn) ? neutralReasonEn : neutralReasonRaw;
 
   // キャラクターモードON時にポジティブreasonをジェミニーちゃんペルソナで書き換え
   useEffect(() => {
@@ -251,13 +260,64 @@ function DeepDiveTab({ comments, result }: DeepDiveTabProps) {
     return () => { cancelled = true; };
   }, [deepdiveCharacterMode, neutralReason, neutralCharacterReason, lang, getCachedDeepdive, cacheDeepdive]);
 
-  // キャラクターモードOFF時にリセット
+  // キャラクターモードOFF時、または言語切替時にキャラクターreasonをリセット
   useEffect(() => {
     if (!deepdiveCharacterMode) {
       setPositiveCharacterReason(null);
       setNeutralCharacterReason(null);
+      setNegativeCharacterReason(null);
     }
   }, [deepdiveCharacterMode]);
+
+  // 言語切替時にキャラクターreasonをリセット（再生成のため）
+  useEffect(() => {
+    setPositiveCharacterReason(null);
+    setNeutralCharacterReason(null);
+    setNegativeCharacterReason(null);
+  }, [lang]);
+
+  // ネガティブコメントのAI分析をメイン解析結果から取得（バイリンガル対応）
+  useEffect(() => {
+    const negativeReason = (lang === 'en' && result.negativeCommentReason_en)
+      ? result.negativeCommentReason_en
+      : result.negativeCommentReason;
+    if (negativeReason) {
+      setNegativeAIReason(negativeReason);
+      // 言語切替時にキャラクターreasonもリセット
+      setNegativeCharacterReason(null);
+    }
+  }, [result.negativeCommentReason, result.negativeCommentReason_en, lang]);
+
+  // キャラクターモードON時にネガティブreasonをジェミニーちゃんペルソナで書き換え
+  useEffect(() => {
+    if (!deepdiveCharacterMode || !negativeAIReason || negativeCharacterReason !== null) return;
+
+    const cached = getCachedDeepdive(negativeAIReason);
+    if (cached) {
+      setNegativeCharacterReason(cached);
+      return;
+    }
+
+    let cancelled = false;
+    setNegativeCharacterLoading(true);
+
+    rewriteWithCharacter(negativeAIReason, 'geminny', lang)
+      .then((rewritten) => {
+        if (!cancelled) {
+          setNegativeCharacterReason(rewritten);
+          cacheDeepdive(negativeAIReason, rewritten);
+        }
+      })
+      .catch((err) => {
+        console.error('[DeepDiveTab] Negative character rewrite failed:', err);
+        if (!cancelled) setNegativeCharacterReason(negativeAIReason);
+      })
+      .finally(() => {
+        if (!cancelled) setNegativeCharacterLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [deepdiveCharacterMode, negativeAIReason, negativeCharacterReason, lang, getCachedDeepdive, cacheDeepdive]);
 
   const hasData = (positiveComment && positiveComment.text) ||
                   (negativeComment && negativeComment.text) ||
@@ -659,13 +719,22 @@ function DeepDiveTab({ comments, result }: DeepDiveTabProps) {
                 </p>
 
                 {/* AI REASONINGブロック */}
-                {(negativeComment as any).reason && (
+                {negativeAIReason && (
                   deepdiveCharacterMode ? (
                     <div className="mb-3">
                       <div className={`rounded-xl p-3 ${isLight ? 'bg-purple-50 border border-purple-200' : 'bg-[#3b1f5e] border border-purple-700/50'}`}>
-                        <p className={`text-sm leading-relaxed ${isLight ? 'text-gray-700' : 'text-gray-200'}`}>
-                          {(negativeComment as any).reason}
-                        </p>
+                        {negativeCharacterLoading ? (
+                          <div className="flex items-center justify-center gap-2 py-2">
+                            <div className="w-5 h-5 border-2 border-purple-400 border-t-transparent rounded-full animate-spin" />
+                            <span className={`text-sm ${isLight ? 'text-purple-600' : 'text-purple-300'}`}>
+                              {lang === 'ja' ? 'ジェミニーちゃんが解説中...' : 'Geminny is analyzing...'}
+                            </span>
+                          </div>
+                        ) : (
+                          <p className={`text-sm leading-relaxed ${isLight ? 'text-gray-700' : 'text-gray-200'}`}>
+                            {negativeCharacterReason || negativeAIReason}
+                          </p>
+                        )}
                       </div>
                     </div>
                   ) : (
@@ -677,7 +746,7 @@ function DeepDiveTab({ comments, result }: DeepDiveTabProps) {
                         </span>
                       </div>
                       <p className={`text-sm leading-relaxed ${isLight ? 'text-gray-600' : 'text-gray-300'}`}>
-                        {(negativeComment as any).reason}
+                        {negativeAIReason}
                       </p>
                     </div>
                   )

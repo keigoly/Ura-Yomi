@@ -3,7 +3,7 @@
  */
 
 import { useEffect, useCallback, useRef, useState } from 'react';
-import { Play, Link, Settings } from 'lucide-react';
+import { Play, Link, Settings, ExternalLink } from 'lucide-react';
 import { useAnalysisStore } from '../store/analysisStore';
 import { useDesignStore, BG_COLORS, isLightMode } from '../store/designStore';
 import { analyzeViaServer, getVideoInfo, verifySession } from '../services/apiServer';
@@ -34,6 +34,12 @@ function SidePanel() {
   const [urlInput, setUrlInput] = useState('');
   const [urlLoading, setUrlLoading] = useState(false);
   const [isFromHistory, setIsFromHistory] = useState(false);
+  const [isStandaloneWindow, setIsStandaloneWindow] = useState(false);
+  useEffect(() => {
+    chrome.windows.getCurrent((win) => {
+      if (win.type === 'popup') setIsStandaloneWindow(true);
+    });
+  }, []);
   const [currentVideo, setCurrentVideo] = useState<{ videoId: string; title?: string; commentCount?: number } | null>(null);
   const { fontSize, bgMode } = useDesignStore();
   const bgColor = BG_COLORS[bgMode];
@@ -521,11 +527,16 @@ function SidePanel() {
   if (!user) {
     return (
       <div style={wrapperStyle} className="flex flex-col items-center justify-center px-6">
-        <img
-          src={chrome.runtime.getURL('icons/logo-urayomi.png')}
-          alt="ウラヨミ！"
-          className="w-full max-w-[320px] px-4 mb-2"
-        />
+        <div className="flex justify-center px-2 py-1 mb-2 animate-bounce-in" style={{ animationFillMode: 'both' }}>
+          <img
+            src={chrome.runtime.getURL('icons/logo-urayomi.png')}
+            alt="ウラヨミ！"
+            className="w-full max-w-[320px] px-4 object-contain"
+            style={{
+              filter: 'drop-shadow(0 0 8px rgba(255,255,255,0.8)) drop-shadow(0 0 20px rgba(255,255,255,0.4)) drop-shadow(0 0 40px rgba(200,220,255,0.3))',
+            }}
+          />
+        </div>
         <Auth onAuthSuccess={(u) => setUser(u)} />
       </div>
     );
@@ -582,8 +593,21 @@ function SidePanel() {
 
   return (
     <div style={wrapperStyle} className="flex flex-col">
-      {/* 設定ボタン（右上） */}
-      <div className="flex justify-end p-3" style={{ flexShrink: 0 }}>
+      {/* ボタン（右上） */}
+      <div className="flex justify-end gap-1 p-3" style={{ flexShrink: 0 }}>
+        {!isStandaloneWindow && (
+          <button
+            onClick={async () => {
+              const url = chrome.runtime.getURL('sidepanel.html');
+              await chrome.windows.create({ url, type: 'popup', width: 420, height: 720 });
+              window.close();
+            }}
+            className={`p-2 rounded-lg transition-colors ${isLight ? 'hover:bg-gray-100 text-gray-500' : 'hover:bg-gray-800 text-gray-400'}`}
+            title={t('side.openWindow')}
+          >
+            <ExternalLink className="w-5 h-5" />
+          </button>
+        )}
         <button
           onClick={handleOpenSettings}
           className={`p-2 rounded-lg transition-colors ${isLight ? 'hover:bg-gray-100 text-gray-500' : 'hover:bg-gray-800 text-gray-400'}`}
@@ -633,20 +657,26 @@ function SidePanel() {
           ) : (
             <>
               {/* ロゴ */}
-              <div className="flex justify-center">
+              <div className="flex justify-center px-2 py-1 animate-bounce-in" style={{ animationFillMode: 'both' }}>
                 <img
                   src={chrome.runtime.getURL('icons/logo-urayomi.png')}
                   alt="ウラヨミ！"
-                  className="w-full max-w-[320px] px-4"
+                  className="w-full max-w-[320px] px-4 object-contain"
+                  style={{
+                    filter: 'drop-shadow(0 0 8px rgba(255,255,255,0.8)) drop-shadow(0 0 20px rgba(255,255,255,0.4)) drop-shadow(0 0 40px rgba(200,220,255,0.3))',
+                  }}
                 />
               </div>
 
               {/* マスコットキャラクター */}
-              <div className="flex justify-center">
+              <div className="flex justify-center animate-bounce-in" style={{ animationDelay: '0.15s', animationFillMode: 'both' }}>
                 <img
                   src={chrome.runtime.getURL('icons/mascot.png')}
                   alt="ウラヨミ！ マスコット"
-                  className="w-48 animate-bounce-in"
+                  className="w-48"
+                  style={{
+                    filter: 'drop-shadow(0 0 8px rgba(255,255,255,0.8)) drop-shadow(0 0 20px rgba(255,255,255,0.4)) drop-shadow(0 0 40px rgba(200,220,255,0.3))',
+                  }}
                 />
               </div>
 

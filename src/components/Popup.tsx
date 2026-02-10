@@ -3,7 +3,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { Settings, Play, AlertCircle, CreditCard, Link } from 'lucide-react';
+import { Settings, Play, AlertCircle, CreditCard, Link, PanelRight } from 'lucide-react';
 import { getCurrentYouTubeVideo, extractVideoId } from '../utils/youtube';
 import { verifySession, getCredits, getVideoInfo } from '../services/apiServer';
 import type { User } from '../types';
@@ -123,6 +123,14 @@ function Popup() {
     }
   };
 
+  const handleOpenSidePanel = async () => {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab.id && tab.windowId !== undefined) {
+      await chrome.sidePanel.open({ windowId: tab.windowId });
+      window.close();
+    }
+  };
+
   const handleSettings = async () => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (tab.id && tab.windowId !== undefined) {
@@ -174,6 +182,13 @@ function Popup() {
               </div>
             </div>
           )}
+          <button
+            onClick={handleOpenSidePanel}
+            className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
+            title={t('popup.openSidePanel')}
+          >
+            <PanelRight className="w-5 h-5 text-gray-300" />
+          </button>
           <button
             onClick={handleSettings}
             className="p-2 hover:bg-gray-800 rounded-lg transition-colors"

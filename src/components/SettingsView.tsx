@@ -5,8 +5,9 @@
 import { useState, useEffect } from 'react';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { ArrowLeft, CreditCard, Trash2, LogOut } from 'lucide-react';
-import { getCredits, purchaseCredits, clearSessionToken } from '../services/apiServer';
+import { getCredits, purchaseCredits, createCheckoutSession, clearSessionToken } from '../services/apiServer';
 import { ANALYSIS_CREDIT_COST } from '../constants';
+import type { NearestExpiry } from '../types';
 import { useDesignStore, BG_COLORS, isLightMode } from '../store/designStore';
 import type { FontSize } from '../store/designStore';
 import { getHistoryList, deleteHistoryEntry, clearHistory } from '../services/historyStorage';
@@ -144,6 +145,7 @@ function SettingsView({ onBack, onLoadHistory, onLogout }: SettingsViewProps) {
 
   // データ
   const [credits, setCredits] = useState<number | null>(null);
+  const [nearestExpiry, setNearestExpiry] = useState<NearestExpiry | null>(null);
   const [purchaseLoading, setPurchaseLoading] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [language, setLanguageState] = useState<Language>(() => {
@@ -160,12 +162,22 @@ function SettingsView({ onBack, onLoadHistory, onLogout }: SettingsViewProps) {
   useEffect(() => {
     loadCredits();
     fetchRelease();
+
+    // タブがフォーカスされた時にクレジット残高を再取得（Stripe決済完了後の反映用）
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadCredits();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, []);
 
   const loadCredits = async () => {
     const result = await getCredits();
     if (result.success && result.credits !== undefined) {
       setCredits(result.credits);
+      setNearestExpiry(result.nearestExpiry ?? null);
     }
   };
 
@@ -192,17 +204,48 @@ function SettingsView({ onBack, onLoadHistory, onLogout }: SettingsViewProps) {
     }
   };
 
-  // 購入
+  // 購入（Stripe Checkout → フォールバック: 旧方式）
   const handlePurchase = async (planId: string) => {
     setPurchaseLoading(true);
     setSelectedPlan(planId);
     try {
-      await purchaseCredits(planId, { method: 'test' });
-      await loadCredits();
-      alert(t('settings.purchaseComplete'));
+      // Stripe Checkout Sessionを作成
+      const result = await createCheckoutSession(planId);
+      if (result.url) {
+        // 購入前の残高を記録
+        const creditsBefore = credits;
+        // Stripe決済ページを新タブで開く（サイドパネルからはリダイレクト不可のため）
+        window.open(result.url, '_blank');
+        // alertを使わず、即座にポーリング開始（残高が変わるまで2秒ごとにチェック）
+        let attempts = 0;
+        const poll = setInterval(async () => {
+          attempts++;
+          const res = await getCredits();
+          if (res.success && res.credits !== undefined) {
+            setCredits(res.credits);
+            if (res.credits !== creditsBefore) {
+              clearInterval(poll);
+            }
+          }
+          if (attempts >= 60) clearInterval(poll); // 最大60回（120秒）で停止
+        }, 2000);
+      }
     } catch (error) {
-      console.error('Purchase error:', error);
-      alert(t('settings.purchaseError') + (error instanceof Error ? error.message : 'Unknown error'));
+      console.error('Checkout error:', error);
+      // Stripeが未設定の場合は旧方式にフォールバック
+      const errorMsg = error instanceof Error ? error.message : '';
+      if (errorMsg.includes('Stripe') || errorMsg.includes('500')) {
+        try {
+          await purchaseCredits(planId, { method: 'test' });
+          await loadCredits();
+          alert(t('settings.purchaseComplete'));
+        } catch (fallbackError) {
+          console.error('Purchase fallback error:', fallbackError);
+          alert(t('settings.purchaseError') + (fallbackError instanceof Error ? fallbackError.message : 'Unknown error'));
+        }
+      } else {
+        alert(t('settings.purchaseError') + errorMsg);
+      }
     } finally {
       setPurchaseLoading(false);
       setSelectedPlan(null);
@@ -307,17 +350,17 @@ function SettingsView({ onBack, onLoadHistory, onLogout }: SettingsViewProps) {
         .animate-fade-out { animation: fade-out 0.3s ease-in forwards; }
       `}</style>
 
-      <div className="min-h-screen" style={{ backgroundColor: bgColor }}>
-        {/* ヘッダー */}
-        <div className={`flex items-center gap-3 p-4 border-b sticky top-0 z-10 ${isLight ? 'border-gray-200' : 'border-gray-700'}`} style={{ backgroundColor: bgColor }}>
+      <div className="flex flex-col" style={{ backgroundColor: bgColor, height: '100vh' }}>
+        {/* ヘッダー（固定） */}
+        <div className={`flex items-center gap-3 p-4 border-b flex-shrink-0 ${isLight ? 'border-gray-200' : 'border-gray-700'}`} style={{ backgroundColor: bgColor }}>
           <button onClick={onBack} className={`p-1.5 rounded-lg transition-colors ${isLight ? 'hover:bg-gray-100' : 'hover:bg-gray-800'}`}>
             <ArrowLeft className={`w-5 h-5 ${isLight ? 'text-gray-600' : 'text-gray-300'}`} />
           </button>
           <h1 className={`text-lg font-bold ${isLight ? 'text-gray-900' : 'text-white'}`}>{t('settings.title')}</h1>
         </div>
 
-        {/* 設定項目 */}
-        <div className="p-4 space-y-3" ref={parent}>
+        {/* 設定項目（スクロール） */}
+        <div className="p-4 space-y-3 overflow-y-auto flex-1" ref={parent}>
 
           {/* ===== 1. クレジット管理 ===== */}
           <SettingsAccordion
@@ -335,6 +378,16 @@ function SettingsView({ onBack, onLoadHistory, onLogout }: SettingsViewProps) {
                 </div>
                 <span className={`text-lg font-bold ${isLight ? 'text-gray-900' : 'text-white'}`}>{credits !== null ? `${credits}` : '---'}</span>
               </div>
+              {nearestExpiry && nearestExpiry.daysLeft <= 30 && (
+                <div className={`p-3 rounded-lg border ${nearestExpiry.daysLeft <= 7 ? 'bg-red-900/20 border-red-700' : 'bg-yellow-900/20 border-yellow-700'}`}>
+                  <div className={`text-xs font-bold mb-1 ${nearestExpiry.daysLeft <= 7 ? 'text-red-400' : 'text-yellow-400'}`}>
+                    {t('settings.expiryWarning')}
+                  </div>
+                  <div className={`text-xs ${nearestExpiry.daysLeft <= 7 ? 'text-red-300' : 'text-yellow-300'}`}>
+                    {t('settings.expiryDetails', { amount: nearestExpiry.amount, days: nearestExpiry.daysLeft })}
+                  </div>
+                </div>
+              )}
               <div className="space-y-2">
                 <div className="text-xs font-bold text-gray-400 mb-2">{t('settings.selectPlan')}</div>
                 {PURCHASE_PLANS.map((plan) => (

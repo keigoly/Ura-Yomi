@@ -24,6 +24,8 @@ export type {
 export type {
   User,
   UserSubscription,
+  CreditBatch,
+  NearestExpiry,
   AuthResponse,
   CreditsResponse,
   AnalyzeRequest,

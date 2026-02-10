@@ -213,7 +213,7 @@ export async function analyzeViaServer(
   }
 
   try {
-    const data = await apiRequest<any>(API_ENDPOINTS.ANALYZE, {
+    const data = await apiRequest<any>(API_ENDPOINTS.ANALYZE.DEFAULT, {
       method: 'POST',
       body: JSON.stringify({
         videoId,
@@ -280,6 +280,33 @@ export async function rewriteWithCharacter(
 }
 
 /**
+ * ネガティブコメントのAI分析
+ */
+export async function analyzeNegativeComment(
+  comment: string,
+  language?: string
+): Promise<string> {
+  const sessionToken = getSessionToken();
+  if (!sessionToken) {
+    throw new Error('認証が必要です');
+  }
+
+  const data = await apiRequest<{ success: boolean; reason: string; error?: string }>(
+    API_ENDPOINTS.ANALYZE.NEGATIVE_REASON,
+    {
+      method: 'POST',
+      body: JSON.stringify({ comment, language }),
+    }
+  );
+
+  if (!data.success) {
+    throw new Error(data.error || 'ネガティブコメント分析エラー');
+  }
+
+  return data.reason;
+}
+
+/**
  * 動画情報取得（タイトルとコメント総数）
  */
 export async function getVideoInfo(videoId: string): Promise<{
@@ -299,6 +326,32 @@ export async function getVideoInfo(videoId: string): Promise<{
       error: error instanceof Error ? error.message : '動画情報の取得に失敗しました',
     };
   }
+}
+
+/**
+ * Stripe Checkout Session作成
+ */
+export async function createCheckoutSession(
+  planId: string
+): Promise<{ success: boolean; url?: string; error?: string }> {
+  const sessionToken = getSessionToken();
+  if (!sessionToken) {
+    throw new Error('認証が必要です');
+  }
+
+  const data = await apiRequest<{ success: boolean; url: string; error?: string }>(
+    API_ENDPOINTS.BILLING.CREATE_CHECKOUT,
+    {
+      method: 'POST',
+      body: JSON.stringify({ planId }),
+    }
+  );
+
+  if (!data.success) {
+    throw new Error(data.error || 'Checkout作成エラー');
+  }
+
+  return data;
 }
 
 /**

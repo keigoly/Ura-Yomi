@@ -32,12 +32,36 @@ export interface AuthResponse {
 }
 
 /**
+ * クレジットバッチ（期限付きクレジット管理）
+ */
+export interface CreditBatch {
+  id: string;
+  amount: number;
+  remaining: number;
+  source: 'free' | 'purchase' | 'subscription';
+  planId: string | null;
+  grantedAt: string;
+  expiresAt: string | null;
+}
+
+/**
+ * 最も近い期限切れ情報
+ */
+export interface NearestExpiry {
+  daysLeft: number;
+  amount: number;
+  expiresAt: string;
+}
+
+/**
  * クレジット残高レスポンス
  */
 export interface CreditsResponse {
   success: boolean;
   credits?: number;
   subscription?: UserSubscription;
+  creditBatches?: CreditBatch[];
+  nearestExpiry?: NearestExpiry | null;
   error?: string;
 }
 

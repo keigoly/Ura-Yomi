@@ -26,12 +26,16 @@ export const API_ENDPOINTS = {
   VIDEO: {
     INFO: '/api/video/info',
   },
-  ANALYZE: '/api/analyze',
+  ANALYZE: {
+    DEFAULT: '/api/analyze',
+    NEGATIVE_REASON: '/api/analyze/negative-reason',
+  },
   CHARACTER: {
     REWRITE: '/api/character/rewrite',
   },
   BILLING: {
     PURCHASE: '/api/billing/purchase',
+    CREATE_CHECKOUT: '/api/billing/create-checkout-session',
   },
 } as const;
 
