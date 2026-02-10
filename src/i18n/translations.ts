@@ -18,8 +18,8 @@ const ja = {
   'auth.loading': '読み込み中...',
   'auth.creditBalance': 'クレジット残高',
   'auth.devModeCredits': '開発モード: 999クレジット無料プレゼント！',
-  'auth.welcomeCredits': '新規登録特典で20クレジット無料プレゼント！',
-  'auth.freeCredits': '初回登録で20クレジットプレゼント！',
+  'auth.welcomeCredits': '新規登録特典で15クレジット無料プレゼント！',
+  'auth.freeCredits': '初回登録で15クレジットプレゼント！',
   'auth.creditCostInfo': '捜査1回につき{cost}クレジット消費',
   'auth.creditPurchaseInfo': 'クレジット不足時は追加購入OK',
   'auth.creditNoExpiry': 'クレジットの有効期限はなし！',
@@ -70,6 +70,7 @@ const ja = {
   // ---- ResultDashboard ----
   'result.title': '解析結果',
   'result.menu': 'メニュー',
+  'result.openWindow': '新しいウィンドウで開く',
   'result.copied': 'コピーしました',
   'result.copySummary': '要約をコピー',
   'result.exportJson': 'JSONでエクスポート',
@@ -135,7 +136,7 @@ const ja = {
   'settings.aboutCredits': 'クレジットについて',
   'settings.creditCostInfo': '解析1回につき{cost}クレジット消費',
   'settings.creditNoExpiry': '都度購入クレジットは有効期限なし',
-  'settings.subscriptionInfo': '月額サブスクは毎月1000クレジット付与（有効期限90日）',
+  'settings.subscriptionInfo': '月額サブスクは毎月クレジット付与（有効期限90日）',
   'settings.expiryWarning': 'クレジット期限切れ警告',
   'settings.expiryDetails': '{amount}クレジットが{days}日後に期限切れになります',
   'settings.language': '言語',
@@ -198,11 +199,12 @@ const ja = {
   'settings.checkoutOpened': '決済ページを新しいタブで開きました。決済完了後、クレジットは自動的に反映されます。',
   'settings.confirmDeleteHistory': '全ての履歴を削除しますか？',
   'settings.analysisCount': '解析{count}回分',
-  'settings.analysisCountDiscount': '解析{count}回分（20%割引）',
   'settings.monthlySubscription': '毎月{credits}クレジット自動付与',
-  'settings.plan100': '100クレジット',
-  'settings.plan500': '500クレジット',
-  'settings.planMonthly': '月額サブスク',
+  'settings.plan30': 'お試しパック',
+  'settings.plan60': 'スタンダード',
+  'settings.plan150': 'プレミアム',
+  'settings.planLite': '月額ライト',
+  'settings.planStandard': '月額スタンダード',
 
   // ---- Character Mode ----
   'character.toggle': 'キャラクターモード',
@@ -211,6 +213,14 @@ const ja = {
   'character.summaryBubble': 'コメント全体の要約だよ！',
   'character.summaryLoading': 'ツベちゃんが要約中...',
   'character.yuchanSummary': 'ユウちゃんの要約＆分析',
+
+  // ---- Share ----
+  'share.x': 'Xでシェア',
+  'share.instagram': 'Instagramでシェア',
+  'share.copyUrl': 'URLをコピー',
+  'share.copied': 'URLをコピーしました！',
+  'share.text': 'YouTubeコメントをAIで分析できる「ウラヨミ！」が便利すぎる！',
+  'share.yuchanAsk': 'SNSでのシェアのほどよろしくお願いします！',
 } as const;
 
 const en: Record<keyof typeof ja, string> = {
@@ -225,8 +235,8 @@ const en: Record<keyof typeof ja, string> = {
   'auth.loading': 'Loading...',
   'auth.creditBalance': 'Credit Balance',
   'auth.devModeCredits': 'Dev mode: 999 free credits!',
-  'auth.welcomeCredits': 'Welcome bonus: 20 free credits!',
-  'auth.freeCredits': '20 free credits on signup!',
+  'auth.welcomeCredits': 'Welcome bonus: 15 free credits!',
+  'auth.freeCredits': '15 free credits on signup!',
   'auth.creditCostInfo': '{cost} credits per investigation',
   'auth.creditPurchaseInfo': 'Buy more credits when you run out',
   'auth.creditNoExpiry': 'Credits never expire!',
@@ -277,6 +287,7 @@ const en: Record<keyof typeof ja, string> = {
   // ---- ResultDashboard ----
   'result.title': 'Analysis Results',
   'result.menu': 'Menu',
+  'result.openWindow': 'Open in new window',
   'result.copied': 'Copied',
   'result.copySummary': 'Copy Summary',
   'result.exportJson': 'Export as JSON',
@@ -342,7 +353,7 @@ const en: Record<keyof typeof ja, string> = {
   'settings.aboutCredits': 'About Credits',
   'settings.creditCostInfo': '{cost} credits per analysis',
   'settings.creditNoExpiry': 'Purchased credits never expire',
-  'settings.subscriptionInfo': 'Monthly sub grants 1000 credits (expires in 90 days)',
+  'settings.subscriptionInfo': 'Monthly sub grants credits (expires in 90 days)',
   'settings.expiryWarning': 'Credit Expiry Warning',
   'settings.expiryDetails': '{amount} credits will expire in {days} days',
   'settings.language': 'Language',
@@ -405,11 +416,12 @@ const en: Record<keyof typeof ja, string> = {
   'settings.checkoutOpened': 'Checkout page opened in a new tab. Credits will be added automatically after payment.',
   'settings.confirmDeleteHistory': 'Delete all history?',
   'settings.analysisCount': '{count} analyses',
-  'settings.analysisCountDiscount': '{count} analyses (20% off)',
   'settings.monthlySubscription': '{credits} credits auto-granted monthly',
-  'settings.plan100': '100 Credits',
-  'settings.plan500': '500 Credits',
-  'settings.planMonthly': 'Monthly Sub',
+  'settings.plan30': 'Starter Pack',
+  'settings.plan60': 'Standard',
+  'settings.plan150': 'Premium',
+  'settings.planLite': 'Monthly Lite',
+  'settings.planStandard': 'Monthly Standard',
 
   // ---- Character Mode ----
   'character.toggle': 'Character Mode',
@@ -418,6 +430,14 @@ const en: Record<keyof typeof ja, string> = {
   'character.yuchanSummary': "Yu-chan's Summary & Analysis",
   'character.summaryBubble': "Here's the comment summary!",
   'character.summaryLoading': 'Tube-chan is summarizing...',
+
+  // ---- Share ----
+  'share.x': 'Share on X',
+  'share.instagram': 'Share on Instagram',
+  'share.copyUrl': 'Copy URL',
+  'share.copied': 'URL copied!',
+  'share.text': 'UraYomi! - Analyze YouTube comments with AI. So useful!',
+  'share.yuchanAsk': 'Please share us on social media!',
 };
 
 export const translations: Record<Language, Record<string, string>> = { ja, en };

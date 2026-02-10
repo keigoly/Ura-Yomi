@@ -452,9 +452,9 @@ function SummaryTab({ result }: SummaryTabProps) {
               <img
                 src={mascotGirl}
                 alt="Yu-chan"
-                className="w-6 h-6 flex-shrink-0 rounded-full object-cover"
+                className="w-9 h-9 flex-shrink-0 rounded-full object-cover"
               />
-              <h2 className={`text-2xl font-bold ${isLight ? 'text-gray-900' : 'text-white'}`}>
+              <h2 className={`text-2xl font-bold whitespace-nowrap ${isLight ? 'text-gray-900' : 'text-white'}`}>
                 {t('character.yuchanSummary')}
               </h2>
             </div>

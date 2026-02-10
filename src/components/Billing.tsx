@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { CreditCard } from 'lucide-react';
 import { purchaseCredits, getCredits } from '../services/apiServer';
 import { ANALYSIS_CREDIT_COST } from '../constants';
+import { useTranslation } from '../i18n/useTranslation';
 
 interface BillingProps {
   onPurchaseSuccess: () => void;
@@ -19,6 +20,7 @@ interface PurchasePlan {
   name: string;
   credits: number;
   price: number;
+  priceUsd: number;
   description: string;
 }
 
@@ -27,29 +29,49 @@ interface PurchasePlan {
  */
 const PURCHASE_PLANS: PurchasePlan[] = [
   {
-    id: 'credits_100',
-    name: '100クレジット',
-    credits: 100,
+    id: 'credits_30',
+    name: 'お試しパック',
+    credits: 30,
+    price: 300,
+    priceUsd: 1.99,
+    description: `解析${30 / ANALYSIS_CREDIT_COST}回分`,
+  },
+  {
+    id: 'credits_60',
+    name: 'スタンダード',
+    credits: 60,
     price: 500,
-    description: `解析${100 / ANALYSIS_CREDIT_COST}回分`,
+    priceUsd: 2.99,
+    description: `解析${60 / ANALYSIS_CREDIT_COST}回分`,
   },
   {
-    id: 'credits_500',
-    name: '500クレジット',
-    credits: 500,
-    price: 2000,
-    description: `解析${500 / ANALYSIS_CREDIT_COST}回分（20%割引）`,
+    id: 'credits_150',
+    name: 'プレミアム',
+    credits: 150,
+    price: 1000,
+    priceUsd: 6.99,
+    description: `解析${150 / ANALYSIS_CREDIT_COST}回分`,
   },
   {
-    id: 'subscription_monthly',
-    name: '月額サブスク',
-    credits: 1000,
-    price: 3000,
-    description: '毎月1000クレジット自動付与',
+    id: 'subscription_lite',
+    name: '月額ライト',
+    credits: 90,
+    price: 800,
+    priceUsd: 4.99,
+    description: '毎月90クレジット自動付与',
+  },
+  {
+    id: 'subscription_standard',
+    name: '月額スタンダード',
+    credits: 300,
+    price: 1980,
+    priceUsd: 12.99,
+    description: '毎月300クレジット自動付与',
   },
 ];
 
 function Billing({ onPurchaseSuccess }: BillingProps) {
+  const { t, lang } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
 
@@ -95,9 +117,9 @@ function Billing({ onPurchaseSuccess }: BillingProps) {
               </div>
               <div className="text-right">
                 <p className="text-lg font-bold text-blue-600">
-                  ¥{plan.price.toLocaleString()}
+                  {lang === 'en' ? `$${plan.priceUsd}` : `¥${plan.price.toLocaleString()}`}
                 </p>
-                <p className="text-xs text-gray-500">{plan.credits}クレジット</p>
+                <p className="text-xs text-gray-500">{plan.credits} {t('side.credits')}</p>
               </div>
             </div>
             <button
@@ -120,7 +142,7 @@ function Billing({ onPurchaseSuccess }: BillingProps) {
 
       <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800">
         <p className="font-semibold mb-2">初回特典</p>
-        <p className="mb-2">新規登録で100クレジット無料プレゼント！</p>
+        <p className="mb-2">新規登録で15クレジット無料プレゼント！</p>
         <p className="text-blue-700">
           その後はクレジットを購入してご利用ください。
         </p>

@@ -3,7 +3,7 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
-import { FileDown, Copy, Check, Menu, X, ArrowLeft, Bookmark } from 'lucide-react';
+import { FileDown, Copy, Check, Menu, X, ArrowLeft, Bookmark, ExternalLink } from 'lucide-react';
 import type { AnalysisResult, VideoInfo, YouTubeCommentThread } from '../types';
 import { useDesignStore, BG_COLORS, isLightMode } from '../store/designStore';
 import { useTranslation } from '../i18n/useTranslation';
@@ -22,9 +22,10 @@ interface ResultDashboardProps {
   comments: YouTubeCommentThread[];
   onBack?: () => void;
   onSave?: () => void;
+  onOpenWindow?: () => void;
 }
 
-function ResultDashboard({ result, videoInfo, comments, onBack, onSave }: ResultDashboardProps) {
+function ResultDashboard({ result, videoInfo, comments, onBack, onSave, onOpenWindow }: ResultDashboardProps) {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<TabType>('summary');
   const [copied, setCopied] = useState(false);
@@ -185,7 +186,17 @@ function ResultDashboard({ result, videoInfo, comments, onBack, onSave }: Result
               style={{ height: '36px', maxWidth: 'calc(100% - 40px)' }}
             />
           </div>
-          {/* ハンバーガーメニュー */}
+          {/* 新しいウィンドウで開く + ハンバーガーメニュー */}
+          <div className="flex items-center gap-1">
+          {onOpenWindow && (
+            <button
+              onClick={onOpenWindow}
+              className={`p-2 rounded-lg transition-colors ${isLight ? 'hover:bg-gray-100 text-gray-600' : 'hover:bg-gray-800 text-gray-300'}`}
+              title={t('result.openWindow')}
+            >
+              <ExternalLink className="w-5 h-5" />
+            </button>
+          )}
           <div className="relative" ref={menuRef}>
             <button
               onClick={() => setMenuOpen(!menuOpen)}
@@ -260,6 +271,7 @@ function ResultDashboard({ result, videoInfo, comments, onBack, onSave }: Result
                 </div>
               </div>
             )}
+          </div>
           </div>
         </div>
 

@@ -355,9 +355,9 @@ function DeepDiveTab({ comments, result }: DeepDiveTabProps) {
               <img
                 src={deepdiveCharacterMode ? mascotGemini : geminiIcon}
                 alt="Gemini"
-                className={`w-6 h-6 flex-shrink-0 ${deepdiveCharacterMode ? 'rounded-full object-cover' : ''}`}
+                className={`flex-shrink-0 ${deepdiveCharacterMode ? 'w-9 h-9 rounded-full object-cover' : 'w-6 h-6'}`}
               />
-              <h2 className={`text-2xl font-bold ${isLight ? 'text-gray-900' : 'text-white'}`}>
+              <h2 className={`text-2xl font-bold whitespace-nowrap ${isLight ? 'text-gray-900' : 'text-white'}`}>
                 {deepdiveCharacterMode ? t('character.geminny') : t('deepdive.title')}
               </h2>
             </div>

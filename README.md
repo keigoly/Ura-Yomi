@@ -37,6 +37,7 @@
 - **主なトピック抽出** — コメント内で頻出する話題を自動抽出
 - **深掘り分析（Deep Dive）** — Geminiがポジティブ・ニュートラル・ネガティブそれぞれの代表的コメントを選定し、理由とともに提示
 - **Hidden Gems** — いいね数が少ないが価値のあるコメントを発掘
+- **キャラクターモード** — ユウちゃん（実力派名探偵）の口調で要約を書き換え、ジェミニーちゃん（AI妖精）が深掘り解説（ネガティブ分析時は毒舌モード）
 
 ### コメントビューア
 
@@ -57,7 +58,8 @@
 
 - **サイドパネル** — ブラウザ右側に結果を表示（メインの操作画面）
 - **ポップアップ** — 拡張機能アイコンクリックで認証・解析開始
-- **コンテンツスクリプト** — YouTube動画ページのコメントヘッダーにレインボーグラデーションの解析ボタンを自動挿入
+- **コンテンツスクリプト** — YouTube動画ページのコメントヘッダーにユウちゃんアイコン付きの解析ボタンを自動挿入（3種類の表情＋セリフがランダム切り替え）
+- **新しいウィンドウで開く** — 解析結果画面から独立ウィンドウへ状態を引き継いで表示
 - **設定画面** — サイドパネル内にアコーディオン式の設定UI
 
 ### カスタマイズ
@@ -65,8 +67,9 @@
 - **多言語対応** — 日本語 / English 切り替え（UI全体 + Gemini解析結果も対応）
 - **テーマ** — ライト / ダークブルー / ブラックの3種類の背景モード
 - **フォントサイズ** — 13px〜18pxの5段階で調整可能
-- **解析履歴** — 過去の解析結果を最大20件保存・閲覧・再表示
+- **解析履歴** — 過去の解析結果を最大30件保存・閲覧・再表示
 - **設定のインポート/エクスポート** — JSON形式でバックアップ・復元
+- **SNSシェア** — X / Instagram / URLコピーでの拡散機能（サイドパネル・ポップアップ両方に配置）
 
 ### 認証・クレジットシステム
 
@@ -74,6 +77,8 @@
 - **クレジットベースの利用** — 解析1回につき2クレジット消費
 - **サーバー側でAPIキー管理** — ユーザーがAPIキーを直接設定する必要なし
 - **クレジット購入・サブスクリプション** — 設定画面から購入可能
+- **クレジットバッチシステム** — サブスクリプションクレジットは90日有効期限（FIFO消費）、都度購入・初回無料は期限なし
+- **期限切れ警告** — クレジット有効期限が30日/7日以内の場合に設定画面で警告表示
 
 ## 技術スタック
 
@@ -122,7 +127,7 @@
 │  │   (メッセージ中継・SidePanel起動)  │               │
 │  └────────────────┬─────────────────┘               │
 └───────────────────┼─────────────────────────────────┘
-                    │ HTTP (localhost:3000)
+                    │ HTTPS (api.keigoly.jp)
 ┌───────────────────┼─────────────────────────────────┐
 │  Express APIサーバー（バックエンド）                    │
 │                   │                                 │
@@ -172,7 +177,8 @@ YouTube Comment Analyzer/
 │   │       └── CommentsTab.tsx   # コメント一覧（スレッド表示）
 │   ├── store/                    # Zustand状態管理ストア
 │   │   ├── analysisStore.ts      # 解析状態（進捗・結果・エラー）
-│   │   └── designStore.ts        # デザイン設定（テーマ・フォント）
+│   │   ├── designStore.ts        # デザイン設定（テーマ・フォント）
+│   │   └── characterStore.ts     # キャラクターモード（変換キャッシュ含む）
 │   ├── services/                 # フロントエンドサービス
 │   │   ├── apiServer.ts          # バックエンドAPI通信クライアント
 │   │   └── historyStorage.ts     # 解析履歴のlocalStorage管理
@@ -185,11 +191,15 @@ YouTube Comment Analyzer/
 │   ├── content/                  # コンテンツスクリプト
 │   │   └── content.ts            # YouTube上の解析ボタン注入
 │   ├── icons/                    # アイコンリソース
-│   │   ├── icon16.png            # ファビコン（16x16）
-│   │   ├── icon48.png            # アプリアイコン（48x48）
-│   │   ├── icon128.png           # 高解像度アイコン（128x128）
-│   │   ├── gemini-icon.png       # Geminiブランドアイコン
-│   │   └── developer-logo.png    # 開発者ロゴ
+│   │   ├── icon16/48/128.png     # 拡張機能アイコン
+│   │   ├── logo-urayomi.png      # ウラヨミ！ロゴ
+│   │   ├── mascot.png            # マスコット2人組
+│   │   ├── mascot-girl.png       # ユウちゃんアイコン
+│   │   ├── mascot-gemini.png     # ジェミニーちゃんアイコン
+│   │   ├── yuchan-btn-1〜3.png   # 解析ボタン用ユウちゃん表情バリエーション
+│   │   ├── tsubechan-*.png       # キャラクターモード用吹き出し画像
+│   │   ├── bubble-*.png          # 深掘りタブ用吹き出し画像
+│   │   └── gemini-icon.png       # Geminiブランドアイコン
 │   ├── background.js             # Service Worker
 │   ├── manifest.json             # Chrome拡張マニフェスト（V3）
 │   ├── popup.html                # ポップアップエントリーHTML
@@ -198,8 +208,9 @@ YouTube Comment Analyzer/
 ├── server/                       # バックエンドAPIサーバー
 │   ├── index.js                  # Expressメインサーバー
 │   ├── services/                 # サーバーサービス層
-│   │   ├── geminiService.js      # Gemini AI解析（自動モデル選択）
+│   │   ├── geminiService.js      # Gemini AI解析（自動モデル選択・キャラ変換）
 │   │   ├── youtubeService.js     # YouTube API連携（コメント取得）
+│   │   ├── extFetcherService.js  # 外部コメント取得（代替手段）
 │   │   └── costManager.js        # API利用コスト管理
 │   ├── .env.example              # 環境変数テンプレート
 │   └── package.json              # バックエンド依存関係
@@ -330,7 +341,7 @@ npm run dev
 
 ### 解析結果の操作
 
-- **保存** — メニューから「解析結果を保存」で履歴に保存（最大20件）
+- **保存** — メニューから「解析結果を保存」で履歴に保存（最大30件）
 - **コピー** — 「要約をコピー」でクリップボードにコピー
 - **エクスポート** — 「JSONでエクスポート」で全データをダウンロード
 - **履歴** — 設定画面の「履歴」から過去の解析結果を再表示
@@ -374,8 +385,157 @@ Gemini APIのモデルは以下の優先順位で自動選択されます：
 | GET | `/api/user/credits` | クレジット残高取得 | Bearer Token |
 | GET | `/api/video/info` | 動画情報（タイトル・コメント数） | 不要 |
 | POST | `/api/analyze` | コメント解析（メイン機能） | Bearer Token |
-| POST | `/api/billing/purchase` | クレジット購入 | Bearer Token |
+| POST | `/api/billing/purchase` | クレジット購入（レガシー） | Bearer Token |
+| POST | `/api/billing/create-checkout-session` | Stripe決済セッション作成 | Bearer Token |
+| POST | `/api/billing/webhook` | Stripe Webhook受信 | Stripe署名 |
+| POST | `/api/character/rewrite` | キャラクターモード書き換え | Bearer Token |
 | GET | `/health` | ヘルスチェック | 不要 |
+
+## 本番デプロイ
+
+### インフラ構成
+
+```
+ユーザー (Chrome拡張)
+    │
+    │ HTTPS
+    ▼
+┌─────────────────────────────┐
+│  Cloudflare DNS             │
+│  api.keigoly.jp → A Record  │
+└──────────┬──────────────────┘
+           │
+           ▼
+┌─────────────────────────────────────────┐
+│  AWS Lightsail (ap-northeast-1)         │
+│  Ubuntu / 512MB RAM / 2 vCPU            │
+│                                         │
+│  ┌───────────────────────────────────┐  │
+│  │  Nginx (リバースプロキシ)          │  │
+│  │  Let's Encrypt SSL証明書          │  │
+│  │  :443 → localhost:3000            │  │
+│  └──────────────┬────────────────────┘  │
+│                 │                       │
+│  ┌──────────────┴────────────────────┐  │
+│  │  Node.js / Express (PM2管理)      │  │
+│  │  PORT=3000                        │  │
+│  └───────────────────────────────────┘  │
+└─────────────────────────────────────────┘
+```
+
+### サーバー構成
+
+| コンポーネント | 詳細 |
+|--------------|------|
+| クラウド | AWS Lightsail (東京リージョン) |
+| OS | Ubuntu |
+| Webサーバー | Nginx (リバースプロキシ + SSL終端) |
+| SSL証明書 | Let's Encrypt (自動更新) |
+| プロセス管理 | PM2 |
+| ドメイン | api.keigoly.jp |
+| DNS | Cloudflare (DNS only) |
+
+### デプロイ手順
+
+#### 1. サーバー初期設定
+
+```bash
+# Nginx & Certbot インストール
+sudo apt update && sudo apt install nginx certbot python3-certbot-nginx -y
+
+# Nginx設定
+sudo nano /etc/nginx/sites-available/urayomi
+```
+
+```nginx
+server {
+    listen 80;
+    server_name api.keigoly.jp;
+
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+```bash
+# 有効化 & SSL証明書取得
+sudo ln -s /etc/nginx/sites-available/urayomi /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl restart nginx
+sudo certbot --nginx -d api.keigoly.jp
+```
+
+#### 2. アプリケーション起動
+
+```bash
+cd ~/THE-REAL-TALK-Powerd-by-Gemini/server
+npm install
+pm2 start index.js --name urayomi-server
+pm2 save
+pm2 startup
+```
+
+#### 3. 環境変数（本番）
+
+`server/.env` に以下を設定：
+
+```env
+PORT=3000
+NODE_ENV=production
+GOOGLE_CLIENT_ID=your_google_client_id
+YOUTUBE_API_KEY=your_youtube_api_key
+GEMINI_API_KEY=your_gemini_api_key
+DEVELOPER_COMMISSION_RATE=0.30
+ADMIN_SECRET=your_admin_secret
+JWT_SECRET=your_jwt_secret
+
+# Stripe決済
+STRIPE_SECRET_KEY=sk_live_xxxxx
+STRIPE_WEBHOOK_SECRET=whsec_xxxxx
+STRIPE_PRICE_30=price_xxxxx
+STRIPE_PRICE_60=price_xxxxx
+STRIPE_PRICE_150=price_xxxxx
+STRIPE_PRICE_LITE=price_xxxxx
+STRIPE_PRICE_STANDARD=price_xxxxx
+```
+
+### Stripe決済連携
+
+本番環境ではStripeを使用したクレジット購入・サブスクリプションに対応しています。
+
+#### 決済フロー
+
+```
+1. ユーザーが設定画面から購入プランを選択
+2. フロントエンド → POST /api/billing/create-checkout-session
+3. サーバー: Stripe Checkout Sessionを作成
+4. ユーザー: Stripeホスト決済ページへリダイレクト
+5. 決済完了 → Stripe Webhook → POST /api/billing/webhook
+6. サーバー: 署名検証 → クレジット付与 → 売上記録
+7. フロントエンド: ポーリングでクレジット更新を検知
+```
+
+#### Stripe Webhook設定
+
+1. [Stripeダッシュボード](https://dashboard.stripe.com/) → 開発者 → Webhook
+2. エンドポイントURL: `https://api.keigoly.jp/api/billing/webhook`
+3. リッスンするイベント: `checkout.session.completed`
+4. 署名シークレットをサーバーの `STRIPE_WEBHOOK_SECRET` に設定
+
+#### ファイアウォール設定（AWS Lightsail）
+
+| アプリケーション | プロトコル | ポート |
+|---------------|----------|-------|
+| SSH | TCP | 22 |
+| HTTP | TCP | 80 |
+| HTTPS | TCP | 443 |
+| カスタム | TCP | 3000 |
 
 ## 開発
 

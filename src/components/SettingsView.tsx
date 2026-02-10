@@ -91,45 +91,68 @@ interface PurchasePlan {
   name: string;
   credits: number;
   price: number;
+  priceUsd: number;
   description: string;
 }
 
 // Plans are constructed inside the component to access t()
-const PURCHASE_PLANS_BASE: Array<{ id: string; credits: number; price: number; nameKey: string; descKey: string; descParams?: Record<string, string | number> }> = [
+const PURCHASE_PLANS_BASE: Array<{ id: string; credits: number; price: number; priceUsd: number; nameKey: string; descKey: string; descParams?: Record<string, string | number> }> = [
   {
-    id: 'credits_100',
-    credits: 100,
-    price: 500,
-    nameKey: 'settings.plan100',
+    id: 'credits_30',
+    credits: 30,
+    price: 300,
+    priceUsd: 1.99,
+    nameKey: 'settings.plan30',
     descKey: 'settings.analysisCount',
-    descParams: { count: 100 / ANALYSIS_CREDIT_COST },
+    descParams: { count: 30 / ANALYSIS_CREDIT_COST },
   },
   {
-    id: 'credits_500',
-    credits: 500,
-    price: 2000,
-    nameKey: 'settings.plan500',
-    descKey: 'settings.analysisCountDiscount',
-    descParams: { count: 500 / ANALYSIS_CREDIT_COST },
+    id: 'credits_60',
+    credits: 60,
+    price: 500,
+    priceUsd: 2.99,
+    nameKey: 'settings.plan60',
+    descKey: 'settings.analysisCount',
+    descParams: { count: 60 / ANALYSIS_CREDIT_COST },
   },
   {
-    id: 'subscription_monthly',
-    credits: 1000,
-    price: 3000,
-    nameKey: 'settings.planMonthly',
+    id: 'credits_150',
+    credits: 150,
+    price: 1000,
+    priceUsd: 6.99,
+    nameKey: 'settings.plan150',
+    descKey: 'settings.analysisCount',
+    descParams: { count: 150 / ANALYSIS_CREDIT_COST },
+  },
+  {
+    id: 'subscription_lite',
+    credits: 90,
+    price: 800,
+    priceUsd: 4.99,
+    nameKey: 'settings.planLite',
     descKey: 'settings.monthlySubscription',
-    descParams: { credits: 1000 },
+    descParams: { credits: 90 },
+  },
+  {
+    id: 'subscription_standard',
+    credits: 300,
+    price: 1980,
+    priceUsd: 12.99,
+    nameKey: 'settings.planStandard',
+    descKey: 'settings.monthlySubscription',
+    descParams: { credits: 300 },
   },
 ];
 
 // ---- メインコンポーネント ----
 function SettingsView({ onBack, onLoadHistory, onLogout }: SettingsViewProps) {
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   const PURCHASE_PLANS: PurchasePlan[] = PURCHASE_PLANS_BASE.map(p => ({
     id: p.id,
     name: t(p.nameKey),
     credits: p.credits,
     price: p.price,
+    priceUsd: p.priceUsd,
     description: t(p.descKey, p.descParams),
   }));
   // アコーディオン開閉状態
@@ -397,7 +420,7 @@ function SettingsView({ onBack, onLoadHistory, onLogout }: SettingsViewProps) {
                         <div className="text-sm font-bold text-white">{plan.name}</div>
                         <div className="text-xs text-gray-400">{plan.description}</div>
                       </div>
-                      <div className="text-sm font-bold text-blue-400">¥{plan.price.toLocaleString()}</div>
+                      <div className="text-sm font-bold text-blue-400">{lang === 'en' ? `$${plan.priceUsd}` : `¥${plan.price.toLocaleString()}`}</div>
                     </div>
                     <button
                       onClick={() => handlePurchase(plan.id)}

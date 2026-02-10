@@ -36,6 +36,21 @@ function getVideoTitle(): string {
   );
 }
 
+// ---- ユウちゃんボタンバリエーション ----
+
+/** ボタンに表示するユウちゃんの顔画像とセリフの組み合わせ */
+const YUCHAN_BUTTON_VARIANTS = [
+  { image: 'yuchan-btn-1.png', text: '解析してみよう！' },
+  { image: 'yuchan-btn-2.png', text: '解析してね！' },
+  { image: 'yuchan-btn-3.png', text: '解析しちゃおっか♪' },
+];
+
+/** ランダムにバリエーションを選択 */
+function pickButtonVariant() {
+  const idx = Math.floor(Math.random() * YUCHAN_BUTTON_VARIANTS.length);
+  return YUCHAN_BUTTON_VARIANTS[idx];
+}
+
 // ---- ボタン作成（共通） ----
 
 /**
@@ -47,38 +62,50 @@ function createAnalyzeButton(compact: boolean): HTMLButtonElement {
   button.id = 'youtube-comment-analyzer-btn';
   button.title = '解析を開始する';
 
+  const iconSize = compact ? 26 : 30;
+  const innerRadius = Math.ceil(iconSize / 2);
+
   const buttonContent = document.createElement('div');
   buttonContent.style.cssText = `
     display: flex;
     align-items: center;
     gap: ${compact ? '6px' : '8px'};
     background: #0f0f0f;
-    border-radius: ${compact ? '14px' : '16px'};
-    padding: ${compact ? '5px 12px' : '6px 14px'};
+    border-radius: ${innerRadius}px;
+    padding: ${compact ? '0 10px 0 0' : '0 12px 0 0'};
     line-height: 1;
   `;
 
-  // Geminiアイコン
+  // ユウちゃんアイコン + セリフ
+  const variant = pickButtonVariant();
+
   const icon = document.createElement('img');
-  icon.src = chrome.runtime.getURL('icons/gemini-icon.png');
-  icon.alt = 'Gemini';
+  icon.src = chrome.runtime.getURL(`icons/${variant.image}`);
+  icon.alt = 'Yu-chan';
   icon.style.cssText = `
-    width: ${compact ? '15px' : '16px'};
-    height: ${compact ? '15px' : '16px'};
+    width: ${iconSize}px;
+    height: ${iconSize}px;
     flex-shrink: 0;
-    vertical-align: middle;
     display: block;
+    border-radius: 50%;
+    object-fit: cover;
   `;
   buttonContent.appendChild(icon);
 
-  // テキスト
+  // テキスト（セリフ）- 文字数に応じてフォントサイズを調整
+  const textLen = variant.text.length;
+  const baseFontSize = compact ? 12 : 13;
+  const fontSize = textLen > 8 ? baseFontSize - 1 : baseFontSize;
+
   const textSpan = document.createElement('span');
-  textSpan.textContent = '解析を開始';
+  textSpan.textContent = variant.text;
   textSpan.id = 'youtube-comment-analyzer-text';
+  textSpan.dataset.defaultText = variant.text;
   textSpan.style.cssText = `
     line-height: 1;
     display: flex;
     align-items: center;
+    font-size: ${fontSize}px;
   `;
   buttonContent.appendChild(textSpan);
 
@@ -103,7 +130,7 @@ function createAnalyzeButton(compact: boolean): HTMLButtonElement {
     background: conic-gradient(from 180deg, #0000FF, #00FFFF, #00FF00, #FFFF00, #FF8C00, #FF0000, #0000FF);
     color: white;
     border: none;
-    border-radius: ${compact ? '17px' : '19px'};
+    border-radius: ${innerRadius + 2}px;
     font-size: ${compact ? '12px' : '13px'};
     font-weight: 600;
     cursor: pointer;
@@ -192,7 +219,7 @@ function createAnalyzeButton(compact: boolean): HTMLButtonElement {
 function resetButton(button: HTMLButtonElement) {
   button.disabled = false;
   const txt = button.querySelector('#youtube-comment-analyzer-text') as HTMLElement;
-  if (txt) txt.textContent = '解析を開始';
+  if (txt) txt.textContent = txt.dataset.defaultText || '解析を開始';
   button.style.opacity = '1';
   button.style.cursor = 'pointer';
 }

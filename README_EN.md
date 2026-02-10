@@ -37,6 +37,7 @@ Instantly analyze thousands of comments to reveal viewer sentiment and trending 
 - **Topic Extraction** — Automatically identifies frequently discussed topics
 - **Deep Dive Analysis** — Gemini selects representative comments for each sentiment category with reasoning
 - **Hidden Gems** — Discovers valuable comments with low like counts
+- **Character Mode** — Yu-chan (elite detective persona) rewrites summaries in her voice; Geminny-chan (AI fairy) provides deep-dive commentary (switches to sharp-tongued sarcasm mode for negative analysis)
 
 ### Comment Viewer
 
@@ -57,7 +58,8 @@ Instantly analyze thousands of comments to reveal viewer sentiment and trending 
 
 - **Side Panel** — Displays results on the right side of the browser (main interface)
 - **Popup** — Click the extension icon for authentication and quick analysis
-- **Content Script** — Automatically injects a rainbow gradient analysis button into YouTube comment headers
+- **Content Script** — Automatically injects a Yu-chan icon analysis button into YouTube comment headers (3 face expressions + quotes rotate randomly)
+- **Open in New Window** — Pop out the analysis results into a standalone window with full state preservation
 - **Settings** — Accordion-style settings UI within the side panel
 
 ### Customization
@@ -65,8 +67,9 @@ Instantly analyze thousands of comments to reveal viewer sentiment and trending 
 - **Multilingual** — Japanese / English toggle (entire UI + Gemini analysis results)
 - **Themes** — 3 background modes: Light / Dark Blue / Black
 - **Font Size** — 5 levels from 13px to 18px
-- **Analysis History** — Save up to 20 past analysis results for later review
+- **Analysis History** — Save up to 30 past analysis results for later review
 - **Import/Export Settings** — Backup and restore settings in JSON format
+- **Social Sharing** — Share via X / Instagram / URL copy (available in both side panel and popup)
 
 ### Authentication & Credits
 
@@ -74,6 +77,8 @@ Instantly analyze thousands of comments to reveal viewer sentiment and trending 
 - **Credit-based Usage** — 2 credits per analysis
 - **Server-side API Key Management** — No API key setup required for users
 - **Credit Purchase & Subscriptions** — Available from the settings page
+- **Credit Batch System** — Subscription credits have a 90-day expiry (FIFO consumption); one-time purchases and initial free credits never expire
+- **Expiry Warnings** — Settings page shows warnings when credits expire within 30 or 7 days
 
 ## Tech Stack
 
@@ -122,7 +127,7 @@ Instantly analyze thousands of comments to reveal viewer sentiment and trending 
 │  │  (Message relay & SidePanel open)│               │
 │  └────────────────┬─────────────────┘               │
 └───────────────────┼─────────────────────────────────┘
-                    │ HTTP (localhost:3000)
+                    │ HTTPS (api.keigoly.jp)
 ┌───────────────────┼─────────────────────────────────┐
 │  Express API Server (Backend)                       │
 │                   │                                 │
@@ -172,7 +177,8 @@ YouTube Comment Analyzer/
 │   │       └── CommentsTab.tsx   # Comment list (thread view)
 │   ├── store/                    # Zustand state stores
 │   │   ├── analysisStore.ts      # Analysis state (progress, result, error)
-│   │   └── designStore.ts        # Design settings (theme, font)
+│   │   ├── designStore.ts        # Design settings (theme, font)
+│   │   └── characterStore.ts     # Character mode (with conversion cache)
 │   ├── services/                 # Frontend services
 │   │   ├── apiServer.ts          # Backend API client
 │   │   └── historyStorage.ts     # Analysis history (localStorage)
@@ -191,8 +197,9 @@ YouTube Comment Analyzer/
 ├── server/                       # Backend API server
 │   ├── index.js                  # Express main server
 │   ├── services/                 # Server service layer
-│   │   ├── geminiService.js      # Gemini AI analysis (auto model selection)
+│   │   ├── geminiService.js      # Gemini AI analysis (auto model selection, character rewriting)
 │   │   ├── youtubeService.js     # YouTube API integration (comment fetching)
+│   │   ├── extFetcherService.js  # Alternative comment fetching
 │   │   └── costManager.js        # API cost management
 │   ├── .env.example              # Environment variable template
 │   └── package.json              # Backend dependencies
@@ -363,8 +370,157 @@ The system automatically switches to the next model on rate limits (429) or serv
 | GET | `/api/user/credits` | Get credit balance | Bearer Token |
 | GET | `/api/video/info` | Video info (title, comment count) | None |
 | POST | `/api/analyze` | Comment analysis (main feature) | Bearer Token |
-| POST | `/api/billing/purchase` | Purchase credits | Bearer Token |
+| POST | `/api/billing/purchase` | Purchase credits (legacy) | Bearer Token |
+| POST | `/api/billing/create-checkout-session` | Create Stripe checkout session | Bearer Token |
+| POST | `/api/billing/webhook` | Stripe webhook receiver | Stripe Signature |
+| POST | `/api/character/rewrite` | Character mode rewrite | Bearer Token |
 | GET | `/health` | Health check | None |
+
+## Production Deployment
+
+### Infrastructure
+
+```
+User (Chrome Extension)
+    │
+    │ HTTPS
+    ▼
+┌─────────────────────────────┐
+│  Cloudflare DNS             │
+│  api.keigoly.jp → A Record  │
+└──────────┬──────────────────┘
+           │
+           ▼
+┌─────────────────────────────────────────┐
+│  AWS Lightsail (ap-northeast-1)         │
+│  Ubuntu / 512MB RAM / 2 vCPU            │
+│                                         │
+│  ┌───────────────────────────────────┐  │
+│  │  Nginx (Reverse Proxy)            │  │
+│  │  Let's Encrypt SSL Certificate    │  │
+│  │  :443 → localhost:3000            │  │
+│  └──────────────┬────────────────────┘  │
+│                 │                       │
+│  ┌──────────────┴────────────────────┐  │
+│  │  Node.js / Express (PM2 managed)  │  │
+│  │  PORT=3000                        │  │
+│  └───────────────────────────────────┘  │
+└─────────────────────────────────────────┘
+```
+
+### Server Stack
+
+| Component | Details |
+|-----------|---------|
+| Cloud | AWS Lightsail (Tokyo region) |
+| OS | Ubuntu |
+| Web Server | Nginx (reverse proxy + SSL termination) |
+| SSL Certificate | Let's Encrypt (auto-renewal) |
+| Process Manager | PM2 |
+| Domain | api.keigoly.jp |
+| DNS | Cloudflare (DNS only) |
+
+### Deployment Steps
+
+#### 1. Server Setup
+
+```bash
+# Install Nginx & Certbot
+sudo apt update && sudo apt install nginx certbot python3-certbot-nginx -y
+
+# Configure Nginx
+sudo nano /etc/nginx/sites-available/urayomi
+```
+
+```nginx
+server {
+    listen 80;
+    server_name api.keigoly.jp;
+
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+```bash
+# Enable & obtain SSL certificate
+sudo ln -s /etc/nginx/sites-available/urayomi /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl restart nginx
+sudo certbot --nginx -d api.keigoly.jp
+```
+
+#### 2. Start Application
+
+```bash
+cd ~/THE-REAL-TALK-Powerd-by-Gemini/server
+npm install
+pm2 start index.js --name urayomi-server
+pm2 save
+pm2 startup
+```
+
+#### 3. Production Environment Variables
+
+Set the following in `server/.env`:
+
+```env
+PORT=3000
+NODE_ENV=production
+GOOGLE_CLIENT_ID=your_google_client_id
+YOUTUBE_API_KEY=your_youtube_api_key
+GEMINI_API_KEY=your_gemini_api_key
+DEVELOPER_COMMISSION_RATE=0.30
+ADMIN_SECRET=your_admin_secret
+JWT_SECRET=your_jwt_secret
+
+# Stripe Payments
+STRIPE_SECRET_KEY=sk_live_xxxxx
+STRIPE_WEBHOOK_SECRET=whsec_xxxxx
+STRIPE_PRICE_30=price_xxxxx
+STRIPE_PRICE_60=price_xxxxx
+STRIPE_PRICE_150=price_xxxxx
+STRIPE_PRICE_LITE=price_xxxxx
+STRIPE_PRICE_STANDARD=price_xxxxx
+```
+
+### Stripe Payment Integration
+
+The production environment supports credit purchases and subscriptions via Stripe.
+
+#### Payment Flow
+
+```
+1. User selects a plan from the settings page
+2. Frontend → POST /api/billing/create-checkout-session
+3. Server: Creates a Stripe Checkout Session
+4. User: Redirected to Stripe-hosted payment page
+5. Payment complete → Stripe Webhook → POST /api/billing/webhook
+6. Server: Verify signature → Grant credits → Record revenue
+7. Frontend: Polls for credit updates
+```
+
+#### Stripe Webhook Setup
+
+1. Go to [Stripe Dashboard](https://dashboard.stripe.com/) → Developers → Webhooks
+2. Endpoint URL: `https://api.keigoly.jp/api/billing/webhook`
+3. Events to listen for: `checkout.session.completed`
+4. Set the signing secret as `STRIPE_WEBHOOK_SECRET` on the server
+
+#### Firewall Rules (AWS Lightsail)
+
+| Application | Protocol | Port |
+|-------------|----------|------|
+| SSH | TCP | 22 |
+| HTTP | TCP | 80 |
+| HTTPS | TCP | 443 |
+| Custom | TCP | 3000 |
 
 ## Development
 

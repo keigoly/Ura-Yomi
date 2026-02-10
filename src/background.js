@@ -76,7 +76,7 @@ async function handleGetCredits() {
     // APIからクレジット数を取得
     // API_BASE_URLは環境変数から取得する必要があるが、background.jsでは直接取得できないため、
     // デフォルト値を使用
-    const apiBaseUrl = 'http://localhost:3000';
+    const apiBaseUrl = 'https://api.keigoly.jp';
     const response = await fetch(`${apiBaseUrl}/api/user/credits`, {
       method: 'GET',
       headers: {

@@ -15,6 +15,7 @@
     "https://www.youtube.com/*",
     "https://www.googleapis.com/youtube/v3/*",
     "https://generativelanguage.googleapis.com/*",
+    "https://api.keigoly.jp/*",
     "http://localhost:3000/*",
     "http://127.0.0.1:3000/*"
   ],
@@ -54,7 +55,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["icons/gemini-icon.png"],
+      "resources": ["icons/gemini-icon.png", "icons/yuchan-btn-1.png", "icons/yuchan-btn-2.png", "icons/yuchan-btn-3.png", "icons/yuchan-btn-4.png", "icons/yuchan-btn-5.png"],
       "matches": ["https://www.youtube.com/*"]
     }
   ]
