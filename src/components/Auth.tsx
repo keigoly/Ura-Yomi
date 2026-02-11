@@ -40,11 +40,27 @@ function Auth({ onAuthSuccess }: AuthProps) {
   const handleGoogleSignIn = async () => {
     setLoading(true);
     try {
-      // Chrome Identity APIを使用してGoogle認証
-      chrome.identity.getAuthToken({ interactive: true }, async (accessToken) => {
-        if (chrome.runtime.lastError || !accessToken) {
-          console.error('Auth error:', chrome.runtime.lastError);
-          alert(t('auth.authFailed') + ': ' + chrome.runtime.lastError?.message);
+      // launchWebAuthFlowでアカウント選択画面を表示
+      const manifest = chrome.runtime.getManifest();
+      const clientId = manifest.oauth2?.client_id;
+      const scopes = manifest.oauth2?.scopes?.join(' ') || 'openid email profile';
+      const redirectUrl = chrome.identity.getRedirectURL();
+      const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&response_type=token&redirect_uri=${encodeURIComponent(redirectUrl)}&scope=${encodeURIComponent(scopes)}&prompt=select_account`;
+
+      chrome.identity.launchWebAuthFlow({ url: authUrl, interactive: true }, async (responseUrl) => {
+        if (chrome.runtime.lastError || !responseUrl) {
+          // キャンセル時はローディングを解除するだけ（エラー表示なし）
+          console.log('Auth cancelled or error:', chrome.runtime.lastError?.message);
+          setLoading(false);
+          return;
+        }
+
+        // リダイレクトURLからアクセストークンを取得
+        const hashParams = new URLSearchParams(responseUrl.split('#')[1]);
+        const accessToken = hashParams.get('access_token');
+
+        if (!accessToken) {
+          alert(t('auth.authFailed'));
           setLoading(false);
           return;
         }
@@ -65,7 +81,7 @@ function Auth({ onAuthSuccess }: AuthProps) {
           }
 
           const userInfo = await userInfoResponse.json();
-          
+
           // サーバーに認証情報を送信（アクセストークンとユーザー情報を含める）
           const result = await authenticateWithGoogle(accessToken, userInfo);
 
@@ -80,7 +96,7 @@ function Auth({ onAuthSuccess }: AuthProps) {
         } catch (error) {
           console.error('Auth request error:', error);
           const errorMessage = error instanceof Error ? error.message : t('auth.authError');
-          
+
           // サーバー接続エラーの場合は詳細なメッセージを表示
           if (errorMessage.includes('サーバーに接続できませんでした') || errorMessage.includes('Failed to fetch') || errorMessage.includes('server')) {
             alert(errorMessage);

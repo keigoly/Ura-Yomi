@@ -6,11 +6,13 @@ server/node_modules/
 dist/
 build/
 
+# Server (private repository)
+server/
+
 # Environment variables
 .env
 .env.local
 .env.*.local
-server/.env
 
 # Logs
 *.log

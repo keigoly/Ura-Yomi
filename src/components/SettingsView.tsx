@@ -802,11 +802,19 @@ function SettingsView({ onBack, onLoadHistory, onLogout }: SettingsViewProps) {
               if (!confirm(t('settings.confirmLogout'))) return;
               clearSessionToken();
               chrome.storage.local.remove('sessionToken').catch(console.error);
-              if (onLogout) {
-                onLogout();
-              } else {
-                location.reload();
-              }
+              // Chrome Identity APIのキャッシュトークンを無効化（次回ログイン時にアカウント選択可能にする）
+              chrome.identity.getAuthToken({ interactive: false }, (token) => {
+                if (token) {
+                  // Googleのトークン無効化
+                  fetch(`https://accounts.google.com/o/oauth2/revoke?token=${token}`).catch(() => {});
+                  chrome.identity.removeCachedAuthToken({ token }, () => {});
+                }
+                if (onLogout) {
+                  onLogout();
+                } else {
+                  location.reload();
+                }
+              });
             }}
             className={`w-full flex items-center gap-3 p-4 rounded-lg border transition-colors ${isLight ? 'border-gray-200 bg-white hover:bg-red-50 hover:border-red-300' : 'border-gray-700 bg-gray-800 hover:bg-red-900/20 hover:border-red-700'}`}
           >
