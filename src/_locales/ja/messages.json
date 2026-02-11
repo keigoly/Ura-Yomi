@@ -4,7 +4,7 @@
     "description": "Extension name shown in Chrome"
   },
   "extDescription": {
-    "message": "YouTube動画のコメントをAIで解析し、真の価値と本音を可視化する",
+    "message": "コメント欄の「ウラ」、全部読み解いてあげる！YouTube動画のコメントをAIで解析し、視聴者の本音を可視化する名探偵ツール",
     "description": "Extension description shown in Chrome"
   }
 }

@@ -3,7 +3,7 @@
  * Geminiが選定したポジティブ/ニュートラル/ネガティブコメントを表示
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ThumbsUp, ThumbsDown, MessageSquare, Settings, ChevronDown, ChevronUp } from 'lucide-react';
 import type { YouTubeCommentThread, AnalysisResult } from '../../types';
 import { useDesignStore, isLightMode } from '../../store/designStore';
@@ -270,10 +270,15 @@ function DeepDiveTab({ comments, result }: DeepDiveTabProps) {
   }, [deepdiveCharacterMode]);
 
   // 言語切替時にキャラクターreasonをリセット（再生成のため）
+  // ※ マウント時にはリセットしない（タブ切り替えで再マウントされるため）
+  const prevLangRef = useRef(lang);
   useEffect(() => {
-    setPositiveCharacterReason(null);
-    setNeutralCharacterReason(null);
-    setNegativeCharacterReason(null);
+    if (prevLangRef.current !== lang) {
+      prevLangRef.current = lang;
+      setPositiveCharacterReason(null);
+      setNeutralCharacterReason(null);
+      setNegativeCharacterReason(null);
+    }
   }, [lang]);
 
   // ネガティブコメントのAI分析をメイン解析結果から取得（バイリンガル対応）
@@ -436,7 +441,7 @@ function DeepDiveTab({ comments, result }: DeepDiveTabProps) {
                           </div>
                         ) : (
                           <p className={`text-sm leading-relaxed ${isLight ? 'text-gray-700' : 'text-gray-200'}`}>
-                            {positiveCharacterReason || positiveReason}
+                            {positiveCharacterReason || (positiveReason && getCachedDeepdive(positiveReason)) || positiveReason}
                           </p>
                         )}
                       </div>
@@ -584,7 +589,7 @@ function DeepDiveTab({ comments, result }: DeepDiveTabProps) {
                           </div>
                         ) : (
                           <p className={`text-sm leading-relaxed ${isLight ? 'text-gray-700' : 'text-gray-200'}`}>
-                            {neutralCharacterReason || neutralReason}
+                            {neutralCharacterReason || (neutralReason && getCachedDeepdive(neutralReason)) || neutralReason}
                           </p>
                         )}
                       </div>
@@ -732,7 +737,7 @@ function DeepDiveTab({ comments, result }: DeepDiveTabProps) {
                           </div>
                         ) : (
                           <p className={`text-sm leading-relaxed ${isLight ? 'text-gray-700' : 'text-gray-200'}`}>
-                            {negativeCharacterReason || negativeAIReason}
+                            {negativeCharacterReason || (negativeAIReason && getCachedDeepdive(negativeAIReason)) || negativeAIReason}
                           </p>
                         )}
                       </div>

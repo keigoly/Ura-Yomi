@@ -315,7 +315,7 @@ function addAnalyzeButton() {
 
     // 独立ラッパーで囲んでバブリングを完全に遮断
     const wrapper = document.createElement('div');
-    wrapper.style.cssText = 'display: inline-flex; align-items: center;';
+    wrapper.style.cssText = 'display: inline-flex; align-items: center; margin-left: 12px;';
     wrapper.addEventListener('click', (e) => e.stopPropagation());
     wrapper.appendChild(button);
 
@@ -479,8 +479,10 @@ if (document.readyState === 'loading') {
   setTimeout(tryAddButton, 1000);
 }
 
-// YouTubeはSPAなので、URL変更を監視
+// YouTubeはSPAなので、URL変更 + DOM変更を監視
 let lastUrl = location.href;
+let buttonCheckTimer: number | null = null;
+
 new MutationObserver(() => {
   const url = location.href;
   if (url !== lastUrl) {
@@ -488,11 +490,26 @@ new MutationObserver(() => {
     // URL変更時は既存ボタンを削除してから再追加（ショート⇔通常切替対応）
     const existingBtn = document.getElementById('youtube-comment-analyzer-btn');
     if (existingBtn) existingBtn.remove();
+    if (buttonCheckTimer !== null) {
+      clearTimeout(buttonCheckTimer);
+      buttonCheckTimer = null;
+    }
     setTimeout(tryAddButton, 1500);
+    return;
+  }
+
+  // 並べ替えクリック等でボタンが消えた場合、素早く再挿入（デバウンス300ms）
+  if (buttonCheckTimer === null) {
+    buttonCheckTimer = window.setTimeout(() => {
+      buttonCheckTimer = null;
+      if (!document.getElementById('youtube-comment-analyzer-btn')) {
+        tryAddButton();
+      }
+    }, 300);
   }
 }).observe(document, { subtree: true, childList: true });
 
-// 定期的にボタンの存在を確認（YouTubeの動的コンテンツに対応）
+// 定期的にボタンの存在を確認（フォールバック + クレジット更新）
 setInterval(() => {
   if (!document.getElementById('youtube-comment-analyzer-btn')) {
     tryAddButton();
@@ -502,4 +519,4 @@ setInterval(() => {
       updateCreditsDisplay(creditsSpan);
     }
   }
-}, 2000);
+}, 3000);

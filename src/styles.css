@@ -354,7 +354,7 @@ html {
   background-size: 200% 100%;
   animation: progress-bar-loading 1.5s ease-in-out infinite;
   height: 100%;
-  min-height: 1rem;
+  max-width: 100%;
 }
 
 @keyframes progress-bar-loading {

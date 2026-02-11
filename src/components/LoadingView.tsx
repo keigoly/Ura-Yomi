@@ -87,7 +87,10 @@ function LoadingView({ progress, onCancel }: LoadingViewProps) {
         <div className={`w-full max-w-2xl rounded-full h-4 overflow-hidden ${isLight ? 'bg-gray-200' : 'bg-gray-800'}`} style={{ minHeight: '1rem' }}>
           <div
             className="progress-bar-loader h-full rounded-full"
-            style={{ width: '100%' }}
+            style={{
+              width: `${Math.min(100, Math.max(1, progress.total > 0 ? (progress.current / progress.total) * 100 : 0))}%`,
+              transition: 'width 0.3s ease-out',
+            }}
           ></div>
         </div>
 

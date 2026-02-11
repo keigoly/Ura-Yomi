@@ -4,7 +4,7 @@
     "description": "Extension name shown in Chrome"
   },
   "extDescription": {
-    "message": "Analyze YouTube video comments with AI to reveal true viewer sentiment and insights",
+    "message": "I'll read between every line for you! An AI-powered detective tool that analyzes YouTube comments to reveal viewers' true feelings",
     "description": "Extension description shown in Chrome"
   }
 }
