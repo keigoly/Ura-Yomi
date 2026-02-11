@@ -21,10 +21,36 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({ success: true, credits });
       })
       .catch((error) => {
-        console.error('Error getting credits:', error);
+        console.error('[BG] GET_CREDITS error:', error.message);
         sendResponse({ success: false, error: error.message });
       });
     return true; // 非同期レスポンスを許可
+  } else if (message.type === 'SYNC_TOKEN') {
+    // Popup/SidePanelからトークンとAPI URLを受け取りchrome.storage.localに保存
+    const token = message.token;
+    const dataToSet = {};
+    if (token) {
+      dataToSet.sessionToken = token;
+    }
+    if (message.apiBaseUrl) {
+      dataToSet.apiBaseUrl = message.apiBaseUrl;
+    }
+
+    if (token) {
+      chrome.storage.local.set(dataToSet).then(() => {
+        // Token & API URL synced
+        sendResponse({ success: true });
+      }).catch((error) => {
+        console.error('[BG] Token sync failed:', error);
+        sendResponse({ success: false });
+      });
+    } else {
+      chrome.storage.local.remove(['sessionToken']).then(() => {
+        // Token cleared
+        sendResponse({ success: true });
+      }).catch(() => sendResponse({ success: false }));
+    }
+    return true;
   }
 });
 
@@ -65,18 +91,16 @@ async function handleStartAnalysis(videoId, title, windowId) {
  */
 async function handleGetCredits() {
   try {
-    // chrome.storageからセッショントークンを取得
-    const storage = await chrome.storage.local.get(['sessionToken']);
+    // chrome.storageからセッショントークンとAPI URLを取得
+    const storage = await chrome.storage.local.get(['sessionToken', 'apiBaseUrl']);
     const sessionToken = storage.sessionToken;
-    
+
     if (!sessionToken) {
       return null; // 認証されていない場合はnullを返す
     }
 
-    // APIからクレジット数を取得
-    // API_BASE_URLは環境変数から取得する必要があるが、background.jsでは直接取得できないため、
-    // デフォルト値を使用
-    const apiBaseUrl = 'https://api.keigoly.jp';
+    // APIからクレジット数を取得（同期されたURLを使用、なければデフォルト）
+    const apiBaseUrl = storage.apiBaseUrl || 'https://api.keigoly.jp';
     const response = await fetch(`${apiBaseUrl}/api/user/credits`, {
       method: 'GET',
       headers: {
@@ -84,6 +108,13 @@ async function handleGetCredits() {
         'Authorization': `Bearer ${sessionToken}`,
       },
     });
+
+    if (response.status === 401) {
+      // トークンが無効 → 古いトークンを削除（次回Popup表示時に再同期される）
+      console.warn('[BG] Session token expired (401), clearing stale token');
+      await chrome.storage.local.remove(['sessionToken']);
+      return null;
+    }
 
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -96,7 +127,7 @@ async function handleGetCredits() {
       throw new Error(data.error || 'クレジット取得エラー');
     }
   } catch (error) {
-    console.error('Error in handleGetCredits:', error);
+    console.error('[BG] Error in handleGetCredits:', error);
     throw error;
   }
 }

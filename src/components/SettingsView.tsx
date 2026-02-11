@@ -801,7 +801,6 @@ function SettingsView({ onBack, onLoadHistory, onLogout }: SettingsViewProps) {
             onClick={() => {
               if (!confirm(t('settings.confirmLogout'))) return;
               clearSessionToken();
-              chrome.storage.local.remove('sessionToken').catch(console.error);
               // Chrome Identity APIのキャッシュトークンを無効化（次回ログイン時にアカウント選択可能にする）
               chrome.identity.getAuthToken({ interactive: false }, (token) => {
                 if (token) {

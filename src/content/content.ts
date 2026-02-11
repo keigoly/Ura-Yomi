@@ -112,13 +112,15 @@ function createAnalyzeButton(compact: boolean): HTMLButtonElement {
   // クレジット数
   const creditsSpan = document.createElement('span');
   creditsSpan.id = 'youtube-comment-analyzer-credits';
+  creditsSpan.textContent = '';
   creditsSpan.style.cssText = `
     font-size: ${compact ? '11px' : '12px'};
     font-weight: 700;
     opacity: 0.9;
     line-height: 1;
-    display: flex;
+    display: inline-flex;
     align-items: center;
+    color: white;
   `;
   buttonContent.appendChild(creditsSpan);
 
@@ -446,7 +448,7 @@ function addAnalyzeButtonForShorts() {
 function updateCreditsDisplay(creditsSpan: HTMLElement) {
   chrome.runtime.sendMessage({ type: 'GET_CREDITS' }, (response) => {
     if (chrome.runtime.lastError) {
-      console.error('[YouTube Comment Analyzer] Error getting credits:', chrome.runtime.lastError);
+      console.warn('[YCA] GET_CREDITS lastError:', chrome.runtime.lastError.message);
       creditsSpan.textContent = '';
       return;
     }

@@ -21,17 +21,21 @@ export function getSessionToken(): string | null {
 }
 
 /**
- * セッショントークンを保存
+ * セッショントークンを保存（localStorage + background.js経由でchrome.storage.localにも同期）
  */
 export function setSessionToken(token: string): void {
   localStorage.setItem(SESSION_TOKEN_KEY, token);
+  // background.jsにメッセージ送信してchrome.storage.localに確実に保存
+  // API_BASE_URLも同期（background.jsはVite環境変数にアクセスできないため）
+  chrome.runtime.sendMessage({ type: 'SYNC_TOKEN', token, apiBaseUrl: API_BASE_URL }).catch(() => {});
 }
 
 /**
- * セッショントークンを削除
+ * セッショントークンを削除（localStorage + background.js経由でchrome.storage.localからも削除）
  */
 export function clearSessionToken(): void {
   localStorage.removeItem(SESSION_TOKEN_KEY);
+  chrome.runtime.sendMessage({ type: 'SYNC_TOKEN', token: null }).catch(() => {});
 }
 
 /**
@@ -141,8 +145,6 @@ export async function authenticateWithGoogle(
 
     if (data.success && data.sessionToken) {
       setSessionToken(data.sessionToken);
-      // chrome.storageにも保存（background.jsで使用するため）
-      chrome.storage.local.set({ sessionToken: data.sessionToken }).catch(console.error);
     }
 
     return data;
@@ -165,7 +167,12 @@ export async function verifySession(): Promise<AuthResponse> {
   }
 
   try {
-    return await apiRequest<AuthResponse>(API_ENDPOINTS.AUTH.VERIFY);
+    const result = await apiRequest<AuthResponse>(API_ENDPOINTS.AUTH.VERIFY);
+    if (result.success) {
+      // setSessionTokenでchrome.storage.localにも同期される
+      setSessionToken(sessionToken);
+    }
+    return result;
   } catch (error) {
     console.error('Verify error:', error);
     clearSessionToken();

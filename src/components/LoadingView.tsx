@@ -28,11 +28,6 @@ function LoadingView({ progress, onCancel }: LoadingViewProps) {
     complete: t('loading.complete'),
   };
 
-  // 進捗率を計算（1%から100%）
-  const percentage = progress.total > 0
-    ? Math.max(1, Math.min(100, Math.round((progress.current / progress.total) * 100)))
-    : 1;
-
   // 過負荷状態の検出（analyzingステージで20秒経過）
   useEffect(() => {
     if (progress.stage === 'analyzing') {
@@ -91,8 +86,8 @@ function LoadingView({ progress, onCancel }: LoadingViewProps) {
 
         <div className={`w-full max-w-2xl rounded-full h-4 overflow-hidden ${isLight ? 'bg-gray-200' : 'bg-gray-800'}`} style={{ minHeight: '1rem' }}>
           <div
-            className="progress-bar-loader h-full rounded-full transition-all duration-300 ease-out"
-            style={{ width: `${percentage}%`, minWidth: percentage > 0 ? '4px' : '0' }}
+            className="progress-bar-loader h-full rounded-full"
+            style={{ width: '100%' }}
           ></div>
         </div>
 
