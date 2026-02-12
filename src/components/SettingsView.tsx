@@ -220,6 +220,7 @@ function SettingsView({ onBack, onLoadHistory, onLogout }: SettingsViewProps) {
     const prev = language;
     setLanguageState(lang);
     localStorage.setItem(STORAGE_KEYS.LANGUAGE, lang);
+    chrome.storage.local.set({ language: lang });
     if (lang !== prev) {
       // 設定画面に留まるようにフラグを同期的に保存してからリロード
       localStorage.setItem('yt-gemini-openSettings', 'true');

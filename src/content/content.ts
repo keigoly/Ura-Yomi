@@ -3,6 +3,72 @@
  * YouTubeページ（通常動画 + ショート動画）に「解析を開始」ボタンを追加
  */
 
+// ---- 多言語対応 ----
+
+type ContentLanguage = 'ja' | 'en';
+
+/** 現在の言語（chrome.storage.localから非同期で取得、デフォルトja） */
+let currentLang: ContentLanguage = 'ja';
+
+/** コンテンツスクリプト用の翻訳辞書 */
+const CONTENT_TRANSLATIONS: Record<ContentLanguage, Record<string, string>> = {
+  ja: {
+    'btn.title': '解析を開始する',
+    'btn.analyzing': '解析中...',
+    'btn.defaultText': '解析を開始',
+    'btn.errorNoVideoId': '動画IDを取得できませんでした',
+    'btn.errorFailed': '解析の開始に失敗しました',
+  },
+  en: {
+    'btn.title': 'Start Analysis',
+    'btn.analyzing': 'Analyzing...',
+    'btn.defaultText': 'Start Analysis',
+    'btn.errorNoVideoId': 'Could not get video ID',
+    'btn.errorFailed': 'Failed to start analysis',
+  },
+};
+
+/** ボタンに表示するユウちゃんの顔画像とセリフの組み合わせ（言語別） */
+const YUCHAN_BUTTON_VARIANTS: Record<ContentLanguage, { image: string; text: string }[]> = {
+  ja: [
+    { image: 'yuchan-btn-1.png', text: '解析してみよう！' },
+    { image: 'yuchan-btn-2.png', text: '解析してね！' },
+    { image: 'yuchan-btn-3.png', text: '解析しちゃおっか♪' },
+  ],
+  en: [
+    { image: 'yuchan-btn-1.png', text: "Let's analyze!" },
+    { image: 'yuchan-btn-2.png', text: 'Analyze this!' },
+    { image: 'yuchan-btn-3.png', text: 'Ready to analyze?' },
+  ],
+};
+
+function ct(key: string): string {
+  return CONTENT_TRANSLATIONS[currentLang][key] ?? key;
+}
+
+/** chrome.storage.localから言語を読み込む */
+function loadLanguage(): Promise<void> {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(['language'], (result) => {
+      if (result.language === 'en' || result.language === 'ja') {
+        currentLang = result.language;
+      }
+      resolve();
+    });
+  });
+}
+
+// 言語変更を監視してボタンを再生成
+chrome.storage.onChanged.addListener((changes) => {
+  if (changes.language?.newValue && changes.language.newValue !== currentLang) {
+    currentLang = changes.language.newValue as ContentLanguage;
+    // 既存ボタンを削除して再生成（新しい言語のテキストで）
+    const existingBtn = document.getElementById('youtube-comment-analyzer-btn');
+    if (existingBtn) existingBtn.closest('div[style]')?.remove() || existingBtn.remove();
+    tryAddButton();
+  }
+});
+
 // ---- ユーティリティ ----
 
 /** 現在のURLがショート動画かどうか */
@@ -38,17 +104,11 @@ function getVideoTitle(): string {
 
 // ---- ユウちゃんボタンバリエーション ----
 
-/** ボタンに表示するユウちゃんの顔画像とセリフの組み合わせ */
-const YUCHAN_BUTTON_VARIANTS = [
-  { image: 'yuchan-btn-1.png', text: '解析してみよう！' },
-  { image: 'yuchan-btn-2.png', text: '解析してね！' },
-  { image: 'yuchan-btn-3.png', text: '解析しちゃおっか♪' },
-];
-
 /** ランダムにバリエーションを選択 */
 function pickButtonVariant() {
-  const idx = Math.floor(Math.random() * YUCHAN_BUTTON_VARIANTS.length);
-  return YUCHAN_BUTTON_VARIANTS[idx];
+  const variants = YUCHAN_BUTTON_VARIANTS[currentLang];
+  const idx = Math.floor(Math.random() * variants.length);
+  return variants[idx];
 }
 
 // ---- ボタン作成（共通） ----
@@ -60,7 +120,7 @@ function pickButtonVariant() {
 function createAnalyzeButton(compact: boolean): HTMLButtonElement {
   const button = document.createElement('button');
   button.id = 'youtube-comment-analyzer-btn';
-  button.title = '解析を開始する';
+  button.title = ct('btn.title');
 
   const iconSize = compact ? 26 : 30;
   const innerRadius = Math.ceil(iconSize / 2);
@@ -178,13 +238,13 @@ function createAnalyzeButton(compact: boolean): HTMLButtonElement {
     e.preventDefault();
     button.disabled = true;
     const txt = button.querySelector('#youtube-comment-analyzer-text') as HTMLElement;
-    if (txt) txt.textContent = '解析中...';
+    if (txt) txt.textContent = ct('btn.analyzing');
     button.style.opacity = '0.7';
     button.style.cursor = 'wait';
 
     const videoId = getVideoId();
     if (!videoId) {
-      alert('動画IDを取得できませんでした');
+      alert(ct('btn.errorNoVideoId'));
       resetButton(button);
       return;
     }
@@ -198,18 +258,18 @@ function createAnalyzeButton(compact: boolean): HTMLButtonElement {
           resetButton(button);
           if (chrome.runtime.lastError) {
             console.error('[YouTube Comment Analyzer] Error:', chrome.runtime.lastError);
-            alert('解析の開始に失敗しました: ' + chrome.runtime.lastError.message);
+            alert(ct('btn.errorFailed') + ': ' + chrome.runtime.lastError.message);
           } else if (response?.success) {
             console.log('[YouTube Comment Analyzer] Analysis started');
           } else {
             console.error('[YouTube Comment Analyzer] Failed:', response?.error);
-            alert(response?.error || '解析の開始に失敗しました');
+            alert(response?.error || ct('btn.errorFailed'));
           }
         }
       );
     } catch (error) {
       console.error('[YouTube Comment Analyzer] Error sending message:', error);
-      alert('解析の開始に失敗しました');
+      alert(ct('btn.errorFailed'));
       resetButton(button);
     }
   });
@@ -221,7 +281,7 @@ function createAnalyzeButton(compact: boolean): HTMLButtonElement {
 function resetButton(button: HTMLButtonElement) {
   button.disabled = false;
   const txt = button.querySelector('#youtube-comment-analyzer-text') as HTMLElement;
-  if (txt) txt.textContent = txt.dataset.defaultText || '解析を開始';
+  if (txt) txt.textContent = txt.dataset.defaultText || ct('btn.defaultText');
   button.style.opacity = '1';
   button.style.cursor = 'pointer';
 }
@@ -470,14 +530,20 @@ function tryAddButton() {
   }
 }
 
-// ページ読み込み時に実行
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => {
+// 言語を読み込んでからボタンを追加
+async function init() {
+  await loadLanguage();
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      setTimeout(tryAddButton, 1000);
+    });
+  } else {
     setTimeout(tryAddButton, 1000);
-  });
-} else {
-  setTimeout(tryAddButton, 1000);
+  }
 }
+
+init();
 
 // YouTubeはSPAなので、URL変更 + DOM変更を監視
 let lastUrl = location.href;

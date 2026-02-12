@@ -22,14 +22,15 @@ interface ResultDashboardProps {
   comments: YouTubeCommentThread[];
   onBack?: () => void;
   onSave?: () => void;
+  onUnsave?: () => void;
+  isSaved?: boolean;
   onOpenWindow?: () => void;
 }
 
-function ResultDashboard({ result, videoInfo, comments, onBack, onSave, onOpenWindow }: ResultDashboardProps) {
+function ResultDashboard({ result, videoInfo, comments, onBack, onSave, onUnsave, isSaved = false, onOpenWindow }: ResultDashboardProps) {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<TabType>('summary');
   const [copied, setCopied] = useState(false);
-  const [saved, setSaved] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -142,12 +143,17 @@ function ResultDashboard({ result, videoInfo, comments, onBack, onSave, onOpenWi
     setMenuOpen(false);
   };
 
-  const handleSave = () => {
-    if (onSave) {
-      onSave();
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
-      showToast(t('result.toastSaved'));
+  const handleToggleSave = () => {
+    if (isSaved) {
+      if (onUnsave) {
+        onUnsave();
+        showToast(t('result.toastUnsaved'));
+      }
+    } else {
+      if (onSave) {
+        onSave();
+        showToast(t('result.toastSaved'));
+      }
     }
     setMenuOpen(false);
   };
@@ -249,16 +255,16 @@ function ResultDashboard({ result, videoInfo, comments, onBack, onSave, onOpenWi
                     <span className="text-sm">{t('result.exportJson')}</span>
                   </button>
 
-                  {/* 解析結果を保存 */}
+                  {/* 解析結果を保存/解除 */}
                   {onSave && (
                     <button
-                      onClick={handleSave}
+                      onClick={handleToggleSave}
                       className={`w-full px-4 py-2 text-left flex items-center gap-3 transition-colors ${isLight ? 'hover:bg-gray-100 text-gray-700' : 'hover:bg-gray-700 text-gray-200'}`}
                     >
-                      {saved ? (
+                      {isSaved ? (
                         <>
-                          <Check className="w-4 h-4 text-green-500" />
-                          <span className="text-sm">{t('result.saved')}</span>
+                          <Bookmark className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                          <span className="text-sm">{t('result.unsaveResult')}</span>
                         </>
                       ) : (
                         <>
@@ -275,11 +281,27 @@ function ResultDashboard({ result, videoInfo, comments, onBack, onSave, onOpenWi
           </div>
         </div>
 
-        {/* 動画情報（2行目） */}
+        {/* 動画情報（2行目）: 保存ボタン + タイトル */}
         {videoInfo && (
-          <p className={`text-sm mt-1 ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>
-            {videoInfo.title || videoInfo.videoId} ({comments.length.toLocaleString()}{t('result.commentsCount')})
-          </p>
+          <div className="flex items-center gap-2 mt-1">
+            {onSave && (
+              <button
+                onClick={handleToggleSave}
+                className={`p-1.5 rounded-lg transition-colors flex-shrink-0 ${
+                  isSaved
+                    ? 'text-yellow-500 hover:text-yellow-600'
+                    : isLight ? 'text-gray-400 hover:text-gray-600' : 'text-gray-500 hover:text-gray-300'
+                }`}
+                title={isSaved ? t('result.unsaveResult') : t('result.saveResult')}
+              >
+                <Bookmark className={`w-5 h-5 ${isSaved ? 'fill-yellow-500' : ''}`} />
+              </button>
+            )}
+            <p className={`text-sm line-clamp-3 ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>
+              {videoInfo.title || videoInfo.videoId}
+              <span className="whitespace-nowrap"> ({comments.length.toLocaleString()}{t('result.commentsCount')})</span>
+            </p>
+          </div>
         )}
       </div>
 

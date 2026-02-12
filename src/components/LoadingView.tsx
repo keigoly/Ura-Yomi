@@ -102,9 +102,13 @@ function LoadingView({ progress, onCancel }: LoadingViewProps) {
           </div>
         )}
 
+        <p className={`text-xs ${isLight ? 'text-red-500' : 'text-red-400'}`}>
+          {t('loading.doNotClose')}
+        </p>
+
         <button
           onClick={() => setShowCancelDialog(true)}
-          className="mt-8 flex items-center justify-center gap-2 px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+          className="mt-4 flex items-center justify-center gap-2 px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
         >
           <StopCircle className="w-5 h-5" />
           {t('loading.cancel')}

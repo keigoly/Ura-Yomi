@@ -8,7 +8,7 @@ import { useAnalysisStore } from '../store/analysisStore';
 import { useDesignStore, BG_COLORS, isLightMode } from '../store/designStore';
 import { analyzeViaServer, getVideoInfo, verifySession } from '../services/apiServer';
 import type { User } from '../types';
-import { saveHistory, getHistoryEntry } from '../services/historyStorage';
+import { saveHistory, getHistoryEntry, deleteHistoryEntry } from '../services/historyStorage';
 import { getCurrentYouTubeVideo, extractVideoId } from '../utils/youtube';
 import { ANALYSIS_CREDIT_COST } from '../constants';
 import { useTranslation } from '../i18n/useTranslation';
@@ -34,8 +34,10 @@ function SidePanel() {
   const [urlInput, setUrlInput] = useState('');
   const [urlLoading, setUrlLoading] = useState(false);
   const [isFromHistory, setIsFromHistory] = useState(false);
+  const [savedHistoryId, setSavedHistoryId] = useState<string | null>(null);
   const [shareToast, setShareToast] = useState<string | null>(null);
   const showShareToast = (msg: string) => { setShareToast(msg); setTimeout(() => setShareToast(null), 2000); };
+  const [interruptedNotice, setInterruptedNotice] = useState(false);
   const [isStandaloneWindow, setIsStandaloneWindow] = useState(false);
   useEffect(() => {
     chrome.windows.getCurrent((win) => {
@@ -93,6 +95,19 @@ function SidePanel() {
       setAuthLoading(false);
     };
     checkAuth();
+    // 言語設定をchrome.storage.localに同期（コンテンツスクリプト用）
+    const lang = localStorage.getItem('yt-gemini-language') || 'ja';
+    chrome.storage.local.set({ language: lang });
+  }, []);
+
+  // 解析中断フラグの確認
+  useEffect(() => {
+    chrome.storage.local.get(['analysisInterrupted']).then((result) => {
+      if (result.analysisInterrupted) {
+        setInterruptedNotice(true);
+        chrome.storage.local.remove(['analysisInterrupted']);
+      }
+    });
   }, []);
 
   // 進捗タイマーを保存するためのref
@@ -114,7 +129,20 @@ function SidePanel() {
       abortControllerRef.current = abortController;
 
       try {
-        startAnalysis(videoId, title);
+        // タイトルが空の場合、サーバーから取得
+        let resolvedTitle = title;
+        if (!resolvedTitle) {
+          try {
+            const info = await getVideoInfo(videoId);
+            if (info.success && info.title) {
+              resolvedTitle = info.title;
+            }
+          } catch {
+            // タイトル取得失敗は無視して続行
+          }
+        }
+
+        startAnalysis(videoId, resolvedTitle);
 
         // 進捗シミュレーション用の変数
         let currentProgress = 1; // 1%から開始
@@ -410,6 +438,10 @@ function SidePanel() {
         abortControllerRef.current.abort();
         abortControllerRef.current = null;
       }
+      // 解析中にパネルが閉じられた場合、中断フラグを保存
+      if (useAnalysisStore.getState().isAnalyzing) {
+        chrome.storage.local.set({ analysisInterrupted: true });
+      }
     };
   }, []);
 
@@ -468,8 +500,9 @@ function SidePanel() {
   // 現在の解析結果を履歴に保存
   const saveCurrentResult = useCallback(() => {
     if (!result || !videoInfo) return;
+    const id = `${Date.now()}`;
     saveHistory({
-      id: `${Date.now()}`,
+      id,
       videoId: videoInfo.videoId,
       videoTitle: videoInfo.title || videoInfo.videoId,
       analyzedAt: new Date().toISOString(),
@@ -477,7 +510,15 @@ function SidePanel() {
       comments,
       videoInfo,
     });
+    setSavedHistoryId(id);
   }, [result, comments, videoInfo]);
+
+  // 履歴から削除
+  const unsaveCurrentResult = useCallback(() => {
+    if (!savedHistoryId) return;
+    deleteHistoryEntry(savedHistoryId);
+    setSavedHistoryId(null);
+  }, [savedHistoryId]);
 
   // 履歴から読み込み
   const loadHistoryEntry = useCallback((id: string) => {
@@ -610,7 +651,7 @@ function SidePanel() {
         } else {
           reset();
         }
-      }} onSave={saveCurrentResult} onOpenWindow={isStandaloneWindow ? undefined : async () => {
+      }} onSave={saveCurrentResult} onUnsave={unsaveCurrentResult} isSaved={!!savedHistoryId} onOpenWindow={isStandaloneWindow ? undefined : async () => {
         // 現在の解析結果をlocalStorageに一時保存して新しいウィンドウで復元
         const stateToTransfer = {
           result,
@@ -627,6 +668,21 @@ function SidePanel() {
 
   return (
     <div style={wrapperStyle} className="flex flex-col">
+      {/* 解析中断通知 */}
+      {interruptedNotice && (
+        <div className={`mx-3 mt-3 p-3 rounded-lg border flex items-start gap-2 ${isLight ? 'bg-yellow-50 border-yellow-300' : 'bg-yellow-900/30 border-yellow-700'}`}>
+          <p className={`flex-1 text-xs leading-relaxed ${isLight ? 'text-yellow-700' : 'text-yellow-300'}`}>
+            {t('side.analysisInterrupted')}
+          </p>
+          <button
+            onClick={() => setInterruptedNotice(false)}
+            className={`shrink-0 text-lg leading-none px-1 ${isLight ? 'text-yellow-600 hover:text-yellow-800' : 'text-yellow-400 hover:text-yellow-200'}`}
+          >
+            &times;
+          </button>
+        </div>
+      )}
+
       {/* ボタン（右上） */}
       <div className="flex justify-end gap-1 p-3" style={{ flexShrink: 0 }}>
         {!isStandaloneWindow && (
