@@ -2,7 +2,7 @@
  * Loading View コンポーネント
  */
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { StopCircle } from 'lucide-react';
 import { useDesignStore, BG_COLORS, isLightMode } from '../store/designStore';
 import { useTranslation } from '../i18n/useTranslation';
@@ -22,11 +22,54 @@ function LoadingView({ progress, onCancel }: LoadingViewProps) {
   const startTimeRef = useRef<number | null>(null);
   const timerRef = useRef<number | null>(null);
 
+  const [displayPercent, setDisplayPercent] = useState(1);
+
   const STAGE_LABELS: Record<AnalysisStage, string> = {
     fetching: t('loading.fetching'),
     analyzing: t('loading.analyzing'),
     complete: t('loading.complete'),
   };
+
+  // サーバー進捗をステージ別の表示範囲にマッピング
+  // fetching: 1-50%, analyzing: 51-100%
+  const targetPercent = useMemo(() => {
+    const rawPercent = progress.total > 0 ? (progress.current / progress.total) * 100 : 0;
+    switch (progress.stage) {
+      case 'fetching': {
+        const normalized = Math.min(rawPercent, 50) / 50;
+        return 1 + normalized * 49;
+      }
+      case 'analyzing': {
+        const normalized = Math.max(0, rawPercent - 50) / 50;
+        return 51 + normalized * 49;
+      }
+      case 'complete':
+        return 100;
+      default:
+        return Math.max(1, rawPercent);
+    }
+  }, [progress.stage, progress.current, progress.total]);
+
+  // スムーズアニメーション: targetPercentに向かって徐々に進み、
+  // サーバーイベント間はステージ上限まで微速で進む
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setDisplayPercent(prev => {
+        if (prev < targetPercent - 0.5) {
+          const diff = targetPercent - prev;
+          const step = Math.max(0.5, diff * 0.08);
+          return Math.min(prev + step, targetPercent);
+        }
+        // ターゲットに到達したら、ステージ上限まで微速前進
+        const ceiling = progress.stage === 'fetching' ? 48
+          : progress.stage === 'analyzing' ? 98
+          : 100;
+        if (prev >= ceiling) return prev;
+        return prev + 0.15;
+      });
+    }, 50);
+    return () => clearInterval(timer);
+  }, [targetPercent, progress.stage]);
 
   // 過負荷状態の検出（analyzingステージで20秒経過）
   useEffect(() => {
@@ -88,8 +131,8 @@ function LoadingView({ progress, onCancel }: LoadingViewProps) {
           <div
             className="progress-bar-loader h-full rounded-full"
             style={{
-              width: `${Math.min(100, Math.max(1, progress.total > 0 ? (progress.current / progress.total) * 100 : 0))}%`,
-              transition: 'width 0.3s ease-out',
+              width: `${Math.min(100, displayPercent)}%`,
+              transition: 'width 0.1s linear',
             }}
           ></div>
         </div>

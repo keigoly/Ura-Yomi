@@ -28,6 +28,7 @@ export const API_ENDPOINTS = {
   },
   ANALYZE: {
     DEFAULT: '/api/analyze',
+    STREAM: '/api/analyze/stream',
     NEGATIVE_REASON: '/api/analyze/negative-reason',
   },
   CHARACTER: {

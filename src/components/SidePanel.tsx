@@ -6,13 +6,14 @@ import { useEffect, useCallback, useRef, useState } from 'react';
 import { Play, Link, Settings, ExternalLink } from 'lucide-react';
 import { useAnalysisStore } from '../store/analysisStore';
 import { useDesignStore, BG_COLORS, isLightMode } from '../store/designStore';
-import { analyzeViaServer, getVideoInfo, verifySession } from '../services/apiServer';
+import { analyzeViaServer, analyzeViaServerStream, getVideoInfo, verifySession } from '../services/apiServer';
 import type { User } from '../types';
 import { saveHistory, getHistoryEntry, deleteHistoryEntry } from '../services/historyStorage';
 import { getCurrentYouTubeVideo, extractVideoId } from '../utils/youtube';
 import { ANALYSIS_CREDIT_COST } from '../constants';
 import { useTranslation } from '../i18n/useTranslation';
 import { getLanguage } from '../i18n/useTranslation';
+import { parseAnalysisResult } from '../utils/jsonParser';
 import LoadingView from './LoadingView';
 import ResultDashboard from './ResultDashboard';
 import SettingsView from './SettingsView';
@@ -128,6 +129,10 @@ function SidePanel() {
       const abortController = new AbortController();
       abortControllerRef.current = abortController;
 
+      // 新しい解析開始時は保存フラグをリセット（前回の保存状態を引き継がない）
+      setSavedHistoryId(null);
+      setIsFromHistory(false);
+
       try {
         // タイトルが空の場合、サーバーから取得
         let resolvedTitle = title;
@@ -144,41 +149,6 @@ function SidePanel() {
 
         startAnalysis(videoId, resolvedTitle);
 
-        // 進捗シミュレーション用の変数
-        let currentProgress = 1; // 1%から開始
-        const totalProgress = 100;
-        let isAnalyzingPhase = false; // AI解析フェーズかどうか
-
-        // 進捗更新関数
-        const updateProgressTimer = () => {
-          if (!isAnalyzingPhase && currentProgress < 60) {
-            // コメント取得フェーズ（1-60%）
-            currentProgress += 2; // 2%ずつ増加
-            updateProgress({
-              stage: 'fetching',
-              message: t('side.serverProcessing'),
-              current: currentProgress,
-              total: totalProgress,
-            });
-          } else if (currentProgress < 98) {
-            // AI解析フェーズ（60-98%）
-            isAnalyzingPhase = true;
-            currentProgress += 1; // 1%ずつ増加（AI解析は時間がかかるため）
-            updateProgress({
-              stage: 'analyzing',
-              message: t('side.aiAnalyzing'),
-              current: currentProgress,
-              total: totalProgress,
-            });
-          } else {
-            // 98%で停止（サーバー側の処理完了を待つ）
-            if (progressTimerRef.current !== null) {
-              clearInterval(progressTimerRef.current);
-              progressTimerRef.current = null;
-            }
-          }
-        };
-
         // 進捗を初期化
         updateProgress({
           stage: 'fetching',
@@ -187,201 +157,98 @@ function SidePanel() {
           total: 100,
         });
 
-        // 進捗タイマーを開始（300msごとに更新）
-        progressTimerRef.current = window.setInterval(updateProgressTimer, 300);
+        // SSEストリーミングを試行、失敗時はPOSTにフォールバック
+        const language = getLanguage();
+        try {
+          await new Promise<void>((resolve, reject) => {
+            const sseHandle = analyzeViaServerStream(
+              videoId, 2000, 'medium', language,
+              {
+                onProgress: (data) => {
+                  const stage = (['fetching', 'analyzing', 'complete'].includes(data.stage) ? data.stage : 'analyzing') as 'fetching' | 'analyzing' | 'complete';
+                  updateProgress({
+                    stage,
+                    message: data.message,
+                    current: data.current,
+                    total: data.total,
+                  });
+                },
+                onComments: (data) => {
+                  if (data.comments) {
+                    setComments(data.comments);
+                  }
+                },
+                onResult: (data) => {
+                  const resultData = parseAnalysisResult(data);
+                  setResult(resultData);
+                  resolve();
+                },
+                onError: (message) => {
+                  reject(new Error(message));
+                },
+              }
+            );
 
-        // サーバー側で処理（コメント取得とAI解析）
-        // デフォルト値を使用: コメント数上限2000件、要約の長さmedium
-        const analysisResult = await analyzeViaServer(
-          videoId,
-          [],
-          2000, // デフォルト: 2000件
-          'medium', // デフォルト: medium
-          abortController.signal,
-          getLanguage()
-        );
+            // AbortControllerとSSEを連携
+            abortController.signal.addEventListener('abort', () => {
+              sseHandle.abort();
+              reject(new DOMException('Aborted', 'AbortError'));
+            });
 
-        // サーバー側の処理が完了したら進捗を100%に設定
-        if (progressTimerRef.current !== null) {
-          clearInterval(progressTimerRef.current);
-          progressTimerRef.current = null;
+            // SSE接続タイムアウト（EventSourceが即座に失敗する場合のフォールバック用）
+            // 通常はonError/onResultで解決する
+          });
+        } catch (sseError) {
+          // SSEが失敗した場合、POSTにフォールバック
+          if (sseError instanceof DOMException && sseError.name === 'AbortError') {
+            throw sseError; // ユーザーが中止した場合はそのまま再スロー
+          }
+
+          console.warn('[SidePanel] SSE failed, falling back to POST:', sseError);
+
+          // 疑似プログレス付きのPOSTフォールバック
+          let currentProgress = 10;
+          progressTimerRef.current = window.setInterval(() => {
+            if (currentProgress < 98) {
+              currentProgress += 3;
+              updateProgress({
+                stage: currentProgress < 50 ? 'fetching' : 'analyzing',
+                message: currentProgress < 50 ? t('side.serverProcessing') : t('side.aiAnalyzing'),
+                current: Math.min(currentProgress, 98),
+                total: 100,
+              });
+            } else if (progressTimerRef.current !== null) {
+              clearInterval(progressTimerRef.current);
+              progressTimerRef.current = null;
+            }
+          }, 1000);
+
+          const analysisResult = await analyzeViaServer(
+            videoId, [], 2000, 'medium', abortController.signal, language
+          );
+
+          if (progressTimerRef.current !== null) {
+            clearInterval(progressTimerRef.current);
+            progressTimerRef.current = null;
+          }
+
+          if (analysisResult.comments) {
+            setComments(analysisResult.comments);
+          }
+
+          const resultData = parseAnalysisResult(analysisResult);
+          setResult(resultData);
         }
-        
-        // 少し遅延を入れて100%に達するアニメーションを表示
-        await new Promise(resolve => setTimeout(resolve, 300));
+
+        // 完了アニメーション
         updateProgress({
           stage: 'analyzing',
           message: t('side.complete'),
           current: 100,
           total: 100,
         });
-        
-        // 100%表示を少し維持してから結果を表示
+
         await new Promise(resolve => setTimeout(resolve, 500));
-
-        // サーバーから返された結果を使用
-        // analyzeViaServerはdata全体を返すので、resultプロパティを確認
-        if (analysisResult.comments) {
-          setComments(analysisResult.comments);
-        }
-
-        // resultプロパティがある場合はそれを使用、なければanalysisResult全体を使用
-        let resultData = analysisResult.result || analysisResult;
-        
-        // resultDataがJSON文字列の場合はパースする
-        if (typeof resultData === 'string') {
-          try {
-            resultData = JSON.parse(resultData);
-          } catch (e) {
-            console.warn('Failed to parse result as JSON:', e);
-          }
-        }
-        
-        // resultData全体がJSONコードブロック形式の文字列の場合を処理
-        if (typeof resultData === 'string') {
-          let dataText = resultData.trim();
-          
-          // ```json ... ``` コードブロックを検出
-          const jsonBlockMatch = dataText.match(/```json\s*([\s\S]*?)\s*```/);
-          if (jsonBlockMatch) {
-            dataText = jsonBlockMatch[1].trim();
-          } else {
-            const codeBlockMatch = dataText.match(/```\s*([\s\S]*?)\s*```/);
-            if (codeBlockMatch) {
-              dataText = codeBlockMatch[1].trim();
-            }
-          }
-          
-          if (dataText.startsWith('{') || dataText.startsWith('[')) {
-            try {
-              let cleanedJson = dataText;
-              cleanedJson = cleanedJson.replace(/,\s*([}\]])/g, '$1');
-              cleanedJson = cleanedJson.replace(/([,\[])\s*([}\]])/g, '$1$2');
-              
-              resultData = JSON.parse(cleanedJson);
-              console.log('[SidePanel] ✅ Parsed resultData from JSON code block');
-            } catch (e) {
-              console.warn('[SidePanel] Failed to parse resultData as JSON:', e);
-            }
-          }
-        }
-        
-        // summaryがJSON文字列またはコードブロックの場合はパースして整形
-        if (resultData && typeof resultData.summary === 'string') {
-          let summaryText = resultData.summary.trim();
-          
-          console.log('[SidePanel] 🔍 Processing summary:', {
-            length: summaryText.length,
-            startsWithJsonBlock: summaryText.includes('```json'),
-            preview: summaryText.substring(0, 150),
-          });
-          
-          // ```json ... ``` コードブロックを検出（複数行対応、貪欲マッチも試す）
-          let jsonText: string | null = null;
-          
-          // パターン1: ```json ... ``` (非貪欲)
-          let jsonBlockMatch = summaryText.match(/```json\s*([\s\S]*?)\s*```/);
-          if (jsonBlockMatch) {
-            jsonText = jsonBlockMatch[1].trim();
-            console.log('[SidePanel] ✅ Found ```json code block (non-greedy)');
-          } else {
-            // パターン2: ```json ... ``` (貪欲 - 最後の```まで)
-            jsonBlockMatch = summaryText.match(/```json\s*([\s\S]*)\s*```/);
-            if (jsonBlockMatch) {
-              jsonText = jsonBlockMatch[1].trim();
-              console.log('[SidePanel] ✅ Found ```json code block (greedy)');
-            } else {
-              // パターン3: ``` ... ``` (jsonラベルなし)
-              const codeBlockMatch = summaryText.match(/```\s*([\s\S]*?)\s*```/);
-              if (codeBlockMatch) {
-                jsonText = codeBlockMatch[1].trim();
-                console.log('[SidePanel] ✅ Found ``` code block');
-              }
-            }
-          }
-          
-          // JSON文字列の場合はパース
-          if (jsonText && (jsonText.startsWith('{') || jsonText.startsWith('['))) {
-            try {
-              // JSONの修正を試みる（不完全なJSONを修正）
-              let cleanedJson = jsonText;
-              cleanedJson = cleanedJson.replace(/,\s*([}\]])/g, '$1'); // 末尾の余分なカンマを削除
-              cleanedJson = cleanedJson.replace(/([,\[])\s*([}\]])/g, '$1$2'); // 空の配列/オブジェクトの修正
-              
-              console.log('[SidePanel] 🔧 Attempting to parse JSON (first 300 chars):', cleanedJson.substring(0, 300));
-              
-              const parsedSummary = JSON.parse(cleanedJson);
-              
-              console.log('[SidePanel] ✅ JSON parsed successfully:', {
-                hasSummary: !!parsedSummary.summary,
-                hasSentiment: !!parsedSummary.sentiment,
-                hasTopics: !!parsedSummary.topics,
-                sentiment: parsedSummary.sentiment,
-                topics: parsedSummary.topics,
-              });
-              
-              // パースした結果をresultDataにマージ（優先順位: parsedSummary > resultData）
-              resultData = {
-                ...resultData,
-                summary: parsedSummary.summary || resultData.summary,
-                sentiment: parsedSummary.sentiment || resultData.sentiment,
-                topics: parsedSummary.topics || resultData.topics,
-                hiddenGems: parsedSummary.hiddenGems || resultData.hiddenGems,
-                controversy: parsedSummary.controversy || resultData.controversy,
-                keywords: parsedSummary.keywords || resultData.keywords,
-              };
-            } catch (e) {
-              // JSONパースに失敗した場合はそのまま使用
-              console.error('[SidePanel] ❌ Failed to parse summary as JSON:', e);
-              console.error('[SidePanel] Error details:', {
-                message: e instanceof Error ? e.message : String(e),
-                jsonTextLength: jsonText.length,
-                jsonTextPreview: jsonText.substring(0, 500),
-              });
-              // パースに失敗した場合は、生テキストをそのまま使用
-              resultData.summary = summaryText;
-            }
-          } else if (summaryText.startsWith('{') || summaryText.startsWith('[')) {
-            // コードブロックがなくても、JSON形式の場合はパースを試みる
-            try {
-              let cleanedJson = summaryText;
-              cleanedJson = cleanedJson.replace(/,\s*([}\]])/g, '$1');
-              cleanedJson = cleanedJson.replace(/([,\[])\s*([}\]])/g, '$1$2');
-              
-              const parsedSummary = JSON.parse(cleanedJson);
-              
-              resultData = {
-                ...resultData,
-                summary: parsedSummary.summary || resultData.summary,
-                sentiment: parsedSummary.sentiment || resultData.sentiment,
-                topics: parsedSummary.topics || resultData.topics,
-                hiddenGems: parsedSummary.hiddenGems || resultData.hiddenGems,
-                controversy: parsedSummary.controversy || resultData.controversy,
-                keywords: parsedSummary.keywords || resultData.keywords,
-              };
-              
-              console.log('[SidePanel] ✅ Parsed JSON without code block');
-            } catch (e) {
-              console.warn('[SidePanel] ⚠️ Failed to parse as JSON:', e);
-            }
-          } else {
-            // コードブロックもJSON形式でもない場合は、そのまま使用
-            resultData.summary = summaryText;
-          }
-        }
-        
-        // デバッグ用ログ
-        console.log('[SidePanel] 📊 Final resultData structure:', {
-          hasSummary: !!resultData.summary,
-          summaryType: typeof resultData.summary,
-          summaryPreview: typeof resultData.summary === 'string' ? resultData.summary.substring(0, 100) : resultData.summary,
-          hasSentiment: !!resultData.sentiment,
-          sentiment: resultData.sentiment,
-          hasTopics: !!resultData.topics,
-          topics: resultData.topics,
-        });
-        
-        setResult(resultData);
       } catch (err) {
         // エラーが発生した場合はタイマーを停止
         if (progressTimerRef.current !== null) {
@@ -425,6 +292,7 @@ function SidePanel() {
     }
     // UIをリセット
     reset();
+    setSavedHistoryId(null);
   }, [reset]);
 
   // コンポーネントのアンマウント時にクリーンアップ
@@ -520,6 +388,12 @@ function SidePanel() {
     setSavedHistoryId(null);
   }, [savedHistoryId]);
 
+  // 再解析
+  const handleReanalyze = useCallback(() => {
+    if (!videoInfo?.videoId) return;
+    handleStartAnalysis(videoInfo.videoId, videoInfo.title);
+  }, [videoInfo, handleStartAnalysis]);
+
   // 履歴から読み込み
   const loadHistoryEntry = useCallback((id: string) => {
     const entry = getHistoryEntry(id);
@@ -529,6 +403,7 @@ function SidePanel() {
     // videoInfoはstartAnalysisで設定されるが、履歴読み込み時は直接storeに設定
     useAnalysisStore.setState({ videoInfo: entry.videoInfo });
     setIsFromHistory(true);
+    setSavedHistoryId(id);
     setShowSettings(false);
   }, [setComments, setResult]);
 
@@ -651,7 +526,8 @@ function SidePanel() {
         } else {
           reset();
         }
-      }} onSave={saveCurrentResult} onUnsave={unsaveCurrentResult} isSaved={!!savedHistoryId} onOpenWindow={isStandaloneWindow ? undefined : async () => {
+        setSavedHistoryId(null);
+      }} onSave={saveCurrentResult} onUnsave={unsaveCurrentResult} isSaved={!!savedHistoryId} onReanalyze={handleReanalyze} onOpenWindow={isStandaloneWindow ? undefined : async () => {
         // 現在の解析結果をlocalStorageに一時保存して新しいウィンドウで復元
         const stateToTransfer = {
           result,

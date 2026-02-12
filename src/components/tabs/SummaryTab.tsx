@@ -2,12 +2,13 @@
  * Summary Tab コンポーネント
  */
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import type { AnalysisResult } from '../../types';
 import { useDesignStore, isLightMode } from '../../store/designStore';
 import { useCharacterStore } from '../../store/characterStore';
 import { useTranslation } from '../../i18n/useTranslation';
 import { rewriteWithCharacter } from '../../services/apiServer';
+import { extractJsonText, repairJson } from '../../utils/jsonParser';
 import mascotGirl from '../../icons/mascot-girl.png';
 import tsubechanSummary from '../../icons/tsubechan-summary.png';
 import tsubechanSentiment from '../../icons/tsubechan-sentiment.png';
@@ -83,69 +84,33 @@ interface SummaryTabProps {
 
 /**
  * JSON文字列を整形して表示用のテキストに変換
- * Markdownコードブロック（```json ... ```）を検出してパースし、summaryフィールドのみを返す
+ * jsonParser.tsの共通ユーティリティを使用
  */
 function formatSummary(summary: string): string {
   if (!summary || typeof summary !== 'string') {
     return '';
   }
 
-  let text = summary.trim();
-
-  // ```json ... ``` コードブロックを検出して抽出（複数行対応、複数パターンを試す）
-  let jsonBlockMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
-  if (jsonBlockMatch) {
-    text = jsonBlockMatch[1].trim();
-  } else {
-    // 貪欲マッチも試す
-    jsonBlockMatch = text.match(/```json\s*([\s\S]*)\s*```/);
-    if (jsonBlockMatch) {
-      text = jsonBlockMatch[1].trim();
-    } else {
-      // ``` ... ``` コードブロックを検出（jsonラベルなし）
-      const codeBlockMatch = text.match(/```\s*([\s\S]*?)\s*```/);
-      if (codeBlockMatch) {
-        text = codeBlockMatch[1].trim();
-      } else {
-        const codeBlockMatchGreedy = text.match(/```\s*([\s\S]*)\s*```/);
-        if (codeBlockMatchGreedy) {
-          text = codeBlockMatchGreedy[1].trim();
-        }
-      }
-    }
-  }
+  const text = extractJsonText(summary);
 
   // JSON文字列の場合はパース
   if (text.startsWith('{') || text.startsWith('[')) {
     try {
-      // JSONの修正を試みる（不完全なJSONを修正）
-      let jsonText = text;
-      jsonText = jsonText.replace(/,\s*([}\]])/g, '$1'); // 末尾の余分なカンマを削除
-      jsonText = jsonText.replace(/([,\[])\s*([}\]])/g, '$1$2'); // 空の配列/オブジェクトの修正
+      const repaired = repairJson(text);
+      const parsed = JSON.parse(repaired);
 
-      const parsed = JSON.parse(jsonText);
-
-      // summaryフィールドがある場合はそれを使用
       if (parsed.summary && typeof parsed.summary === 'string') {
-        // エスケープシーケンスを実際の改行に変換
         let summaryText = parsed.summary.replace(/\\n/g, '\n').replace(/\\t/g, '\t');
-        // 複数の連続する改行を1つに統一（見やすくするため）
         summaryText = summaryText.replace(/\n{3,}/g, '\n\n');
         return summaryText.trim();
       }
 
-      // summaryフィールドがない場合は、オブジェクト全体を文字列化（通常は発生しない）
-      console.warn('[SummaryTab] ⚠️ JSONにsummaryフィールドがありません:', parsed);
       return JSON.stringify(parsed, null, 2);
-    } catch (e) {
-      // JSONパースに失敗した場合は、エスケープシーケンスを変換して返す
-      console.error('[SummaryTab] ❌ JSONパースに失敗:', e);
-      console.error('[SummaryTab] Text preview:', text.substring(0, 200));
+    } catch {
       return text.replace(/\\n/g, '\n').replace(/\\t/g, '\t');
     }
   }
 
-  // エスケープシーケンスを実際の改行に変換
   return text.replace(/\\n/g, '\n').replace(/\\t/g, '\t');
 }
 
@@ -170,169 +135,106 @@ function SummaryTab({ result }: SummaryTabProps) {
     }
   }, [summaryCharacterMode]);
 
-  // デバッグ用ログ
-  console.log('[SummaryTab] 📥 Received result:', result);
-  console.log('[SummaryTab] result.sentiment:', result.sentiment);
-  console.log('[SummaryTab] result.topics:', result.topics);
-  console.log('[SummaryTab] result.summary type:', typeof result.summary);
-  console.log('[SummaryTab] result.summary preview:', typeof result.summary === 'string' ? result.summary.substring(0, 200) : result.summary);
-
   // 言語に応じたsummaryとtopicsを選択（バイリンガル対応）
   const rawSummary = (lang === 'en' && result.summary_en) ? result.summary_en : result.summary;
   const rawTopics = (lang === 'en' && result.topics_en) ? result.topics_en : result.topics;
 
-  // summaryが文字列の場合は整形（JSONコードブロックをパース）
-  let formattedSummary: string;
-  let extractedSentiment: { positive: number; negative: number; neutral: number } | null = null;
-  let extractedTopics: string[] = [];
+  // === useMemoでサマリー処理をメモ化 ===
+  const { formattedSummary, extractedSentiment, extractedTopics } = useMemo(() => {
+    let summary: string;
+    let sentimentData: { positive: number; negative: number; neutral: number } | null = null;
+    let topicsData: string[] = [];
 
-  if (typeof rawSummary === 'string') {
-    const summaryText = rawSummary.trim();
+    if (typeof rawSummary === 'string') {
+      const jsonText = extractJsonText(rawSummary);
 
-    // JSONコードブロックを検出してパース（複数パターンを試す）
-    let jsonText = null;
+      if (jsonText && (jsonText.startsWith('{') || jsonText.startsWith('['))) {
+        try {
+          const repaired = repairJson(jsonText);
+          const parsed = JSON.parse(repaired);
 
-    // パターン1: ```json ... ``` (非貪欲)
-    let jsonBlockMatch = summaryText.match(/```json\s*([\s\S]*?)\s*```/);
-    if (jsonBlockMatch) {
-      jsonText = jsonBlockMatch[1].trim();
-    } else {
-      // パターン2: ```json ... ``` (貪欲)
-      jsonBlockMatch = summaryText.match(/```json\s*([\s\S]*)\s*```/);
-      if (jsonBlockMatch) {
-        jsonText = jsonBlockMatch[1].trim();
-      } else {
-        // パターン3: ``` ... ``` (jsonラベルなし)
-        const codeBlockMatch = summaryText.match(/```\s*([\s\S]*?)\s*```/);
-        if (codeBlockMatch) {
-          jsonText = codeBlockMatch[1].trim();
-        } else {
-          const codeBlockMatchGreedy = summaryText.match(/```\s*([\s\S]*)\s*```/);
-          if (codeBlockMatchGreedy) {
-            jsonText = codeBlockMatchGreedy[1].trim();
+          if (parsed.summary && typeof parsed.summary === 'string') {
+            let s = parsed.summary.replace(/\\n/g, '\n').replace(/\\t/g, '\t');
+            s = s.replace(/\n{3,}/g, '\n\n');
+            summary = s.trim();
+          } else {
+            summary = t('summary.noSummary');
           }
+
+          if (parsed.sentiment && typeof parsed.sentiment === 'object' && !Array.isArray(parsed.sentiment)) {
+            const toNum = (v: any) => typeof v === 'number' ? v : (typeof v === 'string' ? parseFloat(v) || 0 : 0);
+            sentimentData = {
+              positive: toNum(parsed.sentiment.positive),
+              negative: toNum(parsed.sentiment.negative),
+              neutral: toNum(parsed.sentiment.neutral),
+            };
+          }
+
+          if (Array.isArray(parsed.topics)) {
+            topicsData = parsed.topics.filter((t: any) => t && typeof t === 'string' && t.trim().length > 0);
+          }
+        } catch {
+          summary = formatSummary(rawSummary);
         }
-      }
-    }
-
-    if (jsonText && (jsonText.startsWith('{') || jsonText.startsWith('['))) {
-      try {
-        // JSONの修正を試みる
-        let cleanedJson = jsonText;
-        cleanedJson = cleanedJson.replace(/,\s*([}\]])/g, '$1');
-        cleanedJson = cleanedJson.replace(/([,\[])\s*([}\]])/g, '$1$2');
-
-        const parsed = JSON.parse(cleanedJson);
-
-        // summaryフィールドを抽出
-        if (parsed.summary && typeof parsed.summary === 'string') {
-          let summaryText = parsed.summary.replace(/\\n/g, '\n').replace(/\\t/g, '\t');
-          summaryText = summaryText.replace(/\n{3,}/g, '\n\n');
-          formattedSummary = summaryText.trim();
-        } else {
-          formattedSummary = t('summary.noSummary');
-        }
-
-        // sentimentを抽出
-        if (parsed.sentiment && typeof parsed.sentiment === 'object' && !Array.isArray(parsed.sentiment)) {
-          extractedSentiment = {
-            positive: typeof parsed.sentiment.positive === 'number' ? parsed.sentiment.positive : (typeof parsed.sentiment.positive === 'string' ? parseFloat(parsed.sentiment.positive) || 0 : 0),
-            negative: typeof parsed.sentiment.negative === 'number' ? parsed.sentiment.negative : (typeof parsed.sentiment.negative === 'string' ? parseFloat(parsed.sentiment.negative) || 0 : 0),
-            neutral: typeof parsed.sentiment.neutral === 'number' ? parsed.sentiment.neutral : (typeof parsed.sentiment.neutral === 'string' ? parseFloat(parsed.sentiment.neutral) || 0 : 0),
-          };
-        }
-
-        // topicsを抽出
-        if (Array.isArray(parsed.topics)) {
-          extractedTopics = parsed.topics.filter((t: any) => t && typeof t === 'string' && t.trim().length > 0);
-        }
-
-        console.log('[SummaryTab] ✅ Extracted from JSON code block:', {
-          hasSummary: !!formattedSummary,
-          sentiment: extractedSentiment,
-          topics: extractedTopics,
-        });
-      } catch (e) {
-        console.error('[SummaryTab] ❌ Failed to parse JSON code block:', e);
-        formattedSummary = formatSummary(rawSummary);
+      } else {
+        summary = formatSummary(rawSummary);
       }
     } else {
-      // JSONコードブロックがない場合は通常の処理
-      formattedSummary = formatSummary(rawSummary);
-    }
-  } else {
-    formattedSummary = rawSummary || t('summary.noSummary');
-  }
-
-  // 要約の整形処理
-  if (formattedSummary && typeof formattedSummary === 'string') {
-    if (lang === 'ja') {
-      // 日本語のみ：冒頭の冗長なフレーズを削除し、句読点の後に改行を追加
-      formattedSummary = formattedSummary.replace(/^このYouTube動画のコメントは[、。，．\s]*/i, '');
-      formattedSummary = formattedSummary.replace(/。([^\n])/g, '。\n$1');
+      summary = rawSummary || t('summary.noSummary');
     }
 
-    // 余分な空白行を削除（3行以上連続する改行を2行に）
-    formattedSummary = formattedSummary.replace(/\n{3,}/g, '\n\n');
+    // 要約の整形処理
+    if (summary && typeof summary === 'string') {
+      if (lang === 'ja') {
+        summary = summary.replace(/^このYouTube動画のコメントは[、。，．\s]*/i, '');
+        summary = summary.replace(/。([^\n])/g, '。\n$1');
+      }
+      summary = summary.replace(/\n{3,}/g, '\n\n').trim();
+    }
 
-    // 先頭と末尾の空白を削除
-    formattedSummary = formattedSummary.trim();
-  }
+    return { formattedSummary: summary!, extractedSentiment: sentimentData, extractedTopics: topicsData };
+  }, [rawSummary, lang, t]);
 
-  // topicsが配列でない場合は空配列を使用
-  // 抽出されたtopicsがある場合はそれを使用、なければresult.topicsを使用
-  let topics: string[] = extractedTopics.length > 0 ? extractedTopics : [];
-  if (topics.length === 0) {
-    if (Array.isArray(rawTopics)) {
-      topics = rawTopics.filter(topic => topic && typeof topic === 'string' && topic.trim().length > 0);
-    } else if (typeof rawTopics === 'string') {
+  // === useMemoでトピック処理をメモ化 ===
+  const processedTopics = useMemo(() => {
+    let topics: string[] = extractedTopics.length > 0 ? extractedTopics : [];
+    if (topics.length === 0) {
+      if (Array.isArray(rawTopics)) {
+        topics = rawTopics.filter((topic: any) => topic && typeof topic === 'string' && topic.trim().length > 0);
+      } else if (typeof rawTopics === 'string') {
+        try {
+          const parsed = JSON.parse(rawTopics);
+          topics = Array.isArray(parsed) ? parsed.filter((t: any) => t && typeof t === 'string' && t.trim().length > 0) : [];
+        } catch {
+          topics = [];
+        }
+      }
+    }
+    return topics
+      .map(topic => (typeof topic === 'string' ? topic.trim() : String(topic).trim()))
+      .filter(topic => topic.length > 0);
+  }, [extractedTopics, rawTopics]);
+
+  // === useMemoで感情分析をメモ化 ===
+  const sentiment = useMemo(() => {
+    if (extractedSentiment) return extractedSentiment;
+
+    const toNum = (v: any) => typeof v === 'number' ? v : (typeof v === 'string' ? parseFloat(v) || 0 : 0);
+
+    if (result.sentiment && typeof result.sentiment === 'object' && !Array.isArray(result.sentiment)) {
+      const sent = result.sentiment as any;
+      return { positive: toNum(sent.positive), negative: toNum(sent.negative), neutral: toNum(sent.neutral) };
+    }
+    if (typeof result.sentiment === 'string') {
       try {
-        const parsed = JSON.parse(rawTopics);
-        topics = Array.isArray(parsed) ? parsed.filter((t: any) => t && typeof t === 'string' && t.trim().length > 0) : [];
-      } catch {
-        topics = [];
-      }
+        const parsed = JSON.parse(result.sentiment);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          return { positive: toNum(parsed.positive), negative: toNum(parsed.negative), neutral: toNum(parsed.neutral) };
+        }
+      } catch { /* ignore */ }
     }
-  }
-
-  // トピックの空文字を除外（全文を保持し、表示はCSSで制御）
-  const processedTopics = topics
-    .map(topic => (typeof topic === 'string' ? topic.trim() : String(topic).trim()))
-    .filter(topic => topic.length > 0);
-
-  // sentimentがオブジェクトでない場合はデフォルト値を使用
-  // 抽出されたsentimentがある場合はそれを使用、なければresult.sentimentを使用
-  let sentiment = extractedSentiment || { positive: 0, negative: 0, neutral: 0 };
-
-  if (!extractedSentiment && result.sentiment && typeof result.sentiment === 'object' && !Array.isArray(result.sentiment)) {
-    // オブジェクトの場合
-    const sent = result.sentiment as any;
-    sentiment = {
-      positive: typeof sent.positive === 'number' ? sent.positive : (typeof sent.positive === 'string' ? parseFloat(sent.positive) || 0 : 0),
-      negative: typeof sent.negative === 'number' ? sent.negative : (typeof sent.negative === 'string' ? parseFloat(sent.negative) || 0 : 0),
-      neutral: typeof sent.neutral === 'number' ? sent.neutral : (typeof sent.neutral === 'string' ? parseFloat(sent.neutral) || 0 : 0),
-    };
-  } else if (!extractedSentiment && typeof result.sentiment === 'string') {
-    // 文字列の場合
-    try {
-      const parsed = JSON.parse(result.sentiment);
-      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-        sentiment = {
-          positive: typeof parsed.positive === 'number' ? parsed.positive : (typeof parsed.positive === 'string' ? parseFloat(parsed.positive) || 0 : 0),
-          negative: typeof parsed.negative === 'number' ? parsed.negative : (typeof parsed.negative === 'string' ? parseFloat(parsed.negative) || 0 : 0),
-          neutral: typeof parsed.neutral === 'number' ? parsed.neutral : (typeof parsed.neutral === 'string' ? parseFloat(parsed.neutral) || 0 : 0),
-        };
-      }
-    } catch (e) {
-      console.warn('[SummaryTab] sentiment文字列のパースに失敗:', e);
-    }
-  }
-
-  console.log('[SummaryTab] 📊 Final extracted data:', {
-    sentiment,
-    topics,
-    summaryLength: formattedSummary.length,
-  });
+    return { positive: 0, negative: 0, neutral: 0 };
+  }, [extractedSentiment, result.sentiment]);
 
   // キャラクターモード: 要約が変わったらキャッシュをクリア
   useEffect(() => {
@@ -384,42 +286,42 @@ function SummaryTab({ result }: SummaryTabProps) {
     ? characterSummary
     : formattedSummary;
 
-  const { positive, negative, neutral } = sentiment;
-  const total = positive + negative + neutral;
-  const positivePercent = total > 0 ? (positive / total) * 100 : 0;
-  const negativePercent = total > 0 ? (negative / total) * 100 : 0;
-  const neutralPercent = total > 0 ? (neutral / total) * 100 : 0;
+  // === useMemoでパーセンテージ・円グラフ計算をメモ化 ===
+  const { positivePercent, negativePercent, neutralPercent, positiveAngle, neutralAngle, negativeAngle } = useMemo(() => {
+    const { positive: p, negative: n, neutral: u } = sentiment;
+    const tot = p + n + u;
+    const pp = tot > 0 ? (p / tot) * 100 : 0;
+    const np = tot > 0 ? (n / tot) * 100 : 0;
+    const up = tot > 0 ? (u / tot) * 100 : 0;
+    return {
+      positivePercent: pp, negativePercent: np, neutralPercent: up,
+      positiveAngle: (pp / 100) * 360,
+      neutralAngle: (up / 100) * 360,
+      negativeAngle: (np / 100) * 360,
+    };
+  }, [sentiment]);
 
-  // 円グラフ用の計算
-  const radius = 130; // 円の半径
+  // 円グラフ用の定数
+  const radius = 130;
   const centerX = 140;
   const centerY = 140;
 
-  // 各セグメントの開始角度と終了角度を計算
   let currentAngle = -90; // 12時から開始
-  const positiveAngle = (positivePercent / 100) * 360;
-  const neutralAngle = (neutralPercent / 100) * 360;
-  const negativeAngle = (negativePercent / 100) * 360;
 
-  // 円グラフのアークパスを生成する関数（中心から始まる完全な円）
-  const createPieArcPath = (startAngle: number, endAngle: number) => {
+  // 円グラフのアークパスを生成する関数
+  const createPieArcPath = useCallback((startAngle: number, endAngle: number) => {
     const startRad = (startAngle * Math.PI) / 180;
     const endRad = (endAngle * Math.PI) / 180;
-
-    // 外側の円の座標
     const x1 = centerX + radius * Math.cos(startRad);
     const y1 = centerY + radius * Math.sin(startRad);
     const x2 = centerX + radius * Math.cos(endRad);
     const y2 = centerY + radius * Math.sin(endRad);
-
     const largeArcFlag = endAngle - startAngle > 180 ? 1 : 0;
-
-    // 円グラフのパス（中心→外側の円弧→中心）
     return `M ${centerX} ${centerY}
             L ${x1} ${y1}
             A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x2} ${y2}
             Z`;
-  };
+  }, []);
 
   return (
     <div className="min-h-full bg-inherit">
@@ -638,7 +540,7 @@ function SummaryTab({ result }: SummaryTabProps) {
         </div>
 
         {/* 主なトピック */}
-        {topics.length > 0 && (
+        {processedTopics.length > 0 && (
           <div className="space-y-6">
             {summaryCharacterMode ? (
               /* キャラクターモード: 一体画像（ステッカー＋スクロールポップイン） */

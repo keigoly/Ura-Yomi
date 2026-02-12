@@ -46,6 +46,21 @@ function ct(key: string): string {
   return CONTENT_TRANSLATIONS[currentLang][key] ?? key;
 }
 
+// ---- インターバル管理（メモリリーク防止） ----
+let creditsIntervalId: number | null = null;
+let buttonCheckIntervalId: number | null = null;
+
+function clearAllIntervals() {
+  if (creditsIntervalId !== null) {
+    clearInterval(creditsIntervalId);
+    creditsIntervalId = null;
+  }
+  if (buttonCheckIntervalId !== null) {
+    clearInterval(buttonCheckIntervalId);
+    buttonCheckIntervalId = null;
+  }
+}
+
 /** chrome.storage.localから言語を読み込む */
 function loadLanguage(): Promise<void> {
   return new Promise((resolve) => {
@@ -206,8 +221,9 @@ function createAnalyzeButton(compact: boolean): HTMLButtonElement {
   // クレジット数を取得して表示
   updateCreditsDisplay(creditsSpan);
 
-  // 定期的にクレジット数を更新（30秒ごと）
-  setInterval(() => {
+  // 定期的にクレジット数を更新（30秒ごと）- 既存のインターバルをクリアしてから再作成
+  if (creditsIntervalId !== null) clearInterval(creditsIntervalId);
+  creditsIntervalId = window.setInterval(() => {
     updateCreditsDisplay(creditsSpan);
   }, 30000);
 
@@ -301,45 +317,45 @@ function addAnalyzeButton() {
   // パターン1: #header を直接探す
   headerElement = commentsSection.querySelector('#header') as HTMLElement;
 
-  // パターン2: 「並べ替え」テキストを含む要素を探す
+  // パターン2: YouTube固有セレクタで並べ替えメニューを探す（#commentsスコープ内）
   if (!headerElement) {
-    const sortButton = Array.from(document.querySelectorAll('*')).find((el) => {
-      const text = el.textContent?.trim();
-      return (
-        text === '並べ替え' || text === 'Sort by' ||
-        (text?.includes('並べ替え') && text.length < 20) ||
-        (text?.includes('Sort by') && text.length < 20)
-      );
-    });
-    if (sortButton) {
-      let parent = sortButton.parentElement;
+    const sortMenu = commentsSection.querySelector('yt-sort-filter-sub-menu-renderer') as HTMLElement;
+    if (sortMenu) {
+      let parent = sortMenu.parentElement;
       while (parent && parent !== commentsSection) {
-        if (
-          parent.classList.toString().includes('header') ||
-          parent.id?.includes('header') ||
-          parent.getAttribute('class')?.includes('header')
-        ) {
+        if (parent.id?.includes('header') || parent.getAttribute('class')?.includes('header')) {
           headerElement = parent;
           break;
         }
         parent = parent.parentElement;
       }
-      if (!headerElement && sortButton.parentElement) {
-        headerElement = sortButton.parentElement;
+      if (!headerElement && sortMenu.parentElement) {
+        headerElement = sortMenu.parentElement;
       }
     }
   }
 
-  // パターン3: コメント数表示の近くを探す
+  // パターン3: aria-label属性で並べ替えボタンを探す（#commentsスコープ内）
   if (!headerElement) {
-    const commentCountElement = Array.from(document.querySelectorAll('*')).find((el) => {
-      const text = el.textContent?.trim();
-      return (
-        text?.match(/^\d+\s*件のコメント$/) ||
-        text?.match(/^\d+\s*comments?$/i) ||
-        text?.match(/^\d+[\s,]\d*\s*件のコメント$/)
-      );
-    });
+    const sortByLabel = commentsSection.querySelector('[aria-label*="並べ替え"], [aria-label*="Sort"]') as HTMLElement;
+    if (sortByLabel) {
+      let parent = sortByLabel.parentElement;
+      while (parent && parent !== commentsSection) {
+        if (parent.id?.includes('header') || parent.getAttribute('class')?.includes('header')) {
+          headerElement = parent;
+          break;
+        }
+        parent = parent.parentElement;
+      }
+      if (!headerElement && sortByLabel.parentElement) {
+        headerElement = sortByLabel.parentElement;
+      }
+    }
+  }
+
+  // パターン4: コメント数表示の近くを探す（#commentsスコープ内、具体的セレクタ）
+  if (!headerElement) {
+    const commentCountElement = commentsSection.querySelector('yt-formatted-string.count-text, h2#count') as HTMLElement;
     if (commentCountElement) {
       let parent = commentCountElement.parentElement;
       for (let i = 0; i < 3 && parent; i++) {
@@ -553,7 +569,8 @@ new MutationObserver(() => {
   const url = location.href;
   if (url !== lastUrl) {
     lastUrl = url;
-    // URL変更時は既存ボタンを削除してから再追加（ショート⇔通常切替対応）
+    // URL変更時: 全インターバルをクリアしてから再開始
+    clearAllIntervals();
     const existingBtn = document.getElementById('youtube-comment-analyzer-btn');
     if (existingBtn) existingBtn.remove();
     if (buttonCheckTimer !== null) {
@@ -561,6 +578,8 @@ new MutationObserver(() => {
       buttonCheckTimer = null;
     }
     setTimeout(tryAddButton, 1500);
+    // 統合ティッカーを再起動
+    startUnifiedTicker();
     return;
   }
 
@@ -575,14 +594,24 @@ new MutationObserver(() => {
   }
 }).observe(document, { subtree: true, childList: true });
 
-// 定期的にボタンの存在を確認（フォールバック + クレジット更新）
-setInterval(() => {
-  if (!document.getElementById('youtube-comment-analyzer-btn')) {
-    tryAddButton();
-  } else {
-    const creditsSpan = document.getElementById('youtube-comment-analyzer-credits');
-    if (creditsSpan) {
-      updateCreditsDisplay(creditsSpan);
+// 統合ティッカー: ボタン存在チェック(3秒毎) + クレジット更新(30秒毎)を1つのインターバルで管理
+let tickerCount = 0;
+function startUnifiedTicker() {
+  if (buttonCheckIntervalId !== null) clearInterval(buttonCheckIntervalId);
+  tickerCount = 0;
+  buttonCheckIntervalId = window.setInterval(() => {
+    tickerCount++;
+    // 3秒ごと: ボタン存在チェック
+    if (!document.getElementById('youtube-comment-analyzer-btn')) {
+      tryAddButton();
     }
-  }
-}, 3000);
+    // 30秒ごと（10カウント目）: クレジット更新
+    if (tickerCount % 10 === 0) {
+      const creditsSpan = document.getElementById('youtube-comment-analyzer-credits');
+      if (creditsSpan) {
+        updateCreditsDisplay(creditsSpan);
+      }
+    }
+  }, 3000);
+}
+startUnifiedTicker();

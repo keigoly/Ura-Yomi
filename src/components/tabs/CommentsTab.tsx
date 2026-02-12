@@ -112,14 +112,6 @@ function CommentItem({
     ? commentText.substring(0, 200) + '...'
     : commentText;
 
-  // デバッグ: アバター画像URLの確認
-  console.log(`[CommentItem] ${comment.author}:`, {
-    hasUrl: !!comment.authorProfileImageUrl,
-    url: comment.authorProfileImageUrl,
-    imageError,
-    willShowImage: !!(comment.authorProfileImageUrl && !imageError),
-  });
-
   return (
     <div className={`flex gap-3 relative ${isReply ? 'reply-comment' : 'parent-comment'}`}>
       {/* アバター */}
@@ -129,16 +121,7 @@ function CommentItem({
             src={comment.authorProfileImageUrl}
             alt={comment.author}
             className={`rounded-full object-cover cursor-pointer hover:opacity-80 transition-opacity ${isLight ? 'border-gray-300' : 'border-gray-700'} ${isReply ? 'w-6 h-6' : 'w-10 h-10'}`}
-            onError={() => {
-              console.error(`[CommentsTab] アバター画像読み込みエラー:`, {
-                author: comment.author,
-                url: comment.authorProfileImageUrl,
-              });
-              setImageError(true);
-            }}
-            onLoad={() => {
-              console.log(`[CommentsTab] アバター画像読み込み成功:`, comment.author, comment.authorProfileImageUrl);
-            }}
+            onError={() => setImageError(true)}
           />
         ) : (
           <div className={`rounded-full flex items-center justify-center font-medium transition-colors cursor-pointer ${isLight ? 'bg-gray-300 text-gray-600 hover:bg-gray-400' : 'bg-gray-600 text-gray-300 hover:bg-gray-500'} ${isReply ? 'w-6 h-6 text-xs' : 'w-10 h-10 text-sm'}`}>
@@ -215,6 +198,8 @@ function CommentsTab({ comments }: CommentsTabProps) {
   const [sortField, setSortField] = useState<SortField>('popularity');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [expandedThreads, setExpandedThreads] = useState<Set<string>>(new Set());
+  const PAGE_SIZE = 50;
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   // スレッド構造を保持したままソート
   const sortedThreads = useMemo(() => {
@@ -293,9 +278,16 @@ function CommentsTab({ comments }: CommentsTabProps) {
     }, 0);
   }, [filteredThreads]);
 
+  // ページネーション: 表示するスレッド
+  const visibleThreads = useMemo(() => {
+    return filteredThreads.slice(0, visibleCount);
+  }, [filteredThreads, visibleCount]);
+
+  const remainingCount = filteredThreads.length - visibleCount;
+
   const handleSortChange = (field: SortField) => {
+    setVisibleCount(PAGE_SIZE); // ソート変更時にリセット
     if (field === 'popularity') {
-      // 人気順の場合はソート順を変更しない
       setSortField('popularity');
     } else if (sortField === field) {
       setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
@@ -329,7 +321,7 @@ function CommentsTab({ comments }: CommentsTabProps) {
               type="text"
               placeholder={t('comments.searchPlaceholder')}
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => { setSearchQuery(e.target.value); setVisibleCount(PAGE_SIZE); }}
               className={`w-full pl-10 pr-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${isLight ? 'border-gray-300 bg-gray-50 text-gray-900 placeholder-gray-400' : 'border-gray-700 bg-gray-800 text-gray-100 placeholder-gray-500'}`}
             />
           </div>
@@ -385,7 +377,7 @@ function CommentsTab({ comments }: CommentsTabProps) {
           </div>
         ) : (
           <div className="space-y-6">
-            {filteredThreads.map((thread) => {
+            {visibleThreads.map((thread) => {
               const isExpanded = expandedThreads.has(thread.id);
               const hasReplies = thread.replies && thread.replies.length > 0;
               const showReplies = hasReplies && isExpanded;
@@ -576,6 +568,22 @@ function CommentsTab({ comments }: CommentsTabProps) {
                 </div>
               );
             })}
+
+            {/* もっと見るボタン */}
+            {remainingCount > 0 && (
+              <div className="flex justify-center py-4">
+                <button
+                  onClick={() => setVisibleCount(prev => prev + PAGE_SIZE)}
+                  className={`px-6 py-2.5 rounded-full text-sm font-medium transition-colors ${
+                    isLight
+                      ? 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300'
+                      : 'bg-gray-800 text-gray-200 hover:bg-gray-700 border border-gray-700'
+                  }`}
+                >
+                  {t('comments.loadMore')} ({t('comments.remaining', { count: remainingCount })})
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

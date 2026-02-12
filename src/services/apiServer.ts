@@ -259,6 +259,86 @@ export async function analyzeViaServer(
 }
 
 /**
+ * SSEストリーミング解析
+ * EventSource APIでリアルタイム進捗を受信
+ */
+export interface SSECallbacks {
+  onProgress?: (data: { stage: string; message: string; current: number; total: number }) => void;
+  onComments?: (data: { comments: any[] }) => void;
+  onResult?: (data: any) => void;
+  onError?: (message: string) => void;
+}
+
+export function analyzeViaServerStream(
+  videoId: string,
+  commentLimit: number = 2000,
+  summaryLength: string = 'medium',
+  language: string = 'ja',
+  callbacks: SSECallbacks = {}
+): { abort: () => void } {
+  const sessionToken = getSessionToken();
+  if (!sessionToken) {
+    callbacks.onError?.('認証が必要です。Googleアカウントでログインしてください。');
+    return { abort: () => {} };
+  }
+
+  const params = new URLSearchParams({
+    videoId,
+    commentLimit: String(commentLimit),
+    summaryLength,
+    language,
+    token: sessionToken,
+  });
+
+  const url = `${API_BASE_URL}${API_ENDPOINTS.ANALYZE.STREAM}?${params.toString()}`;
+  const eventSource = new EventSource(url);
+
+  eventSource.addEventListener('progress', (e: MessageEvent) => {
+    try {
+      callbacks.onProgress?.(JSON.parse(e.data));
+    } catch { /* ignore parse errors */ }
+  });
+
+  eventSource.addEventListener('comments', (e: MessageEvent) => {
+    try {
+      callbacks.onComments?.(JSON.parse(e.data));
+    } catch { /* ignore */ }
+  });
+
+  eventSource.addEventListener('result', (e: MessageEvent) => {
+    try {
+      callbacks.onResult?.(JSON.parse(e.data));
+    } catch { /* ignore */ }
+  });
+
+  eventSource.addEventListener('error', (e: MessageEvent) => {
+    try {
+      const data = JSON.parse(e.data);
+      callbacks.onError?.(data.message || '解析エラーが発生しました');
+    } catch {
+      callbacks.onError?.('接続エラーが発生しました');
+    }
+  });
+
+  eventSource.addEventListener('done', () => {
+    eventSource.close();
+  });
+
+  // EventSource自体のエラーハンドリング（接続失敗等）
+  eventSource.onerror = () => {
+    if (eventSource.readyState === EventSource.CLOSED) return;
+    eventSource.close();
+    callbacks.onError?.('SSE接続が切断されました');
+  };
+
+  return {
+    abort: () => {
+      eventSource.close();
+    },
+  };
+}
+
+/**
  * キャラクター口調変換
  */
 export async function rewriteWithCharacter(

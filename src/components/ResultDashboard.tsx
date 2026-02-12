@@ -2,14 +2,20 @@
  * Result Dashboard コンポーネント
  */
 
-import { useState, useEffect, useRef } from 'react';
-import { FileDown, Copy, Check, Menu, X, ArrowLeft, Bookmark, ExternalLink } from 'lucide-react';
+import { useState, useEffect, useRef, memo } from 'react';
+import { FileDown, Copy, Check, Menu, X, ArrowLeft, Bookmark, ExternalLink, RefreshCw } from 'lucide-react';
 import type { AnalysisResult, VideoInfo, YouTubeCommentThread } from '../types';
 import { useDesignStore, BG_COLORS, isLightMode } from '../store/designStore';
 import { useTranslation } from '../i18n/useTranslation';
+import { ANALYSIS_CREDIT_COST } from '../constants';
 import SummaryTab from './tabs/SummaryTab';
 import DeepDiveTab from './tabs/DeepDiveTab';
 import CommentsTab from './tabs/CommentsTab';
+
+// React.memoでタブコンポーネントをラップ（不必要な再レンダリング防止）
+const MemoSummaryTab = memo(SummaryTab);
+const MemoDeepDiveTab = memo(DeepDiveTab);
+const MemoCommentsTab = memo(CommentsTab);
 
 /**
  * タブの種類
@@ -25,13 +31,25 @@ interface ResultDashboardProps {
   onUnsave?: () => void;
   isSaved?: boolean;
   onOpenWindow?: () => void;
+  onReanalyze?: () => void;
 }
 
-function ResultDashboard({ result, videoInfo, comments, onBack, onSave, onUnsave, isSaved = false, onOpenWindow }: ResultDashboardProps) {
+function ResultDashboard({ result, videoInfo, comments, onBack, onSave, onUnsave, isSaved = false, onOpenWindow, onReanalyze }: ResultDashboardProps) {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<TabType>('summary');
   const [copied, setCopied] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  // 遅延レンダリング: 初回アクティブ化時にのみマウント
+  const [renderedTabs, setRenderedTabs] = useState<Set<TabType>>(new Set(['summary']));
+  useEffect(() => {
+    setRenderedTabs(prev => {
+      if (prev.has(activeTab)) return prev;
+      const next = new Set(prev);
+      next.add(activeTab);
+      return next;
+    });
+  }, [activeTab]);
+  const [showReanalyzeConfirm, setShowReanalyzeConfirm] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const { fontSize, bgMode } = useDesignStore();
@@ -255,23 +273,14 @@ function ResultDashboard({ result, videoInfo, comments, onBack, onSave, onUnsave
                     <span className="text-sm">{t('result.exportJson')}</span>
                   </button>
 
-                  {/* 解析結果を保存/解除 */}
-                  {onSave && (
+                  {/* 再解析する */}
+                  {onReanalyze && (
                     <button
-                      onClick={handleToggleSave}
+                      onClick={() => { setMenuOpen(false); setShowReanalyzeConfirm(true); }}
                       className={`w-full px-4 py-2 text-left flex items-center gap-3 transition-colors ${isLight ? 'hover:bg-gray-100 text-gray-700' : 'hover:bg-gray-700 text-gray-200'}`}
                     >
-                      {isSaved ? (
-                        <>
-                          <Bookmark className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-                          <span className="text-sm">{t('result.unsaveResult')}</span>
-                        </>
-                      ) : (
-                        <>
-                          <Bookmark className="w-4 h-4" />
-                          <span className="text-sm">{t('result.saveResult')}</span>
-                        </>
-                      )}
+                      <RefreshCw className="w-4 h-4" />
+                      <span className="text-sm">{t('result.reanalyze')}</span>
                     </button>
                   )}
                 </div>
@@ -339,10 +348,54 @@ function ResultDashboard({ result, videoInfo, comments, onBack, onSave, onUnsave
           backgroundColor: bgColor,
         }}
       >
-        {activeTab === 'summary' && <SummaryTab result={result} />}
-        {activeTab === 'deepdive' && <DeepDiveTab comments={comments} result={result} />}
-        {activeTab === 'comments' && <CommentsTab comments={comments} />}
+        {renderedTabs.has('summary') && (
+          <div style={{ display: activeTab === 'summary' ? 'block' : 'none' }}>
+            <MemoSummaryTab result={result} />
+          </div>
+        )}
+        {renderedTabs.has('deepdive') && (
+          <div style={{ display: activeTab === 'deepdive' ? 'block' : 'none' }}>
+            <MemoDeepDiveTab comments={comments} result={result} />
+          </div>
+        )}
+        {renderedTabs.has('comments') && (
+          <div style={{ display: activeTab === 'comments' ? 'block' : 'none' }}>
+            <MemoCommentsTab comments={comments} />
+          </div>
+        )}
       </div>
+
+      {/* 再解析確認ダイアログ */}
+      {showReanalyzeConfirm && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center" onClick={() => setShowReanalyzeConfirm(false)}>
+          <div className="absolute inset-0 bg-black/50" />
+          <div
+            className={`relative mx-4 w-full max-w-sm rounded-xl p-5 shadow-2xl ${isLight ? 'bg-white' : 'bg-gray-800'}`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className={`text-base font-semibold mb-3 ${isLight ? 'text-gray-900' : 'text-white'}`}>
+              {t('result.reanalyzeConfirmTitle')}
+            </h3>
+            <p className={`text-sm mb-5 leading-relaxed ${isLight ? 'text-gray-600' : 'text-gray-300'}`}>
+              {t('result.reanalyzeConfirmMessage', { cost: ANALYSIS_CREDIT_COST })}
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowReanalyzeConfirm(false)}
+                className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${isLight ? 'bg-gray-100 text-gray-700 hover:bg-gray-200' : 'bg-gray-700 text-gray-200 hover:bg-gray-600'}`}
+              >
+                {t('result.reanalyzeCancel')}
+              </button>
+              <button
+                onClick={() => { setShowReanalyzeConfirm(false); onReanalyze?.(); }}
+                className="flex-1 px-4 py-2.5 rounded-lg text-sm font-medium bg-red-500 text-white hover:bg-red-600 transition-colors"
+              >
+                {t('result.reanalyzeConfirmOk')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* トースト通知 */}
       {toast && (
