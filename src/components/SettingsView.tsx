@@ -206,7 +206,7 @@ function SettingsView({ onBack, onLoadHistory, onLogout }: SettingsViewProps) {
 
   const fetchRelease = async () => {
     try {
-      const res = await fetch('https://api.github.com/repos/keigoly/youtube-comment-gemini/releases/latest');
+      const res = await fetch('https://api.github.com/repos/keigoly/Ura-Yomi/releases/latest');
       if (res.ok) {
         setReleaseInfo(await res.json());
       }
@@ -712,7 +712,7 @@ function SettingsView({ onBack, onLoadHistory, onLogout }: SettingsViewProps) {
             <div className="flex flex-col bg-gray-800">
               {/* 不具合の報告 */}
               <a
-                href="https://docs.google.com/forms/d/e/1FAIpQLSeUlF5s7vgcG0RrISNrAwLKhMQTvJpndH8e31Z_WHF081McEA/viewform?usp=dialog"
+                href="https://docs.google.com/forms/d/e/1FAIpQLSdSyrRWEPHWtuDRvwkRNvPem4YONvthES4QrkJn4eZBEEyP8A/viewform?usp=sharing&ouid=100536804432513362660"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-3 p-4 border-b border-gray-700 hover:bg-gray-900 transition-colors group"
@@ -729,7 +729,7 @@ function SettingsView({ onBack, onLoadHistory, onLogout }: SettingsViewProps) {
 
               {/* プライバシーポリシー */}
               <a
-                href="https://github.com/keigoly/youtube-comment-gemini/blob/main/PRIVACY.md"
+                href="https://github.com/keigoly/Ura-Yomi/blob/main/PRIVACY.md"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-3 p-4 border-b border-gray-700 hover:bg-gray-900 transition-colors group"
@@ -746,7 +746,7 @@ function SettingsView({ onBack, onLoadHistory, onLogout }: SettingsViewProps) {
 
               {/* GitHub ソースコード */}
               <a
-                href="https://github.com/keigoly/youtube-comment-gemini"
+                href="https://github.com/keigoly/Ura-Yomi"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-3 p-4 border-b border-gray-700 hover:bg-gray-900 transition-colors group"
