@@ -1,12 +1,12 @@
 # Privacy Policy
 
-**YouTube Comments with Gemini**
+**THE☆Real Talk! Powered by Google Gemini**
 
-Last updated: January 2025
+Last updated: February 2026
 
 ## Introduction
 
-"YouTube Comments with Gemini" (hereinafter "the Extension") respects user privacy and is committed to protecting personal information. This Privacy Policy explains what information the Extension collects and how it is used.
+"THE☆Real Talk! Powered by Google Gemini" (hereinafter "the Extension") respects user privacy and is committed to protecting personal information. This Privacy Policy explains what information the Extension collects and how it is used.
 
 ## Information We Collect
 

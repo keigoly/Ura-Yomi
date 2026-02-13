@@ -1,7 +1,7 @@
-# YouTube Comments with Gemini
+# THE☆Real Talk! Powered by Google Gemini
 
 <p align="center">
-  <img src="src/icons/icon128.png" alt="YouTube Comments with Gemini" width="128" height="128">
+  <img src="src/icons/icon128.png" alt="THE☆Real Talk!" width="128" height="128">
 </p>
 
 <p align="center">
@@ -24,7 +24,7 @@
 
 ## Overview
 
-"YouTube Comments with Gemini" is a Chrome extension that automatically analyzes YouTube video comments using Google Gemini AI, providing sentiment analysis, summaries, and deep-dive insights. It supports both regular videos and YouTube Shorts.
+"THE☆Real Talk!" is a Chrome extension that automatically analyzes YouTube video comments using Google Gemini AI, providing sentiment analysis, summaries, and deep-dive insights. It supports both regular videos and YouTube Shorts.
 
 Instantly analyze thousands of comments to reveal viewer sentiment and trending topics. No API key setup required for end users — simply sign in with your Google account and use credits.
 
@@ -222,8 +222,8 @@ YouTube Comment Analyzer/
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/keigoly/youtube-comment-gemini.git
-cd youtube-comment-gemini
+git clone https://github.com/keigoly/Ura-Yomi.git
+cd Ura-Yomi
 ```
 
 ### 2. Frontend Setup
@@ -335,19 +335,22 @@ npm run dev
 
 | Item | Value |
 |------|-------|
-| Cost per analysis | 2 credits |
+| Cost per analysis | 3 credits |
 | Initial credits (development) | 999 credits |
-| Initial credits (production) | 100 credits |
-| Max credits | 9,999 credits |
-| Credit expiration | Never |
+| Initial credits (production) | 15 credits |
+| Max credits | 3,000 credits |
+| One-time purchase credit expiration | Never |
+| Subscription credit expiration | 90 days (FIFO consumption) |
 
 ### Purchase Plans
 
 | Plan | Credits | Price |
 |------|---------|-------|
-| 100 Credits | 100 | ¥500 |
-| 500 Credits | 500 | ¥2,000 (20% off) |
-| Monthly Sub | 1,000/month | ¥3,000/month |
+| Trial Pack | 30 | ¥300 |
+| Standard | 60 | ¥500 |
+| Premium | 150 | ¥1,000 |
+| Monthly Lite | 90/month | ¥800/month |
+| Monthly Standard | 300/month | ¥1,980/month |
 
 ## AI Analysis Models
 
@@ -603,4 +606,4 @@ MIT License
 - [Privacy Policy (Japanese)](PRIVACY.md)
 - [Privacy Policy (English)](PRIVACY_EN.md)
 - [Report a Bug](https://docs.google.com/forms/d/e/1FAIpQLSeUlF5s7vgcG0RrISNrAwLKhMQTvJpndH8e31Z_WHF081McEA/viewform)
-- [Source Code](https://github.com/keigoly/youtube-comment-gemini)
+- [Source Code](https://github.com/keigoly/Ura-Yomi)

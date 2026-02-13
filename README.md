@@ -1,7 +1,7 @@
-# YouTubeコメント with Gemini
+# ウラヨミ！ Powered by Google Gemini
 
 <p align="center">
-  <img src="src/icons/icon128.png" alt="YouTubeコメント with Gemini" width="128" height="128">
+  <img src="src/icons/icon128.png" alt="ウラヨミ！" width="128" height="128">
 </p>
 
 <p align="center">
@@ -24,7 +24,7 @@
 
 ## 概要
 
-「YouTubeコメント with Gemini」は、YouTube動画のコメント欄をGoogle Gemini AIで自動解析し、コメントの感情分析・要約・深掘りを行うChrome拡張機能です。通常動画だけでなく、ショート動画にも対応しています。
+「ウラヨミ！」は、YouTube動画のコメント欄をGoogle Gemini AIで自動解析し、コメントの感情分析・要約・深掘りを行うChrome拡張機能です。通常動画だけでなく、ショート動画にも対応しています。
 
 数千件のコメントを瞬時に分析し、視聴者の本音やトレンドを可視化します。APIキーの直接設定は不要で、Googleアカウントでサインインしてクレジットを消費する形で利用できます。
 
@@ -237,8 +237,8 @@ YouTube Comment Analyzer/
 ### 1. リポジトリのクローン
 
 ```bash
-git clone https://github.com/keigoly/youtube-comment-gemini.git
-cd youtube-comment-gemini
+git clone https://github.com/keigoly/Ura-Yomi.git
+cd Ura-Yomi
 ```
 
 ### 2. フロントエンドのセットアップ
@@ -350,19 +350,22 @@ npm run dev
 
 | 項目 | 値 |
 |------|-----|
-| 解析1回あたりのコスト | 2クレジット |
+| 解析1回あたりのコスト | 3クレジット |
 | 初期クレジット（開発環境） | 999クレジット |
-| 初期クレジット（本番環境） | 100クレジット |
-| クレジット上限 | 9,999クレジット |
-| クレジット有効期限 | なし |
+| 初期クレジット（本番環境） | 15クレジット |
+| クレジット上限 | 3,000クレジット |
+| 都度購入クレジット有効期限 | なし |
+| サブスクリプションクレジット有効期限 | 90日（FIFO消費） |
 
 ### 購入プラン
 
 | プラン | クレジット数 | 価格 |
 |--------|-------------|------|
-| 100クレジット | 100 | ¥500 |
-| 500クレジット | 500 | ¥2,000（20%割引） |
-| 月額サブスク | 毎月1,000 | ¥3,000/月 |
+| お試しパック | 30 | ¥300 |
+| スタンダード | 60 | ¥500 |
+| プレミアム | 150 | ¥1,000 |
+| 月額ライト | 90/月 | ¥800/月 |
+| 月額スタンダード | 300/月 | ¥1,980/月 |
 
 ## AI解析モデル
 
@@ -618,4 +621,4 @@ MIT License
 - [プライバシーポリシー（日本語）](PRIVACY.md)
 - [Privacy Policy（English）](PRIVACY_EN.md)
 - [不具合の報告](https://docs.google.com/forms/d/e/1FAIpQLSeUlF5s7vgcG0RrISNrAwLKhMQTvJpndH8e31Z_WHF081McEA/viewform)
-- [ソースコード](https://github.com/keigoly/youtube-comment-gemini)
+- [ソースコード](https://github.com/keigoly/Ura-Yomi)
