@@ -15,7 +15,9 @@
     "https://www.youtube.com/*",
     "https://www.googleapis.com/youtube/v3/*",
     "https://generativelanguage.googleapis.com/*",
-    "https://api.keigoly.jp/*"
+    "https://api.keigoly.jp/*",
+    "http://localhost:3000/*",
+    "http://127.0.0.1:3000/*"
   ],
   "action": {
     "default_popup": "popup.html",

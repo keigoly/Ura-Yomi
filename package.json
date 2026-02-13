@@ -1,7 +1,7 @@
 {
-  "name": "youtube-comments-with-ai",
+  "name": "ura-yomi",
   "version": "1.0.0",
-  "description": "YouTubeコメントwithAI - YouTube Comment Analyzer using Gemini",
+  "description": "Ura-Yomi! - YouTube Comment Analyzer powered by Google Gemini",
   "type": "module",
   "scripts": {
     "dev": "vite",

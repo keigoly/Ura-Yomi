@@ -155,7 +155,7 @@ function ResultDashboard({ result, videoInfo, comments, onBack, onSave, onUnsave
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `youtube-comments-with-ai-analysis-${videoInfo?.videoId || 'unknown'}-${Date.now()}.json`;
+    a.download = `ura-yomi-analysis-${videoInfo?.videoId || 'unknown'}-${Date.now()}.json`;
     a.click();
     URL.revokeObjectURL(url);
     setMenuOpen(false);

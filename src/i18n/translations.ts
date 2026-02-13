@@ -236,11 +236,11 @@ const ja = {
 
 const en: Record<keyof typeof ja, string> = {
   // ---- App ----
-  'app.name': 'THE☆Real Talk! Powered by Google Gemini',
-  'app.nameShort': 'THE☆Real Talk!',
+  'app.name': 'Ura-Yomi! Powered by Google Gemini',
+  'app.nameShort': 'Ura-Yomi!',
 
   // ---- Auth ----
-  'auth.welcome': 'Welcome to UraYomi!',
+  'auth.welcome': 'Welcome to Ura-Yomi!',
   'auth.description': 'Sign in with Google first!\nLet\'s uncover the truth in the comments!',
   'auth.signInWithGoogle': 'Sign in with Google',
   'auth.loading': 'Loading...',
@@ -458,7 +458,7 @@ const en: Record<keyof typeof ja, string> = {
   'share.instagram': 'Share on Instagram',
   'share.copyUrl': 'Copy URL',
   'share.copied': 'URL copied!',
-  'share.text': 'UraYomi! - Analyze YouTube comments with AI. So useful!',
+  'share.text': 'Ura-Yomi! - Analyze YouTube comments with AI. So useful!',
   'share.yuchanAsk': 'Please share us on social media!',
 };
 
