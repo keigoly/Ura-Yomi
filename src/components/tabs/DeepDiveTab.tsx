@@ -176,18 +176,25 @@ function DeepDiveTab({ comments, result }: DeepDiveTabProps) {
       thread: thread,
     }));
 
-  // ポジティブコメント: Geminiが選定、またはリストの最初（人気順の一番上）
-  const positiveComment = findCommentInList(result.positiveComment, topLevelComments)
-    || (topLevelComments.length > 0 ? topLevelComments[0] : null);
-
-  // ニュートラルコメント: Geminiが選定（投稿者除外済み）
-  const neutralComment = findCommentInList(result.neutralComment, topLevelComments);
-
   // ネガティブコメント: 人気順リストの一番下（投稿者除外済み）
   // 人気順（comment_sort=top）で最後のコメントを使用
   const negativeComment = topLevelComments.length > 0
     ? topLevelComments[topLevelComments.length - 1]
     : null;
+
+  // ポジティブコメント: Geminiが選定、またはリストの最初（人気順の一番上）
+  // ネガティブと重複する場合は、ネガティブを優先しポジティブは別コメントに差し替え
+  let positiveComment = findCommentInList(result.positiveComment, topLevelComments)
+    || (topLevelComments.length > 0 ? topLevelComments[0] : null);
+
+  if (positiveComment && negativeComment && positiveComment.id === negativeComment.id) {
+    // 重複: 人気順で最上位かつネガティブでないコメントにフォールバック
+    const fallback = topLevelComments.find(c => c.id !== negativeComment.id);
+    positiveComment = fallback || positiveComment;
+  }
+
+  // ニュートラルコメント: Geminiが選定（投稿者除外済み）
+  const neutralComment = findCommentInList(result.neutralComment, topLevelComments);
 
   // ポジティブのreason取得（バイリンガル対応）
   const positiveReasonRaw = (positiveComment as any)?.reason as string | undefined;

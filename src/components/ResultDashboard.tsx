@@ -359,7 +359,7 @@ function ResultDashboard({ result, videoInfo, comments, onBack, onSave, onUnsave
           </div>
         )}
         {renderedTabs.has('comments') && (
-          <div style={{ display: activeTab === 'comments' ? 'block' : 'none' }}>
+          <div style={{ display: activeTab === 'comments' ? 'flex' : 'none', flexDirection: 'column', height: '100%' }}>
             <MemoCommentsTab comments={comments} />
           </div>
         )}

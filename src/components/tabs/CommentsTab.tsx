@@ -310,9 +310,9 @@ function CommentsTab({ comments }: CommentsTabProps) {
   };
 
   return (
-    <div className="w-full h-full flex flex-col bg-inherit">
-      {/* 検索とソートバー */}
-      <div className={`p-4 border-b sticky top-0 z-10 ${isLight ? 'border-gray-200' : 'border-gray-700'} bg-inherit`}>
+    <div className="w-full h-full flex flex-col min-h-0 bg-inherit">
+      {/* 検索とソートバー（固定ヘッダー） */}
+      <div className={`p-4 border-b flex-shrink-0 ${isLight ? 'border-gray-200' : 'border-gray-700'} bg-inherit`}>
         <div className="space-y-3">
           {/* 検索バー */}
           <div className="relative">
@@ -370,7 +370,7 @@ function CommentsTab({ comments }: CommentsTabProps) {
       </div>
 
       {/* コメント一覧（スクロール可能） */}
-      <div className="flex-1 overflow-y-auto p-4 bg-inherit">
+      <div className="flex-1 overflow-y-auto min-h-0 p-4 bg-inherit">
         {filteredThreads.length === 0 ? (
           <div className={`text-center py-12 ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>
             {searchQuery ? t('comments.noResults') : t('comments.noComments')}
