@@ -97,19 +97,29 @@ async function apiRequest<T>(
   } catch (error) {
     // ネットワークエラーの場合
     if (error instanceof TypeError && error.message.includes('fetch')) {
-      const apiBaseUrl = API_BASE_URL;
-      throw new Error(
-        `サーバーに接続できませんでした。\n\n` +
-        `接続先URL: ${url}\n` +
-        `APIベースURL: ${apiBaseUrl}\n\n` +
-        `【確認事項】\n` +
-        `1. サーバーが起動しているか確認してください\n` +
-        `   → ターミナルで「cd server」→「npm run dev」を実行\n` +
-        `2. サーバーが正しいポート（デフォルト: 3000）で起動しているか確認\n` +
-        `3. フロントエンドの.envファイルに以下が設定されているか確認:\n` +
-        `   VITE_API_BASE_URL=http://localhost:3000\n\n` +
-        `エラー詳細: ${error.message}`
-      );
+      const isLocal = API_BASE_URL.includes('localhost') || API_BASE_URL.includes('127.0.0.1');
+      if (isLocal) {
+        throw new Error(
+          `サーバーに接続できませんでした。\n\n` +
+          `接続先URL: ${url}\n` +
+          `APIベースURL: ${API_BASE_URL}\n\n` +
+          `【確認事項】\n` +
+          `1. サーバーが起動しているか確認してください\n` +
+          `   → ターミナルで「cd server」→「npm run dev」を実行\n` +
+          `2. サーバーが正しいポート（デフォルト: 3000）で起動しているか確認\n` +
+          `3. フロントエンドの.envファイルに以下が設定されているか確認:\n` +
+          `   VITE_API_BASE_URL=http://localhost:3000`
+        );
+      } else {
+        throw new Error(
+          `サーバーに接続できませんでした。\n\n` +
+          `接続先URL: ${url}\n\n` +
+          `【確認事項】\n` +
+          `1. インターネット接続を確認してください\n` +
+          `2. しばらく待ってから再度お試しください\n` +
+          `3. 問題が続く場合はサポートにお問い合わせください`
+        );
+      }
     }
     
     // その他のエラーはそのまま再スロー
@@ -212,7 +222,8 @@ export async function analyzeViaServer(
   commentLimit?: number,
   summaryLength?: string,
   signal?: AbortSignal,
-  language?: string
+  language?: string,
+  noCache?: boolean
 ): Promise<any> {
   const sessionToken = getSessionToken();
   if (!sessionToken) {
@@ -228,6 +239,7 @@ export async function analyzeViaServer(
         commentLimit,
         summaryLength,
         language,
+        ...(noCache ? { noCache: true } : {}),
       }),
       signal,
     });
@@ -244,12 +256,20 @@ export async function analyzeViaServer(
     // エラーメッセージを改善
     if (error instanceof Error) {
       if (error.message.includes('Failed to fetch') || error.message.includes('fetch')) {
-        throw new Error(
-          'サーバーに接続できませんでした。\n' +
-          '1. サーバーが起動しているか確認してください（`cd server && npm run dev`）\n' +
-          '2. サーバーのURLが正しいか確認してください（http://localhost:3000）\n' +
-          `エラー詳細: ${error.message}`
-        );
+        const isLocal = API_BASE_URL.includes('localhost') || API_BASE_URL.includes('127.0.0.1');
+        if (isLocal) {
+          throw new Error(
+            'サーバーに接続できませんでした。\n' +
+            '1. サーバーが起動しているか確認してください（`cd server && npm run dev`）\n' +
+            '2. サーバーのURLが正しいか確認してください（http://localhost:3000）'
+          );
+        } else {
+          throw new Error(
+            'サーバーに接続できませんでした。\n' +
+            '1. インターネット接続を確認してください\n' +
+            '2. しばらく待ってから再度お試しください'
+          );
+        }
       }
       throw error;
     }
@@ -274,7 +294,8 @@ export function analyzeViaServerStream(
   commentLimit: number = 2000,
   summaryLength: string = 'medium',
   language: string = 'ja',
-  callbacks: SSECallbacks = {}
+  callbacks: SSECallbacks = {},
+  noCache: boolean = false
 ): { abort: () => void } {
   const sessionToken = getSessionToken();
   if (!sessionToken) {
@@ -288,6 +309,7 @@ export function analyzeViaServerStream(
     summaryLength,
     language,
     token: sessionToken,
+    ...(noCache ? { noCache: '1' } : {}),
   });
 
   const url = `${API_BASE_URL}${API_ENDPOINTS.ANALYZE.STREAM}?${params.toString()}`;

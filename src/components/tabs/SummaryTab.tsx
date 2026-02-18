@@ -385,7 +385,7 @@ function SummaryTab({ result }: SummaryTabProps) {
                   <div className="flex items-center justify-center gap-2 py-4">
                     <div className="w-5 h-5 border-2 border-pink-400 border-t-transparent rounded-full animate-spin" />
                     <span className={`text-sm ${isLight ? 'text-pink-600' : 'text-pink-300'}`}>
-                      {lang === 'ja' ? '夕ちゃんが要約中...' : 'Yu-chan is summarizing...'}
+                      {lang === 'ja' ? 'ユウちゃんが要約中...' : 'Yu-chan is summarizing...'}
                     </span>
                   </div>
                 ) : (

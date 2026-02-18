@@ -172,7 +172,7 @@ function Auth({ onAuthSuccess }: AuthProps) {
               {t('auth.devModeCredits')}
             </p>
           )}
-          {credits === 20 && (
+          {credits === 15 && (
             <p className="text-xs text-gray-300 mt-2">
               {t('auth.welcomeCredits')}
             </p>

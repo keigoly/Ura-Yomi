@@ -227,7 +227,9 @@ const ja = {
 
   // ---- Share ----
   'share.x': 'Xでシェア',
-  'share.instagram': 'Instagramでシェア',
+  'share.line': 'LINEでシェア',
+  'share.facebook': 'Facebookでシェア',
+  'share.reddit': 'Redditでシェア',
   'share.copyUrl': 'URLをコピー',
   'share.copied': 'URLをコピーしました！',
   'share.text': 'YouTubeコメントをAIで分析できる「ウラヨミ！」が便利すぎる！',
@@ -455,7 +457,9 @@ const en: Record<keyof typeof ja, string> = {
 
   // ---- Share ----
   'share.x': 'Share on X',
-  'share.instagram': 'Share on Instagram',
+  'share.line': 'Share on LINE',
+  'share.facebook': 'Share on Facebook',
+  'share.reddit': 'Share on Reddit',
   'share.copyUrl': 'Copy URL',
   'share.copied': 'URL copied!',
   'share.text': 'Ura-Yomi! - Analyze YouTube comments with AI. So useful!',

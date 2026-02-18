@@ -17,11 +17,21 @@ export default defineConfig({
         const distDir = resolve(__dirname, 'dist');
         const srcDir = resolve(__dirname, 'src');
 
-        // manifest.jsonをコピー
-        copyFileSync(
-          resolve(srcDir, 'manifest.json'),
-          resolve(distDir, 'manifest.json')
-        );
+        // manifest.jsonをコピー（本番ビルド時はlocalhostを除去）
+        const manifestSrc = resolve(srcDir, 'manifest.json');
+        const manifestDest = resolve(distDir, 'manifest.json');
+        const isProduction = process.env.NODE_ENV === 'production';
+        if (isProduction) {
+          const manifest = JSON.parse(readFileSync(manifestSrc, 'utf-8'));
+          if (manifest.host_permissions) {
+            manifest.host_permissions = manifest.host_permissions.filter(
+              (p: string) => !p.includes('localhost') && !p.includes('127.0.0.1')
+            );
+          }
+          writeFileSync(manifestDest, JSON.stringify(manifest, null, 2), 'utf-8');
+        } else {
+          copyFileSync(manifestSrc, manifestDest);
+        }
 
         // iconsフォルダをコピー
         mkdirSync(resolve(distDir, 'icons'), { recursive: true });

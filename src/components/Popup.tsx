@@ -308,11 +308,12 @@ function Popup() {
         <p className="text-[10px] text-gray-500">
           {t('share.yuchanAsk')}
         </p>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          {/* X (Twitter) */}
           <button
             onClick={() => {
               const text = encodeURIComponent(t('share.text'));
-              const url = encodeURIComponent('https://chromewebstore.google.com/detail/urayomi/placeholder');
+              const url = encodeURIComponent('https://chromewebstore.google.com/detail/mhgmmpapgdegmimfdgmanbdakeopmojn');
               window.open(`https://x.com/intent/tweet?text=${text}&url=${url}`, '_blank');
             }}
             className="p-1.5 hover:bg-gray-800 rounded-lg transition-colors text-gray-500 hover:text-gray-300"
@@ -322,23 +323,54 @@ function Popup() {
               <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
             </svg>
           </button>
+          {/* LINE */}
           <button
-            onClick={() => window.open('https://www.instagram.com/', '_blank')}
+            onClick={() => {
+              const url = encodeURIComponent('https://chromewebstore.google.com/detail/mhgmmpapgdegmimfdgmanbdakeopmojn');
+              window.open(`https://social-plugins.line.me/lineit/share?url=${url}&text=${encodeURIComponent(t('share.text'))}`, '_blank');
+            }}
             className="p-1.5 hover:bg-gray-800 rounded-lg transition-colors text-gray-500 hover:text-gray-300"
-            title={t('share.instagram')}
+            title={t('share.line')}
           >
             <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z" />
+              <path d="M12 1c-6.615 0-12 4.398-12 9.806 0 4.882 4.27 8.934 10.035 9.608.391.082.923.258 1.058.59.12.301.079.766.038 1.08l-.164 1.02c-.045.301-.24 1.186 1.049.645 1.291-.539 6.916-4.104 9.436-7.019C23.176 14.748 24 12.362 24 9.806 24 5.398 18.615 1 12 1zM6.63 13.224H4.622a.48.48 0 0 1-.481-.48V8.34a.48.48 0 0 1 .962 0v3.922H6.63a.48.48 0 0 1 0 .962zm2.276 0a.48.48 0 0 1-.481-.48V8.34a.48.48 0 0 1 .962 0v4.404a.48.48 0 0 1-.48.48zm5.186 0a.48.48 0 0 1-.396-.208l-2.348-3.218v2.946a.48.48 0 0 1-.962 0V8.34a.48.48 0 0 1 .48-.48h.015a.48.48 0 0 1 .396.207l2.346 3.216V8.34a.48.48 0 0 1 .962 0v4.404a.48.48 0 0 1-.48.48h-.013zm4.178-3.463a.48.48 0 0 1 0 .962h-1.908v1.02h1.908a.48.48 0 0 1 0 .962h-2.389a.48.48 0 0 1-.481-.48V8.34a.48.48 0 0 1 .48-.48h2.39a.48.48 0 0 1 0 .962h-1.909v1.019h1.909z" />
             </svg>
           </button>
+          {/* Facebook */}
           <button
-            onClick={() => navigator.clipboard.writeText('https://chromewebstore.google.com/detail/urayomi/placeholder')}
+            onClick={() => {
+              const url = encodeURIComponent('https://chromewebstore.google.com/detail/mhgmmpapgdegmimfdgmanbdakeopmojn');
+              window.open(`https://www.facebook.com/sharer/sharer.php?u=${url}`, '_blank');
+            }}
+            className="p-1.5 hover:bg-gray-800 rounded-lg transition-colors text-gray-500 hover:text-gray-300"
+            title={t('share.facebook')}
+          >
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+            </svg>
+          </button>
+          {/* Reddit */}
+          <button
+            onClick={() => {
+              const url = encodeURIComponent('https://chromewebstore.google.com/detail/mhgmmpapgdegmimfdgmanbdakeopmojn');
+              const title = encodeURIComponent(t('share.text'));
+              window.open(`https://www.reddit.com/submit?url=${url}&title=${title}`, '_blank');
+            }}
+            className="p-1.5 hover:bg-gray-800 rounded-lg transition-colors text-gray-500 hover:text-gray-300"
+            title={t('share.reddit')}
+          >
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0zm5.01 4.744c.688 0 1.25.561 1.25 1.249a1.25 1.25 0 0 1-2.498.056l-2.597-.547-.8 3.747c1.824.07 3.48.632 4.674 1.488.308-.309.73-.491 1.207-.491.968 0 1.754.786 1.754 1.754 0 .716-.435 1.333-1.01 1.614a3.111 3.111 0 0 1 .042.52c0 2.694-3.13 4.87-7.004 4.87-3.874 0-7.004-2.176-7.004-4.87 0-.183.015-.366.043-.534A1.748 1.748 0 0 1 4.028 12c0-.968.786-1.754 1.754-1.754.463 0 .898.196 1.207.49 1.207-.883 2.878-1.43 4.744-1.487l.885-4.182a.342.342 0 0 1 .14-.197.35.35 0 0 1 .238-.042l2.906.617a1.214 1.214 0 0 1 1.108-.701zM9.25 12C8.561 12 8 12.562 8 13.25c0 .687.561 1.248 1.25 1.248.687 0 1.248-.561 1.248-1.249 0-.688-.561-1.249-1.249-1.249zm5.5 0c-.687 0-1.248.561-1.248 1.25 0 .687.561 1.248 1.249 1.248.688 0 1.249-.561 1.249-1.249 0-.687-.562-1.249-1.25-1.249zm-5.466 3.99a.327.327 0 0 0-.231.094.33.33 0 0 0 0 .463c.842.842 2.484.913 2.961.913.477 0 2.105-.056 2.961-.913a.361.361 0 0 0 .029-.463.33.33 0 0 0-.464 0c-.547.533-1.684.73-2.512.73-.828 0-1.979-.196-2.512-.73a.326.326 0 0 0-.232-.095z" />
+            </svg>
+          </button>
+          {/* Chrome Web Store URLコピー */}
+          <button
+            onClick={() => navigator.clipboard.writeText('https://chromewebstore.google.com/detail/mhgmmpapgdegmimfdgmanbdakeopmojn')}
             className="p-1.5 hover:bg-gray-800 rounded-lg transition-colors text-gray-500 hover:text-gray-300"
             title={t('share.copyUrl')}
           >
-            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 0C8.21 0 4.831 1.757 2.632 4.501l3.953 6.848A5.454 5.454 0 0 1 12 6.545h10.691A12 12 0 0 0 12 0zM1.931 5.47A11.943 11.943 0 0 0 0 12c0 6.012 4.42 10.991 10.189 11.864l3.953-6.847a5.45 5.45 0 0 1-6.865-2.29zm13.342 2.166a5.446 5.446 0 0 1 1.819 7.555l-3.953 6.848A12 12 0 0 0 24 12c0-1.576-.309-3.08-.855-4.455zM12 8.181a3.818 3.818 0 1 0 0 7.636 3.818 3.818 0 0 0 0-7.636z" />
             </svg>
           </button>
         </div>
