@@ -1,6 +1,6 @@
 {
   "name": "ura-yomi",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "Ura-Yomi! - YouTube Comment Analyzer powered by Google Gemini",
   "type": "module",
   "scripts": {

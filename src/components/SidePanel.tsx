@@ -64,22 +64,32 @@ function SidePanel() {
     reset,
   } = useAnalysisStore();
 
-  // 新しいウィンドウで開いた際に解析結果を復元
+  // 新しいウィンドウで開いた際に解析結果を復元（chrome.storage.local経由）
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('restore') === '1') {
-      try {
-        const raw = localStorage.getItem('yt-gemini-transfer-state');
-        if (raw) {
-          const state = JSON.parse(raw);
-          if (state.result) setResult(state.result);
-          if (state.comments) setComments(state.comments);
-          if (state.videoInfo) useAnalysisStore.setState({ videoInfo: state.videoInfo });
-          localStorage.removeItem('yt-gemini-transfer-state');
+      chrome.storage.local.get('transferState').then((data) => {
+        try {
+          const state = data.transferState;
+          if (state && state.result && state.videoInfo) {
+            useAnalysisStore.setState({
+              videoInfo: state.videoInfo,
+              result: state.result,
+              comments: state.comments || [],
+              isAnalyzing: false,
+              error: null,
+            });
+            if (state.savedHistoryId) setSavedHistoryId(state.savedHistoryId);
+            if (state.isFromHistory) setIsFromHistory(state.isFromHistory);
+          }
+        } catch (e) {
+          console.error('[SidePanel] Failed to restore transfer state:', e);
         }
-      } catch (e) {
-        console.error('[SidePanel] Failed to restore transfer state:', e);
-      }
+        // 使い終わったら削除
+        chrome.storage.local.remove('transferState');
+      }).catch((e) => {
+        console.error('[SidePanel] Failed to read transfer state:', e);
+      });
       // URLからクエリパラメータを除去
       window.history.replaceState({}, '', window.location.pathname);
     }
@@ -368,18 +378,25 @@ function SidePanel() {
 
   // 現在の解析結果を履歴に保存
   const saveCurrentResult = useCallback(() => {
-    if (!result || !videoInfo) return;
-    const id = `${Date.now()}`;
-    saveHistory({
-      id,
-      videoId: videoInfo.videoId,
-      videoTitle: videoInfo.title || videoInfo.videoId,
-      analyzedAt: new Date().toISOString(),
-      result,
-      comments,
-      videoInfo,
-    });
-    setSavedHistoryId(id);
+    if (!result || !videoInfo) {
+      console.warn('[SidePanel] saveCurrentResult: result or videoInfo is null', { result: !!result, videoInfo: !!videoInfo });
+      return;
+    }
+    try {
+      const id = `${Date.now()}`;
+      saveHistory({
+        id,
+        videoId: videoInfo.videoId,
+        videoTitle: videoInfo.title || videoInfo.videoId,
+        analyzedAt: new Date().toISOString(),
+        result,
+        comments,
+        videoInfo,
+      });
+      setSavedHistoryId(id);
+    } catch (e) {
+      console.error('[SidePanel] Failed to save history:', e);
+    }
   }, [result, comments, videoInfo]);
 
   // 履歴から削除
@@ -529,16 +546,37 @@ function SidePanel() {
         }
         setSavedHistoryId(null);
       }} onSave={saveCurrentResult} onUnsave={unsaveCurrentResult} isSaved={!!savedHistoryId} onReanalyze={handleReanalyze} onOpenWindow={isStandaloneWindow ? undefined : async () => {
-        // 現在の解析結果をlocalStorageに一時保存して新しいウィンドウで復元
-        const stateToTransfer = {
-          result,
-          videoInfo,
-          comments,
-        };
-        localStorage.setItem('yt-gemini-transfer-state', JSON.stringify(stateToTransfer));
-        const url = chrome.runtime.getURL('sidepanel.html') + '?restore=1';
-        await chrome.windows.create({ url, type: 'popup', width: 420, height: 720 });
-        window.close();
+        try {
+          // chrome.storage.localに解析結果を保存（localStorageより大容量で信頼性が高い）
+          const stateToTransfer = {
+            result,
+            videoInfo,
+            comments,
+            savedHistoryId,
+            isFromHistory,
+          };
+          await chrome.storage.local.set({ transferState: stateToTransfer });
+          // 現在のウィンドウIDを取得（サイドパネルを閉じるため）
+          const currentWindow = await chrome.windows.getCurrent();
+          // background scriptにウィンドウ作成を依頼（サイドパネルからの直接作成は不安定）
+          const resp = await chrome.runtime.sendMessage({ type: 'OPEN_RESULT_WINDOW', windowId: currentWindow.id });
+          if (!resp?.success) {
+            throw new Error(resp?.error || 'Window creation failed');
+          }
+        } catch (e) {
+          console.error('[SidePanel] Failed to open new window:', e);
+          // コメントが大きすぎる場合、コメント抜きで再試行
+          try {
+            await chrome.storage.local.set({
+              transferState: { result, videoInfo, comments: [], savedHistoryId, isFromHistory },
+            });
+            const currentWindow = await chrome.windows.getCurrent();
+            const resp = await chrome.runtime.sendMessage({ type: 'OPEN_RESULT_WINDOW', windowId: currentWindow.id });
+            if (!resp?.success) throw new Error('Retry also failed');
+          } catch (e2) {
+            console.error('[SidePanel] Minimal state transfer also failed:', e2);
+          }
+        }
       }} />
     );
   }

@@ -29,7 +29,19 @@ function readAll(): HistoryEntry[] {
 }
 
 function writeAll(entries: HistoryEntry[]): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+  } catch (e) {
+    // localStorage容量超過時は古いエントリを削除してリトライ
+    console.warn('[historyStorage] writeAll failed, trimming old entries:', e);
+    const trimmed = entries.slice(0, Math.max(1, Math.floor(entries.length / 2)));
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed));
+    } catch {
+      // それでも失敗する場合は最新1件のみ
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(entries.slice(0, 1)));
+    }
+  }
 }
 
 /** 履歴を保存（最大20件、古いものから自動削除） */

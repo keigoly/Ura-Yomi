@@ -219,10 +219,10 @@ const ja = {
 
   // ---- Character Mode ----
   'character.toggle': 'キャラクターモード',
-  'character.tsubechan': 'ツベちゃんの解説',
+  'character.tsubechan': 'ユウちゃんの解説',
   'character.geminny': 'ジェミニーちゃんの解説',
   'character.summaryBubble': 'コメント全体の要約だよ！',
-  'character.summaryLoading': 'ツベちゃんが要約中...',
+  'character.summaryLoading': 'ユウちゃんが要約中...',
   'character.yuchanSummary': 'ユウちゃんの要約＆分析',
 
   // ---- Share ----
@@ -449,11 +449,11 @@ const en: Record<keyof typeof ja, string> = {
 
   // ---- Character Mode ----
   'character.toggle': 'Character Mode',
-  'character.tsubechan': "Tube-chan's Commentary",
+  'character.tsubechan': "Yu-chan's Commentary",
   'character.geminny': "Geminny's Commentary",
   'character.yuchanSummary': "Yu-chan's Summary & Analysis",
   'character.summaryBubble': "Here's the comment summary!",
-  'character.summaryLoading': 'Tube-chan is summarizing...',
+  'character.summaryLoading': 'Yu-chan is summarizing...',
 
   // ---- Share ----
   'share.x': 'Share on X',

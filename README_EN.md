@@ -1,7 +1,7 @@
-# THE☆Real Talk! Powered by Google Gemini
+# Ura-Yomi! Powered by Google Gemini
 
 <p align="center">
-  <img src="src/icons/icon128.png" alt="THE☆Real Talk!" width="128" height="128">
+  <img src="src/icons/icon128.png" alt="Ura-Yomi!" width="128" height="128">
 </p>
 
 <p align="center">
@@ -13,6 +13,7 @@
 </p>
 
 <p align="center">
+  <a href="https://chromewebstore.google.com/detail/mhgmmpapgdegmimfdgmanbdakeopmojn"><img src="https://img.shields.io/badge/Chrome_Web_Store-v1.0.2-brightgreen.svg?logo=googlechrome&logoColor=white" alt="Chrome Web Store"></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/TypeScript-5.6-blue.svg" alt="TypeScript">
   <img src="https://img.shields.io/badge/React-18-blue.svg" alt="React">
@@ -24,7 +25,7 @@
 
 ## Overview
 
-"THE☆Real Talk!" is a Chrome extension that automatically analyzes YouTube video comments using Google Gemini AI, providing sentiment analysis, summaries, and deep-dive insights. It supports both regular videos and YouTube Shorts.
+"Ura-Yomi!" is a Chrome extension that automatically analyzes YouTube video comments using Google Gemini AI, providing sentiment analysis, summaries, and deep-dive insights. It supports both regular videos and YouTube Shorts.
 
 Instantly analyze thousands of comments to reveal viewer sentiment and trending topics. No API key setup required for end users — simply sign in with your Google account and use credits.
 
@@ -69,7 +70,7 @@ Instantly analyze thousands of comments to reveal viewer sentiment and trending 
 - **Font Size** — 5 levels from 13px to 18px
 - **Analysis History** — Save up to 30 past analysis results for later review
 - **Import/Export Settings** — Backup and restore settings in JSON format
-- **Social Sharing** — Share via X / Instagram / URL copy (available in both side panel and popup)
+- **Social Sharing** — Share via X / LINE / Facebook / Reddit + Chrome Web Store link URL copy (available in both side panel and popup)
 
 ### Authentication & Credits
 
@@ -162,7 +163,7 @@ Instantly analyze thousands of comments to reveal viewer sentiment and trending 
 ## Directory Structure
 
 ```
-YouTube Comment Analyzer/
+Ura-Yomi/
 ├── src/                          # Frontend source
 │   ├── components/               # React components
 │   │   ├── Popup.tsx             # Popup UI
@@ -462,7 +463,7 @@ sudo certbot --nginx -d api.keigoly.jp
 #### 2. Start Application
 
 ```bash
-cd ~/THE-REAL-TALK-Powerd-by-Gemini/server
+cd ~/Ura-Yomi-server
 npm install
 pm2 start index.js --name urayomi-server
 pm2 save
@@ -589,6 +590,37 @@ cd server && npm run dev
 → Reload the extension in `chrome://extensions`
 → Check for error messages in the console (F12)
 
+## Changelog
+
+### v1.0.2 (2026-02-19)
+
+- Significantly improved "Open in New Window" reliability
+- Side panel now auto-closes when opening a new window
+- Character mode UI improvements (fixed toggle, scrollbar positioning)
+- Auto-remove trailing English text in Japanese summaries
+- Corrected comment count display (now includes replies)
+- Character name fixes & Deep Dive retry mechanism
+- Improved save feature stability (quota handling, state transfer)
+
+### v1.0.1 (2026-02-18)
+
+- fix: Added noCache parameter to bypass cache on re-analysis
+- fix: Corrected initial credit display (20 → 15)
+- fix: Fixed character name display (kanji → katakana)
+- feat: Added social share buttons to footer (X / LINE / Facebook / Reddit)
+- feat: Added Chrome Web Store link to URL sharing
+- chore: Added store descriptions, version bump to 1.0.1
+
+### v1.0.0 (2026-02-13)
+
+- Initial release
+- AI analysis (summary, sentiment analysis, topic extraction, deep dive, Hidden Gems)
+- Character mode (Yu-chan & Geminny-chan)
+- Comment viewer (thread view, search, sorting)
+- Multilingual support (Japanese / English)
+- Theme switching (Light / Dark Blue / Black)
+- Credit system & Stripe payment integration
+
 ## License
 
 MIT License
@@ -602,6 +634,7 @@ MIT License
 
 ## Links
 
+- [Chrome Web Store](https://chromewebstore.google.com/detail/mhgmmpapgdegmimfdgmanbdakeopmojn)
 - [README (Japanese)](README.md)
 - [Privacy Policy (Japanese)](PRIVACY.md)
 - [Privacy Policy (English)](PRIVACY_EN.md)

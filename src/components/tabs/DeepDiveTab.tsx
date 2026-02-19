@@ -6,7 +6,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { ThumbsUp, ThumbsDown, MessageSquare, Settings, ChevronDown, ChevronUp } from 'lucide-react';
 import type { YouTubeCommentThread, AnalysisResult } from '../../types';
-import { useDesignStore, isLightMode } from '../../store/designStore';
+import { useDesignStore, BG_COLORS, isLightMode } from '../../store/designStore';
 import { useCharacterStore } from '../../store/characterStore';
 import { useTranslation } from '../../i18n/useTranslation';
 import { rewriteWithCharacter } from '../../services/apiServer';
@@ -129,6 +129,37 @@ function formatDate(dateString: string): string {
   }
 }
 
+/**
+ * リトライ付きキャラクター書き換え
+ */
+async function rewriteWithRetry(
+  text: string,
+  character: 'tsubechan' | 'geminny',
+  lang: 'ja' | 'en',
+  maxRetries = 2
+): Promise<string> {
+  let lastError: Error | null = null;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const result = await rewriteWithCharacter(text, character, lang);
+      // 書き換え結果が元テキストと同じ、または空の場合はリトライ
+      if (result && result.trim().length > 0 && result.trim() !== text.trim()) {
+        return result;
+      }
+      // 結果が空または同じなら次のリトライへ
+      if (attempt < maxRetries) {
+        await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+      }
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+      if (attempt < maxRetries) {
+        await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+      }
+    }
+  }
+  throw lastError || new Error('Character rewrite returned empty or unchanged result');
+}
+
 function DeepDiveTab({ comments, result }: DeepDiveTabProps) {
   const { t } = useTranslation();
   const { bgMode } = useDesignStore();
@@ -218,7 +249,7 @@ function DeepDiveTab({ comments, result }: DeepDiveTabProps) {
     let cancelled = false;
     setPositiveCharacterLoading(true);
 
-    rewriteWithCharacter(positiveReason, 'geminny', lang)
+    rewriteWithRetry(positiveReason, 'geminny', lang)
       .then((rewritten) => {
         if (!cancelled) {
           setPositiveCharacterReason(rewritten);
@@ -226,7 +257,7 @@ function DeepDiveTab({ comments, result }: DeepDiveTabProps) {
         }
       })
       .catch((err) => {
-        console.error('[DeepDiveTab] Positive character rewrite failed:', err);
+        console.error('[DeepDiveTab] Positive character rewrite failed after retries:', err);
         if (!cancelled) setPositiveCharacterReason(positiveReason);
       })
       .finally(() => {
@@ -249,7 +280,7 @@ function DeepDiveTab({ comments, result }: DeepDiveTabProps) {
     let cancelled = false;
     setNeutralCharacterLoading(true);
 
-    rewriteWithCharacter(neutralReason, 'geminny', lang)
+    rewriteWithRetry(neutralReason, 'geminny', lang)
       .then((rewritten) => {
         if (!cancelled) {
           setNeutralCharacterReason(rewritten);
@@ -257,7 +288,7 @@ function DeepDiveTab({ comments, result }: DeepDiveTabProps) {
         }
       })
       .catch((err) => {
-        console.error('[DeepDiveTab] Neutral character rewrite failed:', err);
+        console.error('[DeepDiveTab] Neutral character rewrite failed after retries:', err);
         if (!cancelled) setNeutralCharacterReason(neutralReason);
       })
       .finally(() => {
@@ -313,7 +344,7 @@ function DeepDiveTab({ comments, result }: DeepDiveTabProps) {
     let cancelled = false;
     setNegativeCharacterLoading(true);
 
-    rewriteWithCharacter(negativeAIReason, 'geminny', lang)
+    rewriteWithRetry(negativeAIReason, 'geminny', lang)
       .then((rewritten) => {
         if (!cancelled) {
           setNegativeCharacterReason(rewritten);
@@ -321,7 +352,7 @@ function DeepDiveTab({ comments, result }: DeepDiveTabProps) {
         }
       })
       .catch((err) => {
-        console.error('[DeepDiveTab] Negative character rewrite failed:', err);
+        console.error('[DeepDiveTab] Negative character rewrite failed after retries:', err);
         if (!cancelled) setNegativeCharacterReason(negativeAIReason);
       })
       .finally(() => {
@@ -336,12 +367,11 @@ function DeepDiveTab({ comments, result }: DeepDiveTabProps) {
                   (neutralComment && neutralComment.text);
 
   return (
-    <div className="min-h-full bg-inherit">
-      <div className="max-w-4xl mx-auto px-6 pt-3 pb-8 space-y-6">
-      {hasData ? (
-        <>
-          {/* キャラクターモード トグル */}
-          <div className="flex items-center justify-end gap-3 -mb-2">
+    <div className="h-full flex flex-col" style={{ backgroundColor: BG_COLORS[bgMode] }}>
+      {/* キャラクターモード トグル（固定ヘッダー） */}
+      {hasData && (
+        <div className={`flex-shrink-0 border-b ${isLight ? 'border-gray-200' : 'border-gray-700/50'}`} style={{ backgroundColor: BG_COLORS[bgMode] }}>
+          <div className="max-w-4xl mx-auto px-6 py-2.5 flex items-center justify-end gap-3">
             <span className={`text-xs ${isLight ? 'text-gray-600' : 'text-gray-400'}`}>
               {t('character.toggle')}
             </span>
@@ -360,7 +390,14 @@ function DeepDiveTab({ comments, result }: DeepDiveTabProps) {
               />
             </button>
           </div>
+        </div>
+      )}
 
+      {/* スクロール可能なコンテンツ */}
+      <div className="flex-1 overflow-y-auto min-h-0">
+      <div className="max-w-4xl mx-auto px-6 pt-4 pb-8 space-y-6">
+      {hasData ? (
+        <>
           {/* タイトル */}
           <div className="mb-3">
             <div className="flex items-center gap-2">
@@ -824,6 +861,7 @@ function DeepDiveTab({ comments, result }: DeepDiveTabProps) {
           <p>{t('deepdive.noData')}</p>
         </div>
       )}
+      </div>
       </div>
     </div>
   );

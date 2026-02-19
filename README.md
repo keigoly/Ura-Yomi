@@ -13,6 +13,7 @@
 </p>
 
 <p align="center">
+  <a href="https://chromewebstore.google.com/detail/mhgmmpapgdegmimfdgmanbdakeopmojn"><img src="https://img.shields.io/badge/Chrome_Web_Store-v1.0.2-brightgreen.svg?logo=googlechrome&logoColor=white" alt="Chrome Web Store"></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/TypeScript-5.6-blue.svg" alt="TypeScript">
   <img src="https://img.shields.io/badge/React-18-blue.svg" alt="React">
@@ -69,7 +70,7 @@
 - **フォントサイズ** — 13px〜18pxの5段階で調整可能
 - **解析履歴** — 過去の解析結果を最大30件保存・閲覧・再表示
 - **設定のインポート/エクスポート** — JSON形式でバックアップ・復元
-- **SNSシェア** — X / Instagram / URLコピーでの拡散機能（サイドパネル・ポップアップ両方に配置）
+- **SNSシェア** — X / LINE / Facebook / Reddit + Chrome Web StoreリンクのURLコピーでの拡散機能（サイドパネル・ポップアップ両方に配置）
 
 ### 認証・クレジットシステム
 
@@ -162,7 +163,7 @@
 ## ディレクトリ構成
 
 ```
-YouTube Comment Analyzer/
+Ura-Yomi/
 ├── src/                          # フロントエンドソース
 │   ├── components/               # Reactコンポーネント
 │   │   ├── Popup.tsx             # ポップアップUI
@@ -477,7 +478,7 @@ sudo certbot --nginx -d api.keigoly.jp
 #### 2. アプリケーション起動
 
 ```bash
-cd ~/THE-REAL-TALK-Powerd-by-Gemini/server
+cd ~/Ura-Yomi-server
 npm install
 pm2 start index.js --name urayomi-server
 pm2 save
@@ -604,6 +605,36 @@ cd server && npm run dev
 → `chrome://extensions` で拡張機能を再読み込み
 → コンソール（F12）でエラーメッセージを確認
 
+## 更新履歴
+
+### v1.0.2（2026-02-19）
+
+- 「新しいウィンドウで開く」機能の安定性を大幅に改善
+- 新しいウィンドウを開いた際にサイドパネルを自動的に閉じるように改善
+- キャラクターモードのUI改善（トグル固定・スクロールバー位置修正）
+- 日本語要約に稀に混入する英語テキストを自動除去
+- コメント数の表示を正確に修正（返信込みの合計数）
+- その他、キャラクター名の表記修正・保存機能の安定性向上など
+
+### v1.0.1（2026-02-18）
+
+- fix: 再解析時にキャッシュをバイパスするnoCacheパラメータ追加
+- fix: 初回クレジット表示を修正（20→15）
+- fix: 「夕ちゃん」→「ユウちゃん」カタカナ表記修正
+- feat: フッターにSNSシェアボタン追加（X / LINE / Facebook / Reddit）
+- feat: Chrome Web StoreリンクをURL共有に追加
+- chore: ストア説明文追加、バージョン1.0.1更新
+
+### v1.0.0（2026-02-13）
+
+- 初回リリース
+- AI解析（要約・感情分析・トピック抽出・深掘り・Hidden Gems）
+- キャラクターモード（ユウちゃん＆ジェミニーちゃん）
+- コメントビューア（スレッド表示・検索・ソート）
+- 多言語対応（日本語 / English）
+- テーマ切り替え（ライト / ダークブルー / ブラック）
+- クレジットシステム＆Stripe決済連携
+
 ## ライセンス
 
 MIT License
@@ -617,6 +648,7 @@ MIT License
 
 ## リンク
 
+- [Chrome Web Store](https://chromewebstore.google.com/detail/mhgmmpapgdegmimfdgmanbdakeopmojn)
 - [README（English）](README_EN.md)
 - [プライバシーポリシー（日本語）](PRIVACY.md)
 - [Privacy Policy（English）](PRIVACY_EN.md)

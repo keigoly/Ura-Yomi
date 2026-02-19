@@ -75,6 +75,13 @@ No API key setup required.
 
 --- What's New ---
 
+[v1.0.2]
+- Significantly improved "Open in New Window" reliability (side panel auto-close)
+- Character mode UI improvements (fixed toggle, scrollbar positioning)
+- Auto-remove trailing English text in Japanese summaries
+- Corrected comment count display (now includes replies)
+- Other minor fixes and stability improvements
+
 [v1.0.1]
 - Fixed re-analysis not working correctly
 - Fixed initial credit count display

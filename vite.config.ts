@@ -7,7 +7,7 @@ import { copyFileSync, mkdirSync, cpSync, renameSync, rmSync, existsSync, readFi
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   base: './',
   plugins: [
     react(),
@@ -20,7 +20,7 @@ export default defineConfig({
         // manifest.jsonをコピー（本番ビルド時はlocalhostを除去）
         const manifestSrc = resolve(srcDir, 'manifest.json');
         const manifestDest = resolve(distDir, 'manifest.json');
-        const isProduction = process.env.NODE_ENV === 'production';
+        const isProduction = mode === 'production';
         if (isProduction) {
           const manifest = JSON.parse(readFileSync(manifestSrc, 'utf-8'));
           if (manifest.host_permissions) {
@@ -103,4 +103,4 @@ export default defineConfig({
       '@': resolve(__dirname, './src'),
     },
   },
-});
+}));

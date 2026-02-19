@@ -2,7 +2,7 @@
  * Result Dashboard コンポーネント
  */
 
-import { useState, useEffect, useRef, memo } from 'react';
+import { useState, useEffect, useRef, useMemo, memo } from 'react';
 import { FileDown, Copy, Check, Menu, X, ArrowLeft, Bookmark, ExternalLink, RefreshCw } from 'lucide-react';
 import type { AnalysisResult, VideoInfo, YouTubeCommentThread } from '../types';
 import { useDesignStore, BG_COLORS, isLightMode } from '../store/designStore';
@@ -55,6 +55,12 @@ function ResultDashboard({ result, videoInfo, comments, onBack, onSave, onUnsave
   const { fontSize, bgMode } = useDesignStore();
   const bgColor = BG_COLORS[bgMode];
   const isLight = isLightMode(bgMode);
+
+  // 返信込みの全コメント数
+  const totalCommentCount = useMemo(() =>
+    comments.reduce((sum, thread) => sum + 1 + (thread.replies?.length || 0), 0),
+    [comments]
+  );
 
   // メニューの外側をクリックしたら閉じる
   useEffect(() => {
@@ -179,7 +185,7 @@ function ResultDashboard({ result, videoInfo, comments, onBack, onSave, onUnsave
   const tabs: { id: TabType; label: string }[] = [
     { id: 'summary', label: t('result.tabSummary') },
     { id: 'deepdive', label: t('result.tabDeepDive') },
-    { id: 'comments', label: `${t('result.tabComments')} (${comments.length})` },
+    { id: 'comments', label: t('result.tabComments') },
   ];
 
   return (
@@ -308,7 +314,7 @@ function ResultDashboard({ result, videoInfo, comments, onBack, onSave, onUnsave
             )}
             <p className={`text-sm line-clamp-3 ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>
               {videoInfo.title || videoInfo.videoId}
-              <span className="whitespace-nowrap"> ({comments.length.toLocaleString()}{t('result.commentsCount')})</span>
+              <span className="whitespace-nowrap"> ({totalCommentCount.toLocaleString()}{t('result.commentsCount')})</span>
             </p>
           </div>
         )}
@@ -337,24 +343,23 @@ function ResultDashboard({ result, videoInfo, comments, onBack, onSave, onUnsave
         ))}
       </div>
 
-      {/* Tab Content - スクロール可能 */}
+      {/* Tab Content - 各タブが自身のスクロールを管理 */}
       <div
         className="flex-1"
         style={{
-          overflowY: 'auto',
-          overflowX: 'hidden',
+          overflow: 'hidden',
           minHeight: 0,
           flex: '1 1 auto',
           backgroundColor: bgColor,
         }}
       >
         {renderedTabs.has('summary') && (
-          <div style={{ display: activeTab === 'summary' ? 'block' : 'none' }}>
+          <div style={{ display: activeTab === 'summary' ? 'flex' : 'none', flexDirection: 'column', height: '100%' }}>
             <MemoSummaryTab result={result} />
           </div>
         )}
         {renderedTabs.has('deepdive') && (
-          <div style={{ display: activeTab === 'deepdive' ? 'block' : 'none' }}>
+          <div style={{ display: activeTab === 'deepdive' ? 'flex' : 'none', flexDirection: 'column', height: '100%' }}>
             <MemoDeepDiveTab comments={comments} result={result} />
           </div>
         )}

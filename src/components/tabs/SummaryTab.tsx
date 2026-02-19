@@ -4,7 +4,7 @@
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import type { AnalysisResult } from '../../types';
-import { useDesignStore, isLightMode } from '../../store/designStore';
+import { useDesignStore, BG_COLORS, isLightMode } from '../../store/designStore';
 import { useCharacterStore } from '../../store/characterStore';
 import { useTranslation } from '../../i18n/useTranslation';
 import { rewriteWithCharacter } from '../../services/apiServer';
@@ -86,6 +86,55 @@ interface SummaryTabProps {
  * JSON文字列を整形して表示用のテキストに変換
  * jsonParser.tsの共通ユーティリティを使用
  */
+/**
+ * テキストが主に英語（ラテン文字）かどうかを判定
+ * 日本語（ひらがな・カタカナ・漢字）の割合が低い場合に true
+ */
+function isPredominantlyEnglish(text: string): boolean {
+  // 空白・句読点・記号を除いた文字のみで判定
+  const chars = text.replace(/[\s\d.,!?;:'"()\-\u3000-\u3002\uFF08\uFF09\uFF01\uFF1F]/g, '');
+  if (chars.length < 5) return false;
+  const japaneseCount = (chars.match(/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF\u3400-\u4DBF]/g) || []).length;
+  return japaneseCount / chars.length < 0.15;
+}
+
+/**
+ * 日本語要約の末尾に混入した英語段落を除去
+ * Geminiが稀に summary フィールドに英語テキストを付加することへの対策
+ */
+function stripTrailingEnglish(text: string): string {
+  const paragraphs = text.split(/\n\s*\n/);
+  // 末尾から連続して英語のみの段落を除去
+  let end = paragraphs.length;
+  while (end > 1) {
+    const last = paragraphs[end - 1].trim();
+    // 括弧で囲まれた英語テキストも対象（全角・半角）
+    const unwrapped = last.replace(/^[(\uFF08]/, '').replace(/[)\uFF09]$/, '');
+    if (isPredominantlyEnglish(unwrapped)) {
+      end--;
+    } else {
+      break;
+    }
+  }
+  if (end < paragraphs.length) {
+    return paragraphs.slice(0, end).join('\n\n').trim();
+  }
+  // 段落分割でヒットしなかった場合、最終行チェック（改行1つで区切られるケース）
+  const lines = text.split('\n');
+  let lineEnd = lines.length;
+  while (lineEnd > 1) {
+    const line = lines[lineEnd - 1].trim();
+    if (!line) { lineEnd--; continue; }
+    const unwrapped = line.replace(/^[(\uFF08]/, '').replace(/[)\uFF09]$/, '');
+    if (isPredominantlyEnglish(unwrapped)) {
+      lineEnd--;
+    } else {
+      break;
+    }
+  }
+  return lines.slice(0, lineEnd).join('\n').trim();
+}
+
 function formatSummary(summary: string): string {
   if (!summary || typeof summary !== 'string') {
     return '';
@@ -188,6 +237,8 @@ function SummaryTab({ result }: SummaryTabProps) {
       if (lang === 'ja') {
         summary = summary.replace(/^このYouTube動画のコメントは[、。，．\s]*/i, '');
         summary = summary.replace(/。([^\n])/g, '。\n$1');
+        // Geminiが稀に末尾に英語テキストを含めることがあるため除去
+        summary = stripTrailingEnglish(summary);
       }
       summary = summary.replace(/\n{3,}/g, '\n\n').trim();
     }
@@ -324,10 +375,10 @@ function SummaryTab({ result }: SummaryTabProps) {
   }, []);
 
   return (
-    <div className="min-h-full bg-inherit">
-      <div className="max-w-4xl mx-auto px-6 pt-3 pb-8 space-y-6">
-        {/* キャラクターモード トグル */}
-        <div className="flex items-center justify-end gap-3 -mb-2">
+    <div className="h-full flex flex-col" style={{ backgroundColor: BG_COLORS[bgMode] }}>
+      {/* キャラクターモード トグル（固定ヘッダー） */}
+      <div className={`flex-shrink-0 border-b ${isLight ? 'border-gray-200' : 'border-gray-700/50'}`} style={{ backgroundColor: BG_COLORS[bgMode] }}>
+        <div className="max-w-4xl mx-auto px-6 py-2.5 flex items-center justify-end gap-3">
           <span className={`text-xs ${isLight ? 'text-gray-600' : 'text-gray-400'}`}>
             {t('character.toggle')}
           </span>
@@ -346,7 +397,11 @@ function SummaryTab({ result }: SummaryTabProps) {
             />
           </button>
         </div>
+      </div>
 
+      {/* スクロール可能なコンテンツ */}
+      <div className="flex-1 overflow-y-auto min-h-0">
+      <div className="max-w-4xl mx-auto px-6 pt-4 pb-8 space-y-6">
         {/* キャラクターモード時のタイトル */}
         {summaryCharacterMode && (
           <div className="mb-3">
@@ -580,6 +635,7 @@ function SummaryTab({ result }: SummaryTabProps) {
             </div>
           </div>
         )}
+      </div>
       </div>
     </div>
   );

@@ -25,6 +25,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({ success: false, error: error.message });
       });
     return true; // 非同期レスポンスを許可
+  } else if (message.type === 'OPEN_RESULT_WINDOW') {
+    // サイドパネルからの新しいウィンドウ作成リクエスト
+    const url = chrome.runtime.getURL('sidepanel.html') + '?restore=1';
+    chrome.windows.create({ url, type: 'popup', width: 420, height: 720 })
+      .then((win) => {
+        // 新しいウィンドウが開いたら元のサイドパネルを閉じる
+        if (message.windowId && chrome.sidePanel?.close) {
+          chrome.sidePanel.close({ windowId: message.windowId }).catch(() => {});
+        }
+        sendResponse({ success: true, windowId: win?.id });
+      })
+      .catch((error) => {
+        console.error('[BG] Failed to create result window:', error);
+        sendResponse({ success: false, error: error.message });
+      });
+    return true;
   } else if (message.type === 'SYNC_TOKEN') {
     // Popup/SidePanelからトークンとAPI URLを受け取りchrome.storage.localに保存
     const token = message.token;
