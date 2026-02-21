@@ -15,13 +15,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({ success: false, error: error.message });
       });
     return true; // 非同期レスポンスを許可
-  } else if (message.type === 'GET_CREDITS') {
-    handleGetCredits()
-      .then((credits) => {
-        sendResponse({ success: true, credits });
+  } else if (message.type === 'GET_PLAN') {
+    handleGetPlan()
+      .then((planInfo) => {
+        sendResponse({ success: true, ...planInfo });
       })
       .catch((error) => {
-        console.error('[BG] GET_CREDITS error:', error.message);
+        console.error('[BG] GET_PLAN error:', error.message);
         sendResponse({ success: false, error: error.message });
       });
     return true; // 非同期レスポンスを許可
@@ -54,7 +54,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     if (token) {
       chrome.storage.local.set(dataToSet).then(() => {
-        // Token & API URL synced
         sendResponse({ success: true });
       }).catch((error) => {
         console.error('[BG] Token sync failed:', error);
@@ -62,7 +61,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       });
     } else {
       chrome.storage.local.remove(['sessionToken']).then(() => {
-        // Token cleared
         sendResponse({ success: true });
       }).catch(() => sendResponse({ success: false }));
     }
@@ -75,7 +73,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
  */
 async function handleStartAnalysis(videoId, title, windowId) {
   try {
-    // Side Panelを開く
+    // Side Panelを開く（ユーザージェスチャーチェーンを維持するため最初に呼ぶ）
     if (windowId !== undefined) {
       await chrome.sidePanel.open({ windowId });
     } else {
@@ -103,9 +101,9 @@ async function handleStartAnalysis(videoId, title, windowId) {
 }
 
 /**
- * クレジット数を取得する処理
+ * プラン情報を取得する処理
  */
-async function handleGetCredits() {
+async function handleGetPlan() {
   try {
     // chrome.storageからセッショントークンとAPI URLを取得
     const storage = await chrome.storage.local.get(['sessionToken', 'apiBaseUrl']);
@@ -115,9 +113,9 @@ async function handleGetCredits() {
       return null; // 認証されていない場合はnullを返す
     }
 
-    // APIからクレジット数を取得（同期されたURLを使用、なければデフォルト）
+    // APIからプラン情報を取得
     const apiBaseUrl = storage.apiBaseUrl || 'https://api.keigoly.jp';
-    const response = await fetch(`${apiBaseUrl}/api/user/credits`, {
+    const response = await fetch(`${apiBaseUrl}/api/user/plan`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -126,7 +124,7 @@ async function handleGetCredits() {
     });
 
     if (response.status === 401) {
-      // トークンが無効 → 古いトークンを削除（次回Popup表示時に再同期される）
+      // トークンが無効 → 古いトークンを削除
       console.warn('[BG] Session token expired (401), clearing stale token');
       await chrome.storage.local.remove(['sessionToken']);
       return null;
@@ -137,18 +135,19 @@ async function handleGetCredits() {
     }
 
     const data = await response.json();
-    if (data.success && data.credits !== undefined) {
-      return data.credits;
+    if (data.success) {
+      return {
+        plan: data.plan,
+        dailyLimit: data.dailyLimit,
+        dailyUsed: data.dailyUsed,
+        dailyRemaining: data.dailyRemaining,
+        commentLimit: data.commentLimit,
+      };
     } else {
-      throw new Error(data.error || 'クレジット取得エラー');
+      throw new Error(data.error || 'プラン情報取得エラー');
     }
   } catch (error) {
-    console.error('[BG] Error in handleGetCredits:', error);
+    console.error('[BG] Error in handleGetPlan:', error);
     throw error;
   }
 }
-
-// 注意: default_popupが設定されている場合、onClickedは発火しません
-// popup.htmlが表示されるように、onClickedリスナーは削除または条件付きにします
-// YouTubeページでない場合のみ、Side Panelを開く処理を実行
-// (popup.html内でSide Panelを開く処理が実装されているため)

@@ -3,11 +3,10 @@
  */
 
 import { useEffect, useState } from 'react';
-import { Settings, Play, AlertCircle, CreditCard, Link, PanelRight } from 'lucide-react';
+import { Settings, Play, AlertCircle, Link, PanelRight, Crown } from 'lucide-react';
 import { getCurrentYouTubeVideo, extractVideoId } from '../utils/youtube';
-import { verifySession, getCredits, getVideoInfo } from '../services/apiServer';
-import type { User } from '../types';
-import { ANALYSIS_CREDIT_COST } from '../constants';
+import { verifySession, getUserPlan, getVideoInfo } from '../services/apiServer';
+import type { User, PlanResponse } from '../types';
 import Auth from './Auth';
 import { useTranslation } from '../i18n/useTranslation';
 
@@ -19,7 +18,7 @@ function Popup() {
     commentCount?: number;
   } | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [credits, setCredits] = useState<number | null>(null);
+  const [planInfo, setPlanInfo] = useState<PlanResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [urlInput, setUrlInput] = useState('');
   const [urlLoading, setUrlLoading] = useState(false);
@@ -35,24 +34,24 @@ function Popup() {
   const checkAuth = async () => {
     setLoading(true);
     const result = await verifySession();
-    
+
     if (result.success && result.user) {
       setUser(result.user);
-      await loadCredits();
+      await loadPlanInfo();
     }
     setLoading(false);
   };
 
-  const loadCredits = async () => {
-    const result = await getCredits();
-    if (result.success && result.credits !== undefined) {
-      setCredits(result.credits);
+  const loadPlanInfo = async () => {
+    const result = await getUserPlan();
+    if (result.success) {
+      setPlanInfo(result);
     }
   };
 
   const handleAuthSuccess = (authenticatedUser: User) => {
     setUser(authenticatedUser);
-    setCredits(authenticatedUser.credits);
+    loadPlanInfo();
   };
 
   const loadVideoInfo = async () => {
@@ -68,7 +67,6 @@ function Popup() {
             commentCount: videoData.commentCount,
           });
         } else {
-          // エラーが発生した場合は、基本的な情報のみ設定
           setVideoInfo({
             videoId: info.videoId,
             title: info.title,
@@ -76,7 +74,6 @@ function Popup() {
         }
       } catch (error) {
         console.error('Failed to load video info:', error);
-        // エラーが発生した場合は、基本的な情報のみ設定
         setVideoInfo({
           videoId: info.videoId,
           title: info.title,
@@ -142,7 +139,6 @@ function Popup() {
 
   // 認証されていない場合は認証画面を表示
   if (loading) {
-    
     return (
       <div className="w-80 p-4 bg-gray-900">
         <div className="text-center py-8">
@@ -163,7 +159,8 @@ function Popup() {
     );
   }
 
-  const hasInsufficientCredits = credits !== null && credits < ANALYSIS_CREDIT_COST;
+  const isPro = planInfo?.plan === 'pro';
+  const hasReachedDailyLimit = !isPro && planInfo !== null && planInfo.dailyRemaining !== null && planInfo.dailyRemaining <= 0;
 
   return (
     <div className="w-80 p-4 bg-gray-900">
@@ -171,15 +168,15 @@ function Popup() {
       <div className="flex items-center justify-between mb-6">
         <img src={chrome.runtime.getURL('icons/logo-urayomi.png')} alt="ウラヨミ！" className="h-16" />
         <div className="flex items-center gap-2">
-          {credits !== null && (
-            <div
-              className="rounded-full p-[1.5px]"
-              style={{ background: 'conic-gradient(from 180deg, #0000FF, #00FFFF, #00FF00, #FFFF00, #FF8C00, #FF0000, #0000FF)' }}
-            >
-              <div className="flex items-center gap-1 px-2.5 py-1 bg-[#0f0f0f] rounded-full">
-                <CreditCard className="w-3.5 h-3.5 text-gray-300" />
-                <span className="text-xs font-bold text-white">{credits}</span>
-              </div>
+          {/* Plan Badge */}
+          {planInfo && (
+            <div className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold ${
+              isPro
+                ? 'bg-gradient-to-r from-amber-500 to-yellow-400 text-black'
+                : 'bg-gray-700 text-gray-300'
+            }`}>
+              {isPro && <Crown className="w-3 h-3" />}
+              {isPro ? 'PRO' : 'FREE'}
             </div>
           )}
           <button
@@ -224,9 +221,9 @@ function Popup() {
           {/* Analyze Button */}
           <button
             onClick={() => handleAnalyze()}
-            disabled={hasInsufficientCredits}
+            disabled={hasReachedDailyLimit}
             className={`w-full rounded-[20px] p-[2px] transition-all ${
-              hasInsufficientCredits
+              hasReachedDailyLimit
                 ? 'opacity-40 cursor-not-allowed'
                 : 'cursor-pointer hover:brightness-125 hover:shadow-[0_0_12px_2px_rgba(100,100,255,0.5)]'
             }`}
@@ -234,35 +231,38 @@ function Popup() {
           >
             <div className="flex items-center justify-center gap-2 px-4 py-3 bg-[#0f0f0f] rounded-[18px] text-white font-semibold">
               <Play className="w-5 h-5" />
-              {t('side.startAnalysis')} ({ANALYSIS_CREDIT_COST} {t('side.credits')})
+              {t('side.startAnalysis')}
             </div>
           </button>
 
-          {/* Insufficient Credits Warning */}
-          {hasInsufficientCredits && (
+          {/* Daily Limit Warning (Free users only) */}
+          {hasReachedDailyLimit && (
             <div className="p-3 bg-yellow-900/30 border border-yellow-700 rounded-lg">
               <div className="flex items-start gap-2">
                 <AlertCircle className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" />
                 <div className="flex-1">
                   <p className="text-sm font-medium text-yellow-400 mb-1">
-                    {t('popup.insufficientCredits')}
+                    {t('popup.dailyLimitReached')}
                   </p>
                   <p className="text-xs text-yellow-300 mb-2">
-                    {t('popup.creditsRequired', { cost: ANALYSIS_CREDIT_COST, balance: credits })}
+                    {t('popup.upgradeToProMessage')}
                   </p>
                   <button
-                    onClick={() =>
-                      chrome.tabs.create({
-                        url: chrome.runtime.getURL('settings.html'),
-                      })
-                    }
+                    onClick={handleSettings}
                     className="text-xs text-yellow-400 underline hover:text-yellow-300"
                   >
-                    {t('popup.purchaseCredits')}
+                    {t('popup.upgradeToPro')}
                   </button>
                 </div>
               </div>
             </div>
+          )}
+
+          {/* Daily remaining for free users */}
+          {!isPro && planInfo && planInfo.dailyRemaining !== null && planInfo.dailyRemaining > 0 && (
+            <p className="text-xs text-gray-500 text-center">
+              {t('popup.dailyRemaining', { remaining: planInfo.dailyRemaining })}
+            </p>
           )}
         </div>
       ) : (
@@ -287,17 +287,17 @@ function Popup() {
           </div>
           <button
             onClick={handleUrlAnalyze}
-            disabled={!isValidUrl || hasInsufficientCredits || urlLoading}
+            disabled={!isValidUrl || hasReachedDailyLimit || urlLoading}
             className={`w-full rounded-[20px] p-[2px] transition-all ${
-              isValidUrl && !hasInsufficientCredits
+              isValidUrl && !hasReachedDailyLimit
                 ? 'cursor-pointer hover:brightness-125 hover:shadow-[0_0_12px_2px_rgba(100,100,255,0.5)]'
                 : 'opacity-40 cursor-not-allowed'
             }`}
             style={{ background: 'conic-gradient(from 180deg, #0000FF, #00FFFF, #00FF00, #FFFF00, #FF8C00, #FF0000, #0000FF)' }}
           >
-            <div className={`flex items-center justify-center gap-2 px-4 py-3 bg-[#0f0f0f] rounded-[18px] font-semibold ${isValidUrl && !hasInsufficientCredits ? 'text-white' : 'text-gray-500'}`}>
+            <div className={`flex items-center justify-center gap-2 px-4 py-3 bg-[#0f0f0f] rounded-[18px] font-semibold ${isValidUrl && !hasReachedDailyLimit ? 'text-white' : 'text-gray-500'}`}>
               <Play className="w-5 h-5" />
-              {urlLoading ? t('auth.loading') : `${t('side.startAnalysis')} (${ANALYSIS_CREDIT_COST} ${t('side.credits')})`}
+              {urlLoading ? t('auth.loading') : t('side.startAnalysis')}
             </div>
           </button>
         </div>

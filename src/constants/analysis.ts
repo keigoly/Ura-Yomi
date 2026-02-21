@@ -19,10 +19,19 @@ export const SUMMARY_LENGTH_MAP = {
 } as const;
 
 /**
- * 解析に必要なクレジット数
- * 1回あたり3クレジット消費
+ * Freeプランの1日の解析回数上限
  */
-export const ANALYSIS_CREDIT_COST = 3;
+export const FREE_DAILY_LIMIT = 3;
+
+/**
+ * Freeプランのコメント取得上限
+ */
+export const FREE_COMMENT_LIMIT = 100;
+
+/**
+ * Proプランのコメント取得上限
+ */
+export const PRO_COMMENT_LIMIT = 2000;
 
 /**
  * デフォルトのコメント取得上限

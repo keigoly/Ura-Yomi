@@ -1,25 +1,30 @@
 /**
  * Settings Page コンポーネント
- * ユーザー向けの設定画面（クレジット管理のみ）
+ * ユーザー向けの設定画面（プラン管理）
  */
 
 import { useEffect, useState } from 'react';
-import { CreditCard } from 'lucide-react';
-import { getCredits } from '../services/apiServer';
+import { Crown } from 'lucide-react';
+import { getUserPlan } from '../services/apiServer';
+import type { PlanResponse } from '../types';
 import Billing from './Billing';
 
 function Settings() {
   const [showBilling, setShowBilling] = useState(false);
-  const [credits, setCredits] = useState<number | null>(null);
+  const [planInfo, setPlanInfo] = useState<PlanResponse | null>(null);
 
   useEffect(() => {
-    loadCredits();
+    loadPlanInfo();
   }, []);
 
-  const loadCredits = async () => {
-    const result = await getCredits();
-    if (result.success && result.credits !== undefined) {
-      setCredits(result.credits);
+  const loadPlanInfo = async () => {
+    try {
+      const result = await getUserPlan();
+      if (result) {
+        setPlanInfo(result);
+      }
+    } catch {
+      // ignore
     }
   };
 
@@ -36,38 +41,35 @@ function Settings() {
           </p>
         </div>
 
-        {/* クレジット管理セクション */}
+        {/* プラン管理セクション */}
         <div className="bg-white rounded-lg shadow-sm p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold text-gray-800">クレジット管理</h2>
-            {credits !== null && (
+            <h2 className="text-lg font-bold text-gray-800">プラン管理</h2>
+            {planInfo && (
               <div className="flex items-center gap-2 px-3 py-1 bg-blue-50 rounded-lg">
-                <CreditCard className="w-4 h-4 text-blue-600" />
+                <Crown className="w-4 h-4 text-blue-600" />
                 <span className="text-sm font-medium text-blue-600">
-                  {credits}クレジット
+                  {planInfo.plan === 'pro' ? 'Pro' : 'Free'}
                 </span>
               </div>
             )}
           </div>
 
           {showBilling ? (
-            <Billing
-              onPurchaseSuccess={() => {
-                setShowBilling(false);
-                loadCredits();
-              }}
-            />
+            <Billing />
           ) : (
             <div className="space-y-3">
-              <p className="text-sm text-gray-600">
-                クレジットが不足している場合は、追加購入できます。
-              </p>
+              {planInfo && planInfo.plan === 'free' && (
+                <p className="text-sm text-gray-600">
+                  今日の使用: {planInfo.dailyUsed}/{planInfo.dailyLimit}回
+                </p>
+              )}
               <button
                 onClick={() => setShowBilling(true)}
                 className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
               >
-                <CreditCard className="w-5 h-5" />
-                クレジットを購入
+                <Crown className="w-5 h-5" />
+                プランを見る
               </button>
             </div>
           )}

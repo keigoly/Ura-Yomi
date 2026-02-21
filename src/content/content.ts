@@ -47,14 +47,10 @@ function ct(key: string): string {
 }
 
 // ---- インターバル管理（メモリリーク防止） ----
-let creditsIntervalId: number | null = null;
+// creditsIntervalId removed (credit system deprecated)
 let buttonCheckIntervalId: number | null = null;
 
 function clearAllIntervals() {
-  if (creditsIntervalId !== null) {
-    clearInterval(creditsIntervalId);
-    creditsIntervalId = null;
-  }
   if (buttonCheckIntervalId !== null) {
     clearInterval(buttonCheckIntervalId);
     buttonCheckIntervalId = null;
@@ -184,21 +180,6 @@ function createAnalyzeButton(compact: boolean): HTMLButtonElement {
   `;
   buttonContent.appendChild(textSpan);
 
-  // クレジット数
-  const creditsSpan = document.createElement('span');
-  creditsSpan.id = 'youtube-comment-analyzer-credits';
-  creditsSpan.textContent = '';
-  creditsSpan.style.cssText = `
-    font-size: ${compact ? '11px' : '12px'};
-    font-weight: 700;
-    opacity: 0.9;
-    line-height: 1;
-    display: inline-flex;
-    align-items: center;
-    color: white;
-  `;
-  buttonContent.appendChild(creditsSpan);
-
   button.appendChild(buttonContent);
 
   button.style.cssText = `
@@ -217,15 +198,6 @@ function createAnalyzeButton(compact: boolean): HTMLButtonElement {
     white-space: nowrap;
     flex-shrink: 0;
   `;
-
-  // クレジット数を取得して表示
-  updateCreditsDisplay(creditsSpan);
-
-  // 定期的にクレジット数を更新（30秒ごと）- 既存のインターバルをクリアしてから再作成
-  if (creditsIntervalId !== null) clearInterval(creditsIntervalId);
-  creditsIntervalId = window.setInterval(() => {
-    updateCreditsDisplay(creditsSpan);
-  }, 30000);
 
   // ホバー効果
   let savedAriaLabel: string | null = null;
@@ -266,6 +238,15 @@ function createAnalyzeButton(compact: boolean): HTMLButtonElement {
     }
 
     const videoTitle = getVideoTitle();
+
+    // pendingAnalysisを先にストレージに書き込む（サイドパネルが開く前にデータを確保）
+    chrome.storage.local.set({
+      pendingAnalysis: {
+        videoId,
+        title: videoTitle || '',
+        timestamp: Date.now(),
+      },
+    });
 
     try {
       chrome.runtime.sendMessage(
@@ -519,22 +500,7 @@ function addAnalyzeButtonForShorts() {
   }
 }
 
-// ---- クレジット表示 ----
-
-function updateCreditsDisplay(creditsSpan: HTMLElement) {
-  chrome.runtime.sendMessage({ type: 'GET_CREDITS' }, (response) => {
-    if (chrome.runtime.lastError) {
-      console.warn('[YCA] GET_CREDITS lastError:', chrome.runtime.lastError.message);
-      creditsSpan.textContent = '';
-      return;
-    }
-    if (response?.success && response.credits !== null && response.credits !== undefined) {
-      creditsSpan.textContent = `${response.credits}`;
-    } else {
-      creditsSpan.textContent = '';
-    }
-  });
-}
+// ---- (クレジット表示は廃止 — Free/Proプランシステムに移行) ----
 
 // ---- 初期化 ----
 
@@ -579,7 +545,7 @@ new MutationObserver(() => {
     }
     setTimeout(tryAddButton, 1500);
     // 統合ティッカーを再起動
-    startUnifiedTicker();
+    startButtonCheckTicker();
     return;
   }
 
@@ -594,24 +560,13 @@ new MutationObserver(() => {
   }
 }).observe(document, { subtree: true, childList: true });
 
-// 統合ティッカー: ボタン存在チェック(3秒毎) + クレジット更新(30秒毎)を1つのインターバルで管理
-let tickerCount = 0;
-function startUnifiedTicker() {
+// ボタン存在チェック(3秒毎)
+function startButtonCheckTicker() {
   if (buttonCheckIntervalId !== null) clearInterval(buttonCheckIntervalId);
-  tickerCount = 0;
   buttonCheckIntervalId = window.setInterval(() => {
-    tickerCount++;
-    // 3秒ごと: ボタン存在チェック
     if (!document.getElementById('youtube-comment-analyzer-btn')) {
       tryAddButton();
     }
-    // 30秒ごと（10カウント目）: クレジット更新
-    if (tickerCount % 10 === 0) {
-      const creditsSpan = document.getElementById('youtube-comment-analyzer-credits');
-      if (creditsSpan) {
-        updateCreditsDisplay(creditsSpan);
-      }
-    }
   }, 3000);
 }
-startUnifiedTicker();
+startButtonCheckTicker();

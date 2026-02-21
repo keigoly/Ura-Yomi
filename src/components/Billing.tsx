@@ -1,161 +1,265 @@
 /**
- * 課金/サブスクリプションコンポーネント
+ * 課金/プラン比較コンポーネント
+ * Free vs Pro の機能比較テーブルを表示する
  */
 
 import { useState } from 'react';
-import { CreditCard } from 'lucide-react';
-import { purchaseCredits, getCredits } from '../services/apiServer';
-import { ANALYSIS_CREDIT_COST } from '../constants';
+import { Check, X, Lock, Crown } from 'lucide-react';
+import { subscribeToPro } from '../services/apiServer';
 import { useTranslation } from '../i18n/useTranslation';
+import { useDesignStore, BG_COLORS, isLightMode } from '../store/designStore';
 
-interface BillingProps {
-  onPurchaseSuccess: () => void;
+type FeatureValue =
+  | { type: 'text'; value: string }
+  | { type: 'check' }
+  | { type: 'x' }
+  | { type: 'coming-soon' };
+
+interface FeatureRow {
+  labelKey: string;
+  free: FeatureValue;
+  pro: FeatureValue;
 }
 
-/**
- * 購入プラン
- */
-interface PurchasePlan {
-  id: string;
-  name: string;
-  credits: number;
-  price: number;
-  priceUsd: number;
-  description: string;
-}
-
-/**
- * 利用可能なプラン
- */
-const PURCHASE_PLANS: PurchasePlan[] = [
-  {
-    id: 'credits_30',
-    name: 'お試しパック',
-    credits: 30,
-    price: 300,
-    priceUsd: 1.99,
-    description: `解析${30 / ANALYSIS_CREDIT_COST}回分`,
-  },
-  {
-    id: 'credits_60',
-    name: 'スタンダード',
-    credits: 60,
-    price: 500,
-    priceUsd: 2.99,
-    description: `解析${60 / ANALYSIS_CREDIT_COST}回分`,
-  },
-  {
-    id: 'credits_150',
-    name: 'プレミアム',
-    credits: 150,
-    price: 1000,
-    priceUsd: 6.99,
-    description: `解析${150 / ANALYSIS_CREDIT_COST}回分`,
-  },
-  {
-    id: 'subscription_lite',
-    name: '月額ライト',
-    credits: 90,
-    price: 800,
-    priceUsd: 4.99,
-    description: '毎月90クレジット自動付与',
-  },
-  {
-    id: 'subscription_standard',
-    name: '月額スタンダード',
-    credits: 300,
-    price: 1980,
-    priceUsd: 12.99,
-    description: '毎月300クレジット自動付与',
-  },
-];
-
-function Billing({ onPurchaseSuccess }: BillingProps) {
-  const { t, lang } = useTranslation();
+function Billing() {
+  const { t } = useTranslation();
+  const { bgMode } = useDesignStore();
+  const lightMode = isLightMode(bgMode);
   const [loading, setLoading] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const handlePurchase = async (planId: string) => {
+  const features: FeatureRow[] = [
+    {
+      labelKey: 'billing.feature.aiAnalysis',
+      free: { type: 'text', value: `3${t('billing.perDay')}` },
+      pro: { type: 'text', value: t('billing.unlimited') },
+    },
+    {
+      labelKey: 'billing.feature.commentFetch',
+      free: { type: 'text', value: '100' },
+      pro: { type: 'text', value: '2,000' },
+    },
+    {
+      labelKey: 'billing.feature.sentimentRatio',
+      free: { type: 'check' },
+      pro: { type: 'check' },
+    },
+    {
+      labelKey: 'billing.feature.wordCloud',
+      free: { type: 'coming-soon' },
+      pro: { type: 'coming-soon' },
+    },
+    {
+      labelKey: 'billing.feature.detailedReport',
+      free: { type: 'coming-soon' },
+      pro: { type: 'coming-soon' },
+    },
+    {
+      labelKey: 'billing.feature.csvExport',
+      free: { type: 'coming-soon' },
+      pro: { type: 'coming-soon' },
+    },
+    {
+      labelKey: 'billing.feature.videoPlanning',
+      free: { type: 'coming-soon' },
+      pro: { type: 'coming-soon' },
+    },
+    {
+      labelKey: 'billing.feature.snsShareImage',
+      free: { type: 'coming-soon' },
+      pro: { type: 'coming-soon' },
+    },
+    {
+      labelKey: 'billing.feature.byok',
+      free: { type: 'coming-soon' },
+      pro: { type: 'coming-soon' },
+    },
+  ];
+
+  const handleSubscribe = async () => {
     setLoading(true);
-    setSelectedPlan(planId);
-
+    setError(null);
     try {
-      // TODO: 実際の決済処理（Stripe、PayPal等）
-      await purchaseCredits(planId, { method: 'test' });
-
-      // クレジットを再取得
-      await getCredits();
-      onPurchaseSuccess();
-
-      alert('購入が完了しました！');
-    } catch (error) {
-      console.error('Purchase error:', error);
-      alert(
-        '購入エラーが発生しました: ' +
-          (error instanceof Error ? error.message : 'Unknown error')
-      );
+      const result = await subscribeToPro();
+      if (result.url) {
+        chrome.tabs.create({ url: result.url });
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('billing.subscribeError'));
     } finally {
       setLoading(false);
-      setSelectedPlan(null);
     }
   };
 
-  return (
-    <div className="p-6 space-y-4">
-      <h2 className="text-xl font-bold text-gray-800 mb-4">クレジットを購入</h2>
-
-      <div className="space-y-3">
-        {PURCHASE_PLANS.map((plan) => (
-          <div
-            key={plan.id}
-            className="p-4 border border-gray-200 rounded-lg hover:border-blue-500 transition-colors"
+  const renderValue = (value: FeatureValue, isPro: boolean) => {
+    switch (value.type) {
+      case 'text':
+        return (
+          <span
+            className={`text-sm font-medium ${
+              isPro
+                ? 'text-yellow-400'
+                : lightMode
+                ? 'text-gray-700'
+                : 'text-gray-200'
+            }`}
           >
-            <div className="flex items-start justify-between mb-2">
-              <div>
-                <h3 className="font-semibold text-gray-800">{plan.name}</h3>
-                <p className="text-sm text-gray-600">{plan.description}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-lg font-bold text-blue-600">
-                  {lang === 'en' ? `$${plan.priceUsd}` : `¥${plan.price.toLocaleString()}`}
-                </p>
-                <p className="text-xs text-gray-500">{plan.credits} {t('side.credits')}</p>
-              </div>
-            </div>
-            <button
-              onClick={() => handlePurchase(plan.id)}
-              disabled={loading}
-              className="w-full mt-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+            {value.value}
+          </span>
+        );
+      case 'check':
+        return <Check className="w-5 h-5 text-green-400 mx-auto" />;
+      case 'x':
+        return (
+          <X
+            className={`w-5 h-5 mx-auto ${
+              lightMode ? 'text-gray-400' : 'text-gray-500'
+            }`}
+          />
+        );
+      case 'coming-soon':
+        return (
+          <span className="flex items-center justify-center gap-1">
+            <Lock
+              className={`w-3.5 h-3.5 ${
+                lightMode ? 'text-gray-400' : 'text-gray-500'
+              }`}
+            />
+            <span
+              className={`text-xs ${
+                lightMode ? 'text-gray-400' : 'text-gray-500'
+              }`}
             >
-              {loading && selectedPlan === plan.id ? (
-                <>処理中...</>
+              {t('billing.comingSoon')}
+            </span>
+          </span>
+        );
+    }
+  };
+
+  const cardBg = lightMode ? 'bg-white' : bgMode === 'black' ? 'bg-gray-900' : 'bg-[#1e2a36]';
+  const borderColor = lightMode ? 'border-gray-200' : 'border-gray-700';
+  const rowEvenBg = lightMode ? 'bg-gray-50' : bgMode === 'black' ? 'bg-gray-800/40' : 'bg-[#1a2530]';
+  const labelColor = lightMode ? 'text-gray-700' : 'text-gray-300';
+  const headingColor = lightMode ? 'text-gray-900' : 'text-white';
+
+  return (
+    <div
+      className="p-4 min-h-full"
+      style={{ backgroundColor: BG_COLORS[bgMode] }}
+    >
+      <h2 className={`text-lg font-bold mb-4 text-center ${headingColor}`}>
+        {t('billing.title')}
+      </h2>
+
+      <div className={`rounded-xl border ${borderColor} ${cardBg} overflow-hidden`}>
+        {/* Plan header row */}
+        <div className={`grid grid-cols-3 border-b ${borderColor}`}>
+          {/* Feature label column header */}
+          <div className="p-3" />
+
+          {/* Free column header */}
+          <div className={`p-3 text-center border-l ${borderColor}`}>
+            <p className={`text-sm font-semibold ${labelColor}`}>
+              {t('billing.freePlan')}
+            </p>
+            <p className={`text-xs mt-0.5 ${lightMode ? 'text-gray-500' : 'text-gray-400'}`}>
+              ¥0
+            </p>
+          </div>
+
+          {/* Pro column header */}
+          <div
+            className={`p-3 text-center border-l ${borderColor} bg-gradient-to-b from-yellow-500/10 to-transparent`}
+          >
+            <div className="flex items-center justify-center gap-1">
+              <Crown className="w-4 h-4 text-yellow-400" />
+              <p className="text-sm font-bold text-yellow-400">
+                {t('billing.proPlan')}
+              </p>
+            </div>
+            <p className={`text-xs mt-0.5 ${lightMode ? 'text-gray-500' : 'text-gray-400'}`}>
+              ¥980/{t('billing.perMonth')}
+            </p>
+          </div>
+        </div>
+
+        {/* Feature rows */}
+        {features.map((row, i) => (
+          <div
+            key={row.labelKey}
+            className={`grid grid-cols-3 border-b ${borderColor} ${
+              i % 2 === 0 ? rowEvenBg : ''
+            }`}
+          >
+            {/* Label */}
+            <div className="px-3 py-2.5 flex items-center">
+              <span className={`text-xs leading-tight ${labelColor}`}>
+                {t(row.labelKey)}
+              </span>
+            </div>
+
+            {/* Free value */}
+            <div className={`px-2 py-2.5 flex items-center justify-center border-l ${borderColor}`}>
+              {renderValue(row.free, false)}
+            </div>
+
+            {/* Pro value */}
+            <div
+              className={`px-2 py-2.5 flex items-center justify-center border-l ${borderColor} bg-yellow-500/5`}
+            >
+              {renderValue(row.pro, true)}
+            </div>
+          </div>
+        ))}
+
+        {/* CTA row */}
+        <div className={`grid grid-cols-3`}>
+          <div className="p-3" />
+
+          {/* Free CTA */}
+          <div className={`p-3 flex items-center justify-center border-l ${borderColor}`}>
+            <span
+              className={`text-xs font-medium px-3 py-1.5 rounded-full border ${
+                lightMode
+                  ? 'border-gray-300 text-gray-500'
+                  : 'border-gray-600 text-gray-400'
+              }`}
+            >
+              {t('billing.currentPlan')}
+            </span>
+          </div>
+
+          {/* Pro CTA */}
+          <div className={`p-3 flex items-center justify-center border-l ${borderColor} bg-yellow-500/5`}>
+            <button
+              onClick={handleSubscribe}
+              disabled={loading}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-yellow-500 to-amber-500 text-white text-xs font-bold rounded-full hover:from-yellow-400 hover:to-amber-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+            >
+              {loading ? (
+                t('billing.processing')
               ) : (
                 <>
-                  <CreditCard className="w-4 h-4" />
-                  購入する
+                  <Crown className="w-3.5 h-3.5" />
+                  {t('billing.upgradeToPro')}
                 </>
               )}
             </button>
           </div>
-        ))}
+        </div>
       </div>
 
-      <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800">
-        <p className="font-semibold mb-2">初回特典</p>
-        <p className="mb-2">新規登録で15クレジット無料プレゼント！</p>
-        <p className="text-blue-700">
-          その後はクレジットを購入してご利用ください。
-        </p>
-      </div>
-
-      <div className="p-4 bg-gray-50 rounded-lg text-xs text-gray-600">
-        <p className="font-semibold mb-1">クレジットについて</p>
-        <ul className="list-disc list-inside space-y-1">
-          <li>解析1回につき{ANALYSIS_CREDIT_COST}クレジット消費</li>
-          <li>購入クレジットは有効期限なし（月額付与分は90日）</li>
-          <li>月額サブスクは毎月自動でクレジットが付与されます</li>
-        </ul>
-      </div>
+      {/* Error message */}
+      {error && (
+        <div
+          className={`mt-3 p-3 rounded-lg text-xs text-red-500 border border-red-500/30 ${
+            lightMode ? 'bg-red-50' : 'bg-red-900/20'
+          }`}
+        >
+          {error}
+        </div>
+      )}
     </div>
   );
 }

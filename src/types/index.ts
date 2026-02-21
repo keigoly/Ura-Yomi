@@ -23,11 +23,9 @@ export type {
 // API関連
 export type {
   User,
-  UserSubscription,
-  CreditBatch,
-  NearestExpiry,
+  UserPlan,
   AuthResponse,
-  CreditsResponse,
+  PlanResponse,
   AnalyzeRequest,
   AnalyzeResponse,
   SummaryLength,

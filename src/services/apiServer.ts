@@ -2,11 +2,11 @@
  * バックエンドAPIサーバーとの通信
  */
 
-import type { User, AuthResponse, CreditsResponse } from '../types';
+import type { User, AuthResponse, PlanResponse } from '../types';
 import { API_BASE_URL, API_ENDPOINTS } from '../constants';
 
 // 型をre-export（後方互換性のため）
-export type { User, AuthResponse, CreditsResponse };
+export type { User, AuthResponse, PlanResponse };
 
 /**
  * セッショントークンのストレージキー
@@ -54,7 +54,7 @@ async function apiRequest<T>(
   options: RequestInit = {}
 ): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
-  
+
   try {
     const response = await fetch(url, {
       ...options,
@@ -121,7 +121,7 @@ async function apiRequest<T>(
         );
       }
     }
-    
+
     // その他のエラーはそのまま再スロー
     throw error;
   }
@@ -194,21 +194,26 @@ export async function verifySession(): Promise<AuthResponse> {
 }
 
 /**
- * クレジット残高取得
+ * プラン情報取得
  */
-export async function getCredits(): Promise<CreditsResponse> {
+export async function getUserPlan(): Promise<PlanResponse> {
   const sessionToken = getSessionToken();
   if (!sessionToken) {
-    return { success: false, error: '認証が必要です' };
+    return { success: false, plan: 'free', dailyLimit: 3, dailyUsed: 0, dailyRemaining: 3, commentLimit: 100, error: '認証が必要です' };
   }
 
   try {
-    return await apiRequest<CreditsResponse>(API_ENDPOINTS.USER.CREDITS);
+    return await apiRequest<PlanResponse>(API_ENDPOINTS.USER.PLAN);
   } catch (error) {
-    console.error('Get credits error:', error);
+    console.error('Get plan error:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'クレジット取得エラー',
+      plan: 'free',
+      dailyLimit: 3,
+      dailyUsed: 0,
+      dailyRemaining: 3,
+      commentLimit: 100,
+      error: error instanceof Error ? error.message : 'プラン情報取得エラー',
     };
   }
 }
@@ -252,7 +257,7 @@ export async function analyzeViaServer(
     return data;
   } catch (error) {
     console.error('Analyze error:', error);
-    
+
     // エラーメッセージを改善
     if (error instanceof Error) {
       if (error.message.includes('Failed to fetch') || error.message.includes('fetch')) {
@@ -273,7 +278,7 @@ export async function analyzeViaServer(
       }
       throw error;
     }
-    
+
     throw new Error(`予期しないエラーが発生しました: ${String(error)}`);
   }
 }
@@ -438,56 +443,49 @@ export async function getVideoInfo(videoId: string): Promise<{
 }
 
 /**
- * Stripe Checkout Session作成
+ * Proプランに購読（Stripe Checkout）
  */
-export async function createCheckoutSession(
-  planId: string
-): Promise<{ success: boolean; url?: string; error?: string }> {
+export async function subscribeToPro(): Promise<{ success: boolean; url?: string; error?: string }> {
   const sessionToken = getSessionToken();
   if (!sessionToken) {
     throw new Error('認証が必要です');
   }
 
   const data = await apiRequest<{ success: boolean; url: string; error?: string }>(
-    API_ENDPOINTS.BILLING.CREATE_CHECKOUT,
+    API_ENDPOINTS.BILLING.SUBSCRIBE,
     {
       method: 'POST',
-      body: JSON.stringify({ planId }),
+      body: JSON.stringify({}),
     }
   );
 
   if (!data.success) {
-    throw new Error(data.error || 'Checkout作成エラー');
+    throw new Error(data.error || 'サブスクリプション作成エラー');
   }
 
   return data;
 }
 
 /**
- * クレジット購入
+ * Stripeカスタマーポータルを開く
  */
-export async function purchaseCredits(
-  plan: string,
-  paymentMethod: any
-): Promise<any> {
+export async function openBillingPortal(): Promise<{ success: boolean; url?: string; error?: string }> {
   const sessionToken = getSessionToken();
   if (!sessionToken) {
     throw new Error('認証が必要です');
   }
 
-  try {
-    const data = await apiRequest<any>(API_ENDPOINTS.BILLING.PURCHASE, {
+  const data = await apiRequest<{ success: boolean; url: string; error?: string }>(
+    API_ENDPOINTS.BILLING.PORTAL,
+    {
       method: 'POST',
-      body: JSON.stringify({ plan, paymentMethod }),
-    });
-
-    if (!data.success) {
-      throw new Error(data.error || '購入エラー');
+      body: JSON.stringify({}),
     }
+  );
 
-    return data;
-  } catch (error) {
-    console.error('Purchase error:', error);
-    throw error;
+  if (!data.success) {
+    throw new Error(data.error || 'ポータル作成エラー');
   }
+
+  return data;
 }

@@ -21,7 +21,7 @@ export const API_ENDPOINTS = {
     VERIFY: '/api/auth/verify',
   },
   USER: {
-    CREDITS: '/api/user/credits',
+    PLAN: '/api/user/plan',
   },
   VIDEO: {
     INFO: '/api/video/info',
@@ -35,8 +35,8 @@ export const API_ENDPOINTS = {
     REWRITE: '/api/character/rewrite',
   },
   BILLING: {
-    PURCHASE: '/api/billing/purchase',
-    CREATE_CHECKOUT: '/api/billing/create-checkout-session',
+    SUBSCRIBE: '/api/billing/subscribe',
+    PORTAL: '/api/billing/portal',
   },
 } as const;
 

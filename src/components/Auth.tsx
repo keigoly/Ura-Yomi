@@ -3,10 +3,8 @@
  */
 
 import { useEffect, useState } from 'react';
-import { CreditCard } from 'lucide-react';
-import { authenticateWithGoogle, verifySession, getCredits } from '../services/apiServer';
+import { authenticateWithGoogle, verifySession } from '../services/apiServer';
 import type { User } from '../types';
-import { ANALYSIS_CREDIT_COST } from '../constants';
 import { useTranslation } from '../i18n/useTranslation';
 
 interface AuthProps {
@@ -16,7 +14,6 @@ interface AuthProps {
 function Auth({ onAuthSuccess }: AuthProps) {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
-  const [credits, setCredits] = useState<number | null>(null);
 
   useEffect(() => {
     checkAuth();
@@ -26,14 +23,6 @@ function Auth({ onAuthSuccess }: AuthProps) {
     const result = await verifySession();
     if (result.success && result.user) {
       onAuthSuccess(result.user);
-      loadCredits();
-    }
-  };
-
-  const loadCredits = async () => {
-    const result = await getCredits();
-    if (result.success && result.credits !== undefined) {
-      setCredits(result.credits);
     }
   };
 
@@ -87,7 +76,6 @@ function Auth({ onAuthSuccess }: AuthProps) {
 
           if (result.success && result.user) {
             onAuthSuccess(result.user);
-            await loadCredits();
           } else {
             const errorMsg = result.error || t('auth.authFailed');
             console.error('Auth error:', errorMsg);
@@ -154,40 +142,13 @@ function Auth({ onAuthSuccess }: AuthProps) {
         </div>
       </button>
 
-      {credits !== null && (
-        <div className="p-4 bg-gray-800 border border-gray-700 rounded-lg">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <CreditCard className="w-5 h-5 text-gray-300" />
-              <span className="text-sm font-medium text-white">
-                {t('auth.creditBalance')}
-              </span>
-            </div>
-            <span className="text-lg font-bold text-white">
-              {credits.toLocaleString()}
-            </span>
-          </div>
-          {credits === 999 && (
-            <p className="text-xs text-gray-300 mt-2">
-              {t('auth.devModeCredits')}
-            </p>
-          )}
-          {credits === 15 && (
-            <p className="text-xs text-gray-300 mt-2">
-              {t('auth.welcomeCredits')}
-            </p>
-          )}
-        </div>
-      )}
-
       <div className="p-3 bg-gray-800/50 rounded-lg text-center">
         <p className="text-xs font-semibold text-blue-400 mb-2">
-          {t('auth.freeCredits')}
+          {t('auth.freeStart')}
         </p>
         <div className="text-[11px] text-gray-400 space-y-0.5 leading-relaxed">
-          <p>{t('auth.creditCostInfo', { cost: ANALYSIS_CREDIT_COST })}</p>
-          <p>{t('auth.creditPurchaseInfo')}</p>
-          <p>{t('auth.creditNoExpiry')}</p>
+          <p>{t('auth.freePlanInfo')}</p>
+          <p>{t('auth.proUpgradeInfo')}</p>
         </div>
       </div>
     </div>

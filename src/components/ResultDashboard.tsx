@@ -7,7 +7,7 @@ import { FileDown, Copy, Check, Menu, X, ArrowLeft, Bookmark, ExternalLink, Refr
 import type { AnalysisResult, VideoInfo, YouTubeCommentThread } from '../types';
 import { useDesignStore, BG_COLORS, isLightMode } from '../store/designStore';
 import { useTranslation } from '../i18n/useTranslation';
-import { ANALYSIS_CREDIT_COST } from '../constants';
+// Plan constants are handled server-side now
 import SummaryTab from './tabs/SummaryTab';
 import DeepDiveTab from './tabs/DeepDiveTab';
 import CommentsTab from './tabs/CommentsTab';
@@ -382,7 +382,7 @@ function ResultDashboard({ result, videoInfo, comments, onBack, onSave, onUnsave
               {t('result.reanalyzeConfirmTitle')}
             </h3>
             <p className={`text-sm mb-5 leading-relaxed ${isLight ? 'text-gray-600' : 'text-gray-300'}`}>
-              {t('result.reanalyzeConfirmMessage', { cost: ANALYSIS_CREDIT_COST })}
+              {t('result.reanalyzeConfirmMessage')}
             </p>
             <div className="flex gap-3">
               <button

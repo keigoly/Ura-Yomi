@@ -3,22 +3,17 @@
  */
 
 /**
+ * ユーザープラン
+ */
+export type UserPlan = 'free' | 'pro';
+
+/**
  * ユーザー情報
  */
 export interface User {
   id: string;
   email: string;
-  credits: number;
-  subscription: UserSubscription | null;
-}
-
-/**
- * サブスクリプション情報
- */
-export interface UserSubscription {
-  type: string;
-  startDate: string;
-  creditsPerMonth: number;
+  plan: UserPlan;
 }
 
 /**
@@ -32,36 +27,15 @@ export interface AuthResponse {
 }
 
 /**
- * クレジットバッチ（期限付きクレジット管理）
+ * プラン情報レスポンス
  */
-export interface CreditBatch {
-  id: string;
-  amount: number;
-  remaining: number;
-  source: 'free' | 'purchase' | 'subscription';
-  planId: string | null;
-  grantedAt: string;
-  expiresAt: string | null;
-}
-
-/**
- * 最も近い期限切れ情報
- */
-export interface NearestExpiry {
-  daysLeft: number;
-  amount: number;
-  expiresAt: string;
-}
-
-/**
- * クレジット残高レスポンス
- */
-export interface CreditsResponse {
+export interface PlanResponse {
   success: boolean;
-  credits?: number;
-  subscription?: UserSubscription;
-  creditBatches?: CreditBatch[];
-  nearestExpiry?: NearestExpiry | null;
+  plan: UserPlan;
+  dailyLimit: number | null;
+  dailyUsed: number;
+  dailyRemaining: number | null;
+  commentLimit: number;
   error?: string;
 }
 
@@ -81,7 +55,8 @@ export interface AnalyzeResponse {
   success: boolean;
   result?: import('./analysis').AnalysisResult;
   comments?: import('./youtube').YouTubeCommentThread[];
-  creditsRemaining?: number;
+  plan?: UserPlan;
+  dailyRemaining?: number | null;
   error?: string;
 }
 

@@ -10,7 +10,7 @@ import { analyzeViaServer, analyzeViaServerStream, getVideoInfo, verifySession }
 import type { User } from '../types';
 import { saveHistory, getHistoryEntry, deleteHistoryEntry } from '../services/historyStorage';
 import { getCurrentYouTubeVideo, extractVideoId } from '../utils/youtube';
-import { ANALYSIS_CREDIT_COST } from '../constants';
+// FREE_COMMENT_LIMIT, PRO_COMMENT_LIMIT are used by apiServer.ts internally
 import { useTranslation } from '../i18n/useTranslation';
 import { getLanguage } from '../i18n/useTranslation';
 import { parseAnalysisResult } from '../utils/jsonParser';
@@ -18,6 +18,8 @@ import LoadingView from './LoadingView';
 import ResultDashboard from './ResultDashboard';
 import SettingsView from './SettingsView';
 import Auth from './Auth';
+import Onboarding, { useOnboarding } from './Onboarding';
+import ReviewRequest, { useReviewRequest } from './ReviewRequest';
 
 function SidePanel() {
   const { t } = useTranslation();
@@ -46,6 +48,9 @@ function SidePanel() {
     });
   }, []);
   const [currentVideo, setCurrentVideo] = useState<{ videoId: string; title?: string; commentCount?: number } | null>(null);
+  const { showOnboarding, completeOnboarding } = useOnboarding();
+  const { shouldShow: showReviewRequest, markDismissed: markReviewDismissed } = useReviewRequest();
+  const [reviewSkipped, setReviewSkipped] = useState(false);
   const { fontSize, bgMode } = useDesignStore();
   const bgColor = BG_COLORS[bgMode];
   const isLight = isLightMode(bgMode);
@@ -139,9 +144,10 @@ function SidePanel() {
       const abortController = new AbortController();
       abortControllerRef.current = abortController;
 
-      // 新しい解析開始時は保存フラグをリセット（前回の保存状態を引き継がない）
+      // 新しい解析開始時はフラグをリセット（前回の状態を引き継がない）
       setSavedHistoryId(null);
       setIsFromHistory(false);
+      setReviewSkipped(false);
 
       try {
         // タイトルが空の場合、サーバーから取得
@@ -259,6 +265,12 @@ function SidePanel() {
           total: 100,
         });
 
+        // 解析回数をインクリメント（レビュー依頼用）
+        chrome.storage.local.get(['analysisCount'], (res) => {
+          const count = (res.analysisCount ?? 0) + 1;
+          chrome.storage.local.set({ analysisCount: count });
+        });
+
         await new Promise(resolve => setTimeout(resolve, 500));
       } catch (err) {
         // エラーが発生した場合はタイマーを停止
@@ -276,10 +288,10 @@ function SidePanel() {
         const errorMessage =
           err instanceof Error ? err.message : t('side.unknownError');
 
-        // クレジット不足エラーの場合
-        if (errorMessage.includes('クレジット') || errorMessage.includes('credit')) {
+        // 日次上限到達エラーの場合
+        if (errorMessage.includes('上限') || errorMessage.includes('limit') || errorMessage.includes('クレジット') || errorMessage.includes('credit')) {
           setError(
-            errorMessage + ' ' + t('side.creditShortage')
+            errorMessage + ' ' + t('side.dailyLimitInfo')
           );
         } else {
           setError(errorMessage);
@@ -345,11 +357,7 @@ function SidePanel() {
       }
     };
 
-    // 初回チェック
-    checkPendingAnalysis();
-    checkOpenSettings();
-
-    // storage変更を監視
+    // storage変更を監視（リスナーを先に登録して取りこぼしを防ぐ）
     const handleStorageChange = (changes: {
       [key: string]: chrome.storage.StorageChange;
     }) => {
@@ -364,11 +372,19 @@ function SidePanel() {
         setShowSettings(true);
       }
     };
-
     chrome.storage.onChanged.addListener(handleStorageChange);
+
+    // リスナー登録後に初回チェック（書き込み済みデータを確実に拾う）
+    checkPendingAnalysis();
+    checkOpenSettings();
+
+    // パネルが新規マウントされた場合、background.jsがpendingAnalysisを書き込む前に
+    // 初回チェックが走る可能性があるため、遅延リトライで確実にキャッチする
+    const retryTimer = setTimeout(checkPendingAnalysis, 600);
 
     return () => {
       chrome.storage.onChanged.removeListener(handleStorageChange);
+      clearTimeout(retryTimer);
     };
   }, [handleStartAnalysis]);
 
@@ -499,6 +515,15 @@ function SidePanel() {
     );
   }
 
+  // オンボーディング画面（初回インストール時）
+  if (showOnboarding) {
+    return (
+      <div style={wrapperStyle}>
+        <Onboarding onComplete={completeOnboarding} />
+      </div>
+    );
+  }
+
   if (showSettings) {
     return (
       <div style={wrapperStyle}>
@@ -535,49 +560,55 @@ function SidePanel() {
 
   if (result) {
     return (
-      <ResultDashboard result={result} videoInfo={videoInfo} comments={comments} onBack={() => {
-        if (isFromHistory) {
-          // 履歴から来た場合は設定画面（履歴一覧）に戻る
-          reset();
-          setShowSettings(true);
-          setIsFromHistory(false);
-        } else {
-          reset();
-        }
-        setSavedHistoryId(null);
-      }} onSave={saveCurrentResult} onUnsave={unsaveCurrentResult} isSaved={!!savedHistoryId} onReanalyze={handleReanalyze} onOpenWindow={isStandaloneWindow ? undefined : async () => {
-        try {
-          // chrome.storage.localに解析結果を保存（localStorageより大容量で信頼性が高い）
-          const stateToTransfer = {
-            result,
-            videoInfo,
-            comments,
-            savedHistoryId,
-            isFromHistory,
-          };
-          await chrome.storage.local.set({ transferState: stateToTransfer });
-          // 現在のウィンドウIDを取得（サイドパネルを閉じるため）
-          const currentWindow = await chrome.windows.getCurrent();
-          // background scriptにウィンドウ作成を依頼（サイドパネルからの直接作成は不安定）
-          const resp = await chrome.runtime.sendMessage({ type: 'OPEN_RESULT_WINDOW', windowId: currentWindow.id });
-          if (!resp?.success) {
-            throw new Error(resp?.error || 'Window creation failed');
-          }
-        } catch (e) {
-          console.error('[SidePanel] Failed to open new window:', e);
-          // コメントが大きすぎる場合、コメント抜きで再試行
-          try {
-            await chrome.storage.local.set({
-              transferState: { result, videoInfo, comments: [], savedHistoryId, isFromHistory },
-            });
-            const currentWindow = await chrome.windows.getCurrent();
-            const resp = await chrome.runtime.sendMessage({ type: 'OPEN_RESULT_WINDOW', windowId: currentWindow.id });
-            if (!resp?.success) throw new Error('Retry also failed');
-          } catch (e2) {
-            console.error('[SidePanel] Minimal state transfer also failed:', e2);
-          }
-        }
-      }} />
+      <>
+        {/* レビュー依頼モーダル（3回以上解析後に表示） */}
+        {showReviewRequest && !reviewSkipped && (
+          <ReviewRequest onDismiss={markReviewDismissed} onSkip={() => setReviewSkipped(true)} />
+        )}
+        <ResultDashboard result={result} videoInfo={videoInfo} comments={comments} onBack={() => {
+            if (isFromHistory) {
+              // 履歴から来た場合は設定画面（履歴一覧）に戻る
+              reset();
+              setShowSettings(true);
+              setIsFromHistory(false);
+            } else {
+              reset();
+            }
+            setSavedHistoryId(null);
+          }} onSave={saveCurrentResult} onUnsave={unsaveCurrentResult} isSaved={!!savedHistoryId} onReanalyze={handleReanalyze} onOpenWindow={isStandaloneWindow ? undefined : async () => {
+            try {
+              // chrome.storage.localに解析結果を保存（localStorageより大容量で信頼性が高い）
+              const stateToTransfer = {
+                result,
+                videoInfo,
+                comments,
+                savedHistoryId,
+                isFromHistory,
+              };
+              await chrome.storage.local.set({ transferState: stateToTransfer });
+              // 現在のウィンドウIDを取得（サイドパネルを閉じるため）
+              const currentWindow = await chrome.windows.getCurrent();
+              // background scriptにウィンドウ作成を依頼（サイドパネルからの直接作成は不安定）
+              const resp = await chrome.runtime.sendMessage({ type: 'OPEN_RESULT_WINDOW', windowId: currentWindow.id });
+              if (!resp?.success) {
+                throw new Error(resp?.error || 'Window creation failed');
+              }
+            } catch (e) {
+              console.error('[SidePanel] Failed to open new window:', e);
+              // コメントが大きすぎる場合、コメント抜きで再試行
+              try {
+                await chrome.storage.local.set({
+                  transferState: { result, videoInfo, comments: [], savedHistoryId, isFromHistory },
+                });
+                const currentWindow = await chrome.windows.getCurrent();
+                const resp = await chrome.runtime.sendMessage({ type: 'OPEN_RESULT_WINDOW', windowId: currentWindow.id });
+                if (!resp?.success) throw new Error('Retry also failed');
+              } catch (e2) {
+                console.error('[SidePanel] Minimal state transfer also failed:', e2);
+              }
+            }
+          }} />
+      </>
     );
   }
 
@@ -655,7 +686,7 @@ function SidePanel() {
               >
                 <div className="flex items-center justify-center gap-2 px-4 py-3 bg-[#0f0f0f] rounded-[18px] text-white font-semibold">
                   <Play className="w-5 h-5" />
-                  {t('side.startAnalysis')} ({ANALYSIS_CREDIT_COST} {t('side.credits')})
+                  {t('side.startAnalysis')}
                 </div>
               </button>
             </>
@@ -722,7 +753,7 @@ function SidePanel() {
               >
                 <div className={`flex items-center justify-center gap-2 px-4 py-3 bg-[#0f0f0f] rounded-[18px] font-semibold ${isValidUrl ? 'text-white' : 'text-gray-500'}`}>
                   <Play className="w-5 h-5" />
-                  {urlLoading ? t('side.loading') : `${t('side.startAnalysis')} (${ANALYSIS_CREDIT_COST} ${t('side.credits')})`}
+                  {urlLoading ? t('side.loading') : t('side.startAnalysis')}
                 </div>
               </button>
             </>

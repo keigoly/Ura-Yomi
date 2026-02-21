@@ -4,10 +4,10 @@
 
 import { useState, useEffect } from 'react';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
-import { ArrowLeft, CreditCard, Trash2, LogOut } from 'lucide-react';
-import { getCredits, purchaseCredits, createCheckoutSession, clearSessionToken } from '../services/apiServer';
-import { ANALYSIS_CREDIT_COST } from '../constants';
-import type { NearestExpiry } from '../types';
+import { ArrowLeft, Crown, Trash2, LogOut } from 'lucide-react';
+import { getUserPlan, subscribeToPro, openBillingPortal, clearSessionToken } from '../services/apiServer';
+import type { PlanResponse } from '../services/apiServer';
+import { FREE_DAILY_LIMIT } from '../constants';
 import { useDesignStore, BG_COLORS, isLightMode } from '../store/designStore';
 import type { FontSize } from '../store/designStore';
 import { getHistoryList, deleteHistoryEntry, clearHistory } from '../services/historyStorage';
@@ -85,76 +85,9 @@ const SettingsAccordion: React.FC<AccordionProps> = ({
   );
 };
 
-// ---- 購入プラン ----
-interface PurchasePlan {
-  id: string;
-  name: string;
-  credits: number;
-  price: number;
-  priceUsd: number;
-  description: string;
-}
-
-// Plans are constructed inside the component to access t()
-const PURCHASE_PLANS_BASE: Array<{ id: string; credits: number; price: number; priceUsd: number; nameKey: string; descKey: string; descParams?: Record<string, string | number> }> = [
-  {
-    id: 'credits_30',
-    credits: 30,
-    price: 300,
-    priceUsd: 1.99,
-    nameKey: 'settings.plan30',
-    descKey: 'settings.analysisCount',
-    descParams: { count: 30 / ANALYSIS_CREDIT_COST },
-  },
-  {
-    id: 'credits_60',
-    credits: 60,
-    price: 500,
-    priceUsd: 2.99,
-    nameKey: 'settings.plan60',
-    descKey: 'settings.analysisCount',
-    descParams: { count: 60 / ANALYSIS_CREDIT_COST },
-  },
-  {
-    id: 'credits_150',
-    credits: 150,
-    price: 1000,
-    priceUsd: 6.99,
-    nameKey: 'settings.plan150',
-    descKey: 'settings.analysisCount',
-    descParams: { count: 150 / ANALYSIS_CREDIT_COST },
-  },
-  {
-    id: 'subscription_lite',
-    credits: 90,
-    price: 800,
-    priceUsd: 4.99,
-    nameKey: 'settings.planLite',
-    descKey: 'settings.monthlySubscription',
-    descParams: { credits: 90 },
-  },
-  {
-    id: 'subscription_standard',
-    credits: 300,
-    price: 1980,
-    priceUsd: 12.99,
-    nameKey: 'settings.planStandard',
-    descKey: 'settings.monthlySubscription',
-    descParams: { credits: 300 },
-  },
-];
-
 // ---- メインコンポーネント ----
 function SettingsView({ onBack, onLoadHistory, onLogout }: SettingsViewProps) {
-  const { t, lang } = useTranslation();
-  const PURCHASE_PLANS: PurchasePlan[] = PURCHASE_PLANS_BASE.map(p => ({
-    id: p.id,
-    name: t(p.nameKey),
-    credits: p.credits,
-    price: p.price,
-    priceUsd: p.priceUsd,
-    description: t(p.descKey, p.descParams),
-  }));
+  const { t } = useTranslation();
   // アコーディオン開閉状態
   const [isCreditOpen, setIsCreditOpen] = useState(false);
   const [isLanguageOpen, setIsLanguageOpen] = useState(false);
@@ -167,10 +100,8 @@ function SettingsView({ onBack, onLoadHistory, onLogout }: SettingsViewProps) {
   const [isOtherOpen, setIsOtherOpen] = useState(false);
 
   // データ
-  const [credits, setCredits] = useState<number | null>(null);
-  const [nearestExpiry, setNearestExpiry] = useState<NearestExpiry | null>(null);
-  const [purchaseLoading, setPurchaseLoading] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
+  const [planInfo, setPlanInfo] = useState<PlanResponse | null>(null);
+  const [subscribeLoading, setSubscribeLoading] = useState(false);
   const [language, setLanguageState] = useState<Language>(() => {
     return (localStorage.getItem(STORAGE_KEYS.LANGUAGE) as Language) || 'ja';
   });
@@ -183,24 +114,23 @@ function SettingsView({ onBack, onLoadHistory, onLogout }: SettingsViewProps) {
 
   // 初期化
   useEffect(() => {
-    loadCredits();
+    loadPlanInfo();
     fetchRelease();
 
-    // タブがフォーカスされた時にクレジット残高を再取得（Stripe決済完了後の反映用）
+    // タブがフォーカスされた時にプラン情報を再取得（Stripe決済完了後の反映用）
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        loadCredits();
+        loadPlanInfo();
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, []);
 
-  const loadCredits = async () => {
-    const result = await getCredits();
-    if (result.success && result.credits !== undefined) {
-      setCredits(result.credits);
-      setNearestExpiry(result.nearestExpiry ?? null);
+  const loadPlanInfo = async () => {
+    const result = await getUserPlan();
+    if (result.success) {
+      setPlanInfo(result);
     }
   };
 
@@ -228,51 +158,47 @@ function SettingsView({ onBack, onLoadHistory, onLogout }: SettingsViewProps) {
     }
   };
 
-  // 購入（Stripe Checkout → フォールバック: 旧方式）
-  const handlePurchase = async (planId: string) => {
-    setPurchaseLoading(true);
-    setSelectedPlan(planId);
+  // Proプランへのアップグレード
+  const handleSubscribe = async () => {
+    setSubscribeLoading(true);
     try {
-      // Stripe Checkout Sessionを作成
-      const result = await createCheckoutSession(planId);
+      const result = await subscribeToPro();
       if (result.url) {
-        // 購入前の残高を記録
-        const creditsBefore = credits;
-        // Stripe決済ページを新タブで開く（サイドパネルからはリダイレクト不可のため）
-        window.open(result.url, '_blank');
-        // alertを使わず、即座にポーリング開始（残高が変わるまで2秒ごとにチェック）
-        let attempts = 0;
-        const poll = setInterval(async () => {
-          attempts++;
-          const res = await getCredits();
-          if (res.success && res.credits !== undefined) {
-            setCredits(res.credits);
-            if (res.credits !== creditsBefore) {
-              clearInterval(poll);
-            }
-          }
-          if (attempts >= 60) clearInterval(poll); // 最大60回（120秒）で停止
-        }, 2000);
+        chrome.tabs.create({ url: result.url });
+      } else {
+        alert(result.error || t('settings.purchaseError'));
       }
     } catch (error) {
-      console.error('Checkout error:', error);
-      // Stripeが未設定の場合は旧方式にフォールバック
-      const errorMsg = error instanceof Error ? error.message : '';
-      if (errorMsg.includes('Stripe') || errorMsg.includes('500')) {
-        try {
-          await purchaseCredits(planId, { method: 'test' });
-          await loadCredits();
-          alert(t('settings.purchaseComplete'));
-        } catch (fallbackError) {
-          console.error('Purchase fallback error:', fallbackError);
-          alert(t('settings.purchaseError') + (fallbackError instanceof Error ? fallbackError.message : 'Unknown error'));
-        }
-      } else {
-        alert(t('settings.purchaseError') + errorMsg);
-      }
+      console.error('Subscribe error:', error);
+      alert(t('settings.purchaseError') + (error instanceof Error ? error.message : ''));
     } finally {
-      setPurchaseLoading(false);
-      setSelectedPlan(null);
+      setSubscribeLoading(false);
+    }
+  };
+
+  // Stripeカスタマーポータルを開く
+  const handleBillingPortal = async () => {
+    try {
+      const result = await openBillingPortal();
+      if (result.url) {
+        chrome.tabs.create({ url: result.url });
+      } else {
+        // Stripe未設定やカスタマー未登録の場合
+        const msg = result.error || '';
+        if (msg.includes('Stripe') || msg.includes('カスタマー') || msg.includes('customer')) {
+          alert(t('settings.stripeNotConfigured'));
+        } else {
+          alert(t('settings.purchaseError') + msg);
+        }
+      }
+    } catch (error) {
+      console.error('Billing portal error:', error);
+      const msg = error instanceof Error ? error.message : '';
+      if (msg.includes('Stripe') || msg.includes('カスタマー') || msg.includes('customer')) {
+        alert(t('settings.stripeNotConfigured'));
+      } else {
+        alert(t('settings.purchaseError') + msg);
+      }
     }
   };
 
@@ -386,61 +312,63 @@ function SettingsView({ onBack, onLoadHistory, onLogout }: SettingsViewProps) {
         {/* 設定項目（スクロール） */}
         <div className="p-4 space-y-3 overflow-y-auto flex-1" ref={parent}>
 
-          {/* ===== 1. クレジット管理 ===== */}
+          {/* ===== 1. プラン管理 ===== */}
           <SettingsAccordion
             isLight={isLight}
-            title={t('settings.creditManagement')}
-            currentValueLabel={credits !== null ? `${credits} ${t('side.credits')}` : t('settings.loadingCredits')}
+            title={t('settings.planManagement')}
+            currentValueLabel={planInfo ? (planInfo.plan === 'pro' ? 'Pro' : 'Free') : t('settings.loadingCredits')}
             isOpen={isCreditOpen}
             onToggle={() => setIsCreditOpen(!isCreditOpen)}
           >
             <div className="p-4 space-y-4">
+              {/* 現在のプランバッジ */}
               <div className={`flex items-center justify-between p-3 rounded-lg border ${isLight ? 'bg-white border-gray-200' : 'bg-gray-800 border-gray-700'}`}>
                 <div className="flex items-center gap-2">
-                  <CreditCard className="w-5 h-5 text-blue-400" />
-                  <span className={`text-sm ${isLight ? 'text-gray-600' : 'text-gray-300'}`}>{t('settings.balance')}</span>
+                  <Crown className={`w-5 h-5 ${planInfo?.plan === 'pro' ? 'text-yellow-400' : 'text-gray-400'}`} />
+                  <span className={`text-sm ${isLight ? 'text-gray-600' : 'text-gray-300'}`}>{t('settings.currentPlan')}</span>
                 </div>
-                <span className={`text-lg font-bold ${isLight ? 'text-gray-900' : 'text-white'}`}>{credits !== null ? `${credits}` : '---'}</span>
+                <span className={`text-sm font-bold px-2 py-0.5 rounded-full ${planInfo?.plan === 'pro' ? 'bg-yellow-400/20 text-yellow-400' : isLight ? 'bg-gray-100 text-gray-600' : 'bg-gray-700 text-gray-300'}`}>
+                  {planInfo?.plan === 'pro' ? 'Pro' : 'Free'}
+                </span>
               </div>
-              {nearestExpiry && nearestExpiry.daysLeft <= 30 && (
-                <div className={`p-3 rounded-lg border ${nearestExpiry.daysLeft <= 7 ? 'bg-red-900/20 border-red-700' : 'bg-yellow-900/20 border-yellow-700'}`}>
-                  <div className={`text-xs font-bold mb-1 ${nearestExpiry.daysLeft <= 7 ? 'text-red-400' : 'text-yellow-400'}`}>
-                    {t('settings.expiryWarning')}
-                  </div>
-                  <div className={`text-xs ${nearestExpiry.daysLeft <= 7 ? 'text-red-300' : 'text-yellow-300'}`}>
-                    {t('settings.expiryDetails', { amount: nearestExpiry.amount, days: nearestExpiry.daysLeft })}
-                  </div>
-                </div>
-              )}
-              <div className="space-y-2">
-                <div className="text-xs font-bold text-gray-400 mb-2">{t('settings.selectPlan')}</div>
-                {PURCHASE_PLANS.map((plan) => (
-                  <div key={plan.id} className="p-3 bg-gray-800 rounded-lg border border-gray-700">
-                    <div className="flex items-center justify-between mb-2">
-                      <div>
-                        <div className="text-sm font-bold text-white">{plan.name}</div>
-                        <div className="text-xs text-gray-400">{plan.description}</div>
+
+              {/* Freeプラン: 日次使用量 + アップグレードボタン */}
+              {(!planInfo || planInfo.plan === 'free') && (
+                <>
+                  <div className={`p-3 rounded-lg border ${isLight ? 'bg-gray-50 border-gray-200' : 'bg-gray-800 border-gray-700'}`}>
+                    <div className={`text-xs font-bold mb-2 ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>{t('settings.dailyUsage')}</div>
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 h-2 rounded-full bg-gray-700 overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-blue-500 transition-all"
+                          style={{ width: `${Math.min(100, ((planInfo?.dailyUsed ?? 0) / FREE_DAILY_LIMIT) * 100)}%` }}
+                        />
                       </div>
-                      <div className="text-sm font-bold text-blue-400">{lang === 'en' ? `$${plan.priceUsd}` : `¥${plan.price.toLocaleString()}`}</div>
+                      <span className={`text-xs font-bold flex-shrink-0 ${isLight ? 'text-gray-700' : 'text-gray-200'}`}>
+                        {planInfo?.dailyUsed ?? 0} / {FREE_DAILY_LIMIT}
+                      </span>
                     </div>
-                    <button
-                      onClick={() => handlePurchase(plan.id)}
-                      disabled={purchaseLoading}
-                      className="w-full py-2 text-sm font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                    >
-                      {purchaseLoading && selectedPlan === plan.id ? t('settings.processing') : (<><CreditCard className="w-4 h-4" />{t('settings.purchase')}</>)}
-                    </button>
                   </div>
-                ))}
-              </div>
-              <div className="p-3 bg-gray-800/50 rounded-lg border border-gray-700 text-xs text-gray-400 space-y-1">
-                <p className="font-bold text-gray-300">{t('settings.aboutCredits')}</p>
-                <ul className="list-disc list-inside space-y-0.5">
-                  <li>{t('settings.creditCostInfo', { cost: ANALYSIS_CREDIT_COST })}</li>
-                  <li>{t('settings.creditNoExpiry')}</li>
-                  <li>{t('settings.subscriptionInfo')}</li>
-                </ul>
-              </div>
+                  <button
+                    onClick={handleSubscribe}
+                    disabled={subscribeLoading}
+                    className="w-full py-2.5 text-sm font-bold text-white bg-gradient-to-r from-yellow-500 to-orange-500 rounded-lg hover:brightness-110 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    <Crown className="w-4 h-4" />
+                    {subscribeLoading ? t('settings.processing') : t('settings.upgradeToPro')}
+                  </button>
+                </>
+              )}
+
+              {/* Proプラン: カスタマーポータルリンク */}
+              {planInfo?.plan === 'pro' && (
+                <button
+                  onClick={handleBillingPortal}
+                  className={`w-full py-2.5 text-sm font-bold rounded-lg border transition-colors flex items-center justify-center gap-2 ${isLight ? 'border-gray-300 text-gray-700 hover:bg-gray-100' : 'border-gray-600 text-gray-300 hover:bg-gray-700'}`}
+                >
+                  {t('settings.manageSubscription')}
+                </button>
+              )}
             </div>
           </SettingsAccordion>
 

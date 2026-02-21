@@ -1,10 +1,10 @@
 {
   "extName": {
-    "message": "ウラヨミ！ Powered by Google Gemini",
+    "message": "Ura-Yomi! - YouTubeコメントAI分析・感情分析ツール",
     "description": "Extension name shown in Chrome"
   },
   "extDescription": {
-    "message": "コメント欄の「ウラ」、全部読み解いてあげる！YouTube動画のコメントをAIで解析し、視聴者の本音を可視化する名探偵ツール",
+    "message": "YouTubeの動画コメントをAIが自動で感情分析。ポジティブ・ネガティブの比率、ワードクラウド、トピック抽出を3秒で可視化。VTuberの推し活データ分析、YouTuberの競合分析、コメント要約に対応した無料Chrome拡張機能です。",
     "description": "Extension description shown in Chrome"
   }
 }
