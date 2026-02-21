@@ -3,12 +3,12 @@
  */
 
 import { useEffect, useCallback, useRef, useState } from 'react';
-import { Play, Link, Settings, ExternalLink } from 'lucide-react';
+import { Play, Link, Settings, ExternalLink, Clock, Star } from 'lucide-react';
 import { useAnalysisStore } from '../store/analysisStore';
 import { useDesignStore, BG_COLORS, isLightMode } from '../store/designStore';
 import { analyzeViaServer, analyzeViaServerStream, getVideoInfo, verifySession } from '../services/apiServer';
 import type { User } from '../types';
-import { saveHistory, getHistoryEntry, deleteHistoryEntry } from '../services/historyStorage';
+import { addToHistory, addFavorite, removeFavorite, getEntryById, isFavorite, migrateFromLocalStorage } from '../services/analysisStorage';
 import { getCurrentYouTubeVideo, extractVideoId } from '../utils/youtube';
 // FREE_COMMENT_LIMIT, PRO_COMMENT_LIMIT are used by apiServer.ts internally
 import { useTranslation } from '../i18n/useTranslation';
@@ -20,6 +20,7 @@ import SettingsView from './SettingsView';
 import Auth from './Auth';
 import Onboarding, { useOnboarding } from './Onboarding';
 import ReviewRequest, { useReviewRequest } from './ReviewRequest';
+import HistorySection from './HistorySection';
 
 function SidePanel() {
   const { t } = useTranslation();
@@ -32,12 +33,14 @@ function SidePanel() {
     }
     return false;
   });
+  const [showHistory, setShowHistory] = useState<'favorites' | 'history' | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [urlInput, setUrlInput] = useState('');
   const [urlLoading, setUrlLoading] = useState(false);
-  const [isFromHistory, setIsFromHistory] = useState(false);
-  const [savedHistoryId, setSavedHistoryId] = useState<string | null>(null);
+  const [isFromHistory, setIsFromHistory] = useState<'favorites' | 'history' | false>(false);
+  const [savedFavoriteId, setSavedFavoriteId] = useState<string | null>(null);
+  const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
   const [shareToast, setShareToast] = useState<string | null>(null);
   const showShareToast = (msg: string) => { setShareToast(msg); setTimeout(() => setShareToast(null), 2000); };
   const [interruptedNotice, setInterruptedNotice] = useState(false);
@@ -84,7 +87,7 @@ function SidePanel() {
               isAnalyzing: false,
               error: null,
             });
-            if (state.savedHistoryId) setSavedHistoryId(state.savedHistoryId);
+            if (state.savedFavoriteId) setSavedFavoriteId(state.savedFavoriteId);
             if (state.isFromHistory) setIsFromHistory(state.isFromHistory);
           }
         } catch (e) {
@@ -116,6 +119,11 @@ function SidePanel() {
     chrome.storage.local.set({ language: lang });
   }, []);
 
+  // 初回マウント時にlocalStorageからのマイグレーション実行
+  useEffect(() => {
+    migrateFromLocalStorage();
+  }, []);
+
   // 解析中断フラグの確認
   useEffect(() => {
     chrome.storage.local.get(['analysisInterrupted']).then((result) => {
@@ -145,7 +153,7 @@ function SidePanel() {
       abortControllerRef.current = abortController;
 
       // 新しい解析開始時はフラグをリセット（前回の状態を引き継がない）
-      setSavedHistoryId(null);
+      setSavedFavoriteId(null);
       setIsFromHistory(false);
       setReviewSkipped(false);
 
@@ -271,6 +279,25 @@ function SidePanel() {
           chrome.storage.local.set({ analysisCount: count });
         });
 
+        // 解析結果を自動的に履歴に保存
+        const currentState = useAnalysisStore.getState();
+        if (currentState.result && currentState.videoInfo) {
+          const historyId = `${Date.now()}`;
+          addToHistory({
+            id: historyId,
+            videoId: currentState.videoInfo.videoId,
+            videoTitle: currentState.videoInfo.title || currentState.videoInfo.videoId,
+            analyzedAt: new Date().toISOString(),
+            result: currentState.result,
+            comments: currentState.comments || [],
+            videoInfo: currentState.videoInfo,
+          }).then(() => {
+            setHistoryRefreshKey((k) => k + 1);
+          }).catch((e) => {
+            console.error('[SidePanel] Failed to auto-save to history:', e);
+          });
+        }
+
         await new Promise(resolve => setTimeout(resolve, 500));
       } catch (err) {
         // エラーが発生した場合はタイマーを停止
@@ -315,7 +342,7 @@ function SidePanel() {
     }
     // UIをリセット
     reset();
-    setSavedHistoryId(null);
+    setSavedFavoriteId(null);
   }, [reset]);
 
   // コンポーネントのアンマウント時にクリーンアップ
@@ -392,15 +419,15 @@ function SidePanel() {
     setShowSettings(true);
   };
 
-  // 現在の解析結果を履歴に保存
-  const saveCurrentResult = useCallback(() => {
+  // 現在の解析結果をお気に入りに保存
+  const saveCurrentResult = useCallback(async () => {
     if (!result || !videoInfo) {
       console.warn('[SidePanel] saveCurrentResult: result or videoInfo is null', { result: !!result, videoInfo: !!videoInfo });
       return;
     }
     try {
-      const id = `${Date.now()}`;
-      saveHistory({
+      const id = savedFavoriteId || `${Date.now()}`;
+      await addFavorite({
         id,
         videoId: videoInfo.videoId,
         videoTitle: videoInfo.title || videoInfo.videoId,
@@ -409,18 +436,24 @@ function SidePanel() {
         comments,
         videoInfo,
       });
-      setSavedHistoryId(id);
+      setSavedFavoriteId(id);
+      setHistoryRefreshKey((k) => k + 1);
     } catch (e) {
-      console.error('[SidePanel] Failed to save history:', e);
+      if (e instanceof Error && e.message === 'FAVORITES_FULL') {
+        alert(t('history.favoritesFull'));
+      } else {
+        console.error('[SidePanel] Failed to save favorite:', e);
+      }
     }
-  }, [result, comments, videoInfo]);
+  }, [result, comments, videoInfo, savedFavoriteId, t]);
 
-  // 履歴から削除
-  const unsaveCurrentResult = useCallback(() => {
-    if (!savedHistoryId) return;
-    deleteHistoryEntry(savedHistoryId);
-    setSavedHistoryId(null);
-  }, [savedHistoryId]);
+  // お気に入りから削除
+  const unsaveCurrentResult = useCallback(async () => {
+    if (!savedFavoriteId) return;
+    await removeFavorite(savedFavoriteId);
+    setSavedFavoriteId(null);
+    setHistoryRefreshKey((k) => k + 1);
+  }, [savedFavoriteId]);
 
   // 再解析
   const handleReanalyze = useCallback(() => {
@@ -428,16 +461,22 @@ function SidePanel() {
     handleStartAnalysis(videoInfo.videoId, videoInfo.title, true);
   }, [videoInfo, handleStartAnalysis]);
 
-  // 履歴から読み込み
-  const loadHistoryEntry = useCallback((id: string) => {
-    const entry = getHistoryEntry(id);
+  // 履歴/お気に入りから読み込み
+  const loadEntry = useCallback(async (id: string, fromPage?: 'favorites' | 'history') => {
+    const entry = await getEntryById(id);
     if (!entry) return;
     setComments(entry.comments);
     setResult(entry.result);
-    // videoInfoはstartAnalysisで設定されるが、履歴読み込み時は直接storeに設定
     useAnalysisStore.setState({ videoInfo: entry.videoInfo });
-    setIsFromHistory(true);
-    setSavedHistoryId(id);
+    setIsFromHistory(fromPage || (entry.source === 'favorite' ? 'favorites' : 'history'));
+    // お気に入りの場合はIDをセット
+    if (entry.source === 'favorite') {
+      setSavedFavoriteId(id);
+    } else {
+      // 履歴エントリの場合、お気に入りかどうかチェック
+      const favFlag = await isFavorite(id);
+      setSavedFavoriteId(favFlag ? id : null);
+    }
     setShowSettings(false);
   }, [setComments, setResult]);
 
@@ -527,7 +566,24 @@ function SidePanel() {
   if (showSettings) {
     return (
       <div style={wrapperStyle}>
-        <SettingsView onBack={() => setShowSettings(false)} onLoadHistory={loadHistoryEntry} onLogout={() => location.reload()} />
+        <SettingsView onBack={() => setShowSettings(false)} onLogout={() => location.reload()} />
+      </div>
+    );
+  }
+
+  if (showHistory) {
+    return (
+      <div style={wrapperStyle}>
+        <HistorySection
+          mode={showHistory}
+          onBack={() => setShowHistory(null)}
+          onLoadEntry={(id) => {
+            const currentMode = showHistory;
+            setShowHistory(null);
+            loadEntry(id, currentMode || undefined);
+          }}
+          refreshKey={historyRefreshKey}
+        />
       </div>
     );
   }
@@ -566,23 +622,23 @@ function SidePanel() {
           <ReviewRequest onDismiss={markReviewDismissed} onSkip={() => setReviewSkipped(true)} />
         )}
         <ResultDashboard result={result} videoInfo={videoInfo} comments={comments} onBack={() => {
-            if (isFromHistory) {
-              // 履歴から来た場合は設定画面（履歴一覧）に戻る
-              reset();
-              setShowSettings(true);
-              setIsFromHistory(false);
-            } else {
-              reset();
+            const returnTo = isFromHistory;
+            reset();
+            setSavedFavoriteId(null);
+            setHistoryRefreshKey((k) => k + 1);
+            if (returnTo) {
+              // お気に入り/履歴から来た場合はそのリストページに戻る
+              setShowHistory(returnTo);
             }
-            setSavedHistoryId(null);
-          }} onSave={saveCurrentResult} onUnsave={unsaveCurrentResult} isSaved={!!savedHistoryId} onReanalyze={handleReanalyze} onOpenWindow={isStandaloneWindow ? undefined : async () => {
+            setIsFromHistory(false);
+          }} onSave={saveCurrentResult} onUnsave={unsaveCurrentResult} isSaved={!!savedFavoriteId} onReanalyze={handleReanalyze} onOpenWindow={isStandaloneWindow ? undefined : async () => {
             try {
               // chrome.storage.localに解析結果を保存（localStorageより大容量で信頼性が高い）
               const stateToTransfer = {
                 result,
                 videoInfo,
                 comments,
-                savedHistoryId,
+                savedFavoriteId,
                 isFromHistory,
               };
               await chrome.storage.local.set({ transferState: stateToTransfer });
@@ -598,7 +654,7 @@ function SidePanel() {
               // コメントが大きすぎる場合、コメント抜きで再試行
               try {
                 await chrome.storage.local.set({
-                  transferState: { result, videoInfo, comments: [], savedHistoryId, isFromHistory },
+                  transferState: { result, videoInfo, comments: [], savedFavoriteId, isFromHistory },
                 });
                 const currentWindow = await chrome.windows.getCurrent();
                 const resp = await chrome.runtime.sendMessage({ type: 'OPEN_RESULT_WINDOW', windowId: currentWindow.id });
@@ -654,8 +710,8 @@ function SidePanel() {
       </div>
 
       {/* メインコンテンツ */}
-      <div className="flex-1 flex items-center justify-center px-6 pb-12">
-        <div className="w-full max-w-sm space-y-5">
+      <div className="flex-1 overflow-y-auto px-6 pb-4 flex flex-col justify-center">
+        <div className="w-full max-w-sm mx-auto space-y-5">
           {currentVideo ? (
             <>
               {/* 現在の動画情報 */}
@@ -679,16 +735,18 @@ function SidePanel() {
               </div>
 
               {/* 解析ボタン */}
-              <button
-                onClick={() => handleStartAnalysis(currentVideo.videoId, currentVideo.title)}
-                className="w-full rounded-[20px] p-[2px] cursor-pointer transition-all hover:brightness-125 hover:shadow-[0_0_12px_2px_rgba(100,100,255,0.5)]"
-                style={{ background: 'conic-gradient(from 180deg, #0000FF, #00FFFF, #00FF00, #FFFF00, #FF8C00, #FF0000, #0000FF)' }}
-              >
-                <div className="flex items-center justify-center gap-2 px-4 py-3 bg-[#0f0f0f] rounded-[18px] text-white font-semibold">
-                  <Play className="w-5 h-5" />
-                  {t('side.startAnalysis')}
-                </div>
-              </button>
+              <div className="relative w-full glow-btn-wrap">
+                <button
+                  onClick={() => handleStartAnalysis(currentVideo.videoId, currentVideo.title)}
+                  className="relative w-full rounded-[20px] p-[2px] cursor-pointer transition-all z-[1]"
+                  style={{ background: 'conic-gradient(from 180deg, #0000FF, #00FFFF, #00FF00, #FFFF00, #FF8C00, #FF0000, #0000FF)' }}
+                >
+                  <div className="flex items-center justify-center gap-2 px-4 py-3 bg-[#0f0f0f] rounded-[18px] text-white font-semibold">
+                    <Play className="w-5 h-5" />
+                    {t('side.startAnalysis')}
+                  </div>
+                </button>
+              </div>
             </>
           ) : (
             <>
@@ -741,23 +799,62 @@ function SidePanel() {
               </div>
 
               {/* 解析ボタン */}
-              <button
-                onClick={handleUrlAnalyze}
-                disabled={!isValidUrl || urlLoading}
-                className={`w-full rounded-[20px] p-[2px] transition-all ${
-                  isValidUrl
-                    ? 'cursor-pointer hover:brightness-125 hover:shadow-[0_0_12px_2px_rgba(100,100,255,0.5)]'
-                    : 'opacity-40 cursor-not-allowed'
-                }`}
-                style={{ background: 'conic-gradient(from 180deg, #0000FF, #00FFFF, #00FF00, #FFFF00, #FF8C00, #FF0000, #0000FF)' }}
-              >
-                <div className={`flex items-center justify-center gap-2 px-4 py-3 bg-[#0f0f0f] rounded-[18px] font-semibold ${isValidUrl ? 'text-white' : 'text-gray-500'}`}>
-                  <Play className="w-5 h-5" />
-                  {urlLoading ? t('side.loading') : t('side.startAnalysis')}
-                </div>
-              </button>
+              <div className={`relative w-full ${isValidUrl ? 'glow-btn-wrap' : ''}`}>
+                <button
+                  onClick={handleUrlAnalyze}
+                  disabled={!isValidUrl || urlLoading}
+                  className={`relative w-full rounded-[20px] p-[2px] transition-all z-[1] ${
+                    isValidUrl
+                      ? 'cursor-pointer'
+                      : 'opacity-40 cursor-not-allowed'
+                  }`}
+                  style={{ background: 'conic-gradient(from 180deg, #0000FF, #00FFFF, #00FF00, #FFFF00, #FF8C00, #FF0000, #0000FF)' }}
+                >
+                  <div className={`flex items-center justify-center gap-2 px-4 py-3 bg-[#0f0f0f] rounded-[18px] font-semibold ${isValidUrl ? 'text-white' : 'text-gray-500'}`}>
+                    <Play className="w-5 h-5" />
+                    {urlLoading ? t('side.loading') : t('side.startAnalysis')}
+                  </div>
+                </button>
+              </div>
             </>
           )}
+
+          {/* お気に入りボタン（黄色 + 黄色シャドウ） */}
+          <div className="relative w-full glow-btn-wrap glow-yellow">
+            <button
+              onClick={() => setShowHistory('favorites')}
+              className="relative w-full rounded-[20px] p-[1px] cursor-pointer transition-all z-[1] bg-yellow-500"
+            >
+              <div className={`flex items-center justify-center gap-2 px-4 py-3 rounded-[19px] font-semibold ${isLight ? 'bg-white text-yellow-600' : 'bg-[#0f0f0f] text-yellow-500'}`}>
+                <Star className="w-5 h-5 fill-current" />
+                {t('history.viewFavorites')}
+              </div>
+            </button>
+          </div>
+
+          {/* 履歴ボタン（白縁 + 白色シャドウ） */}
+          <div className="relative w-full glow-btn-wrap glow-white">
+            <button
+              onClick={() => setShowHistory('history')}
+              className={`relative w-full rounded-[20px] p-[1px] cursor-pointer transition-all z-[1] ${isLight ? 'bg-gray-300' : 'border border-white/40 bg-transparent'}`}
+            >
+              <div className={`flex items-center justify-center gap-2 px-4 py-3 rounded-[19px] font-semibold ${isLight ? 'bg-white text-gray-600' : 'bg-[#0f0f0f] text-gray-300'}`}>
+                <Clock className="w-5 h-5" />
+                {t('history.viewHistory')}
+              </div>
+            </button>
+          </div>
+
+          {/* キャラクター紹介ボタン（虹色グラデーション + グラデーションシャドウ） */}
+          <div className="relative w-full character-intro-btn">
+            <button
+              onClick={() => { /* TODO: キャラクタープロフィールページ */ }}
+              className="relative w-full rounded-[50px] px-4 py-3 cursor-pointer font-semibold text-white z-[1] transition-all"
+              style={{ background: 'linear-gradient(135deg, #667eea, #764ba2, #f093fb, #f5576c, #fda085, #f6d365, #96e6a1, #667eea)' }}
+            >
+              {t('side.characterIntro')}
+            </button>
+          </div>
         </div>
       </div>
 

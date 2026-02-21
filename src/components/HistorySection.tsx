@@ -1,0 +1,186 @@
+/**
+ * お気に入り or 履歴ページコンポーネント（フルページビュー）
+ */
+
+import { useState, useEffect, useCallback } from 'react';
+import { ArrowLeft, Star, Trash2, Clock } from 'lucide-react';
+import { useDesignStore, BG_COLORS, isLightMode } from '../store/designStore';
+import { useTranslation } from '../i18n/useTranslation';
+import {
+  getFavoritesList,
+  getHistoryList,
+  removeFavorite,
+  removeFromHistory,
+  clearAllHistory,
+} from '../services/analysisStorage';
+import type { FavoriteListItem, HistoryListItem } from '../services/analysisStorage';
+
+interface HistorySectionProps {
+  mode: 'favorites' | 'history';
+  onBack: () => void;
+  onLoadEntry: (id: string) => void;
+  refreshKey?: number;
+}
+
+function HistorySection({ mode, onBack, onLoadEntry, refreshKey }: HistorySectionProps) {
+  const { t } = useTranslation();
+  const { bgMode } = useDesignStore();
+  const bgColor = BG_COLORS[bgMode];
+  const isLight = isLightMode(bgMode);
+
+  const [favorites, setFavorites] = useState<FavoriteListItem[]>([]);
+  const [history, setHistory] = useState<HistoryListItem[]>([]);
+
+  const loadData = useCallback(async () => {
+    if (mode === 'favorites') {
+      setFavorites(await getFavoritesList());
+    } else {
+      setHistory(await getHistoryList());
+    }
+  }, [mode]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData, refreshKey]);
+
+  const handleRemoveFavorite = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    await removeFavorite(id);
+    await loadData();
+  };
+
+  const handleRemoveHistory = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    await removeFromHistory(id);
+    await loadData();
+  };
+
+  const handleClearAll = async () => {
+    if (!confirm(t('history.confirmClearAll'))) return;
+    await clearAllHistory();
+    await loadData();
+  };
+
+  const formatDate = (dateStr: string) => {
+    try {
+      const date = new Date(dateStr);
+      const now = new Date();
+      const diffMs = now.getTime() - date.getTime();
+      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+      if (diffDays === 0) {
+        return date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+      } else if (diffDays < 7) {
+        return `${diffDays}${t('comments.daysAgo').replace('{n}', '')}`;
+      } else {
+        return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+      }
+    } catch {
+      return '';
+    }
+  };
+
+  const pageTitle = mode === 'favorites' ? t('history.favorites') : t('history.recentHistory');
+
+  return (
+    <div className="flex flex-col" style={{ backgroundColor: bgColor, height: '100vh' }}>
+      {/* ヘッダー（固定） */}
+      <div className={`flex items-center gap-3 p-4 border-b flex-shrink-0 ${isLight ? 'border-gray-200' : 'border-gray-700'}`} style={{ backgroundColor: bgColor }}>
+        <button onClick={onBack} className={`p-1.5 rounded-lg transition-colors ${isLight ? 'hover:bg-gray-100' : 'hover:bg-gray-800'}`}>
+          <ArrowLeft className={`w-5 h-5 ${isLight ? 'text-gray-600' : 'text-gray-300'}`} />
+        </button>
+        <div className="flex items-center gap-2">
+          {mode === 'favorites'
+            ? <Star className="w-5 h-5 text-yellow-500 fill-yellow-500" />
+            : <Clock className={`w-5 h-5 ${isLight ? 'text-gray-600' : 'text-gray-300'}`} />
+          }
+          <h1 className={`text-lg font-bold ${isLight ? 'text-gray-900' : 'text-white'}`}>{pageTitle}</h1>
+        </div>
+      </div>
+
+      {/* コンテンツ（スクロール） */}
+      <div className="flex-1 overflow-y-auto p-4">
+
+        {mode === 'favorites' ? (
+          /* ===== お気に入りページ ===== */
+          <div className="space-y-2">
+            {favorites.length === 0 ? (
+              <p className={`text-sm text-center py-12 ${isLight ? 'text-gray-400' : 'text-gray-500'}`}>
+                {t('history.noFavorites')}
+              </p>
+            ) : (
+              favorites.map((item) => (
+                <div
+                  key={item.id}
+                  onClick={() => onLoadEntry(item.id)}
+                  className={`flex items-center gap-2 px-3 py-3 rounded-lg border cursor-pointer transition-colors ${isLight ? 'border-gray-200 bg-white hover:bg-gray-50' : 'border-gray-700 bg-gray-800 hover:bg-gray-700'}`}
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm font-medium truncate ${isLight ? 'text-gray-800' : 'text-gray-200'}`}>
+                      {item.videoTitle || item.videoId}
+                    </p>
+                    <p className={`text-xs mt-0.5 ${isLight ? 'text-gray-400' : 'text-gray-500'}`}>
+                      {formatDate(item.analyzedAt)}
+                    </p>
+                  </div>
+                  <button
+                    onClick={(e) => handleRemoveFavorite(e, item.id)}
+                    className={`p-1.5 rounded transition-colors flex-shrink-0 ${isLight ? 'hover:bg-gray-100 text-yellow-500' : 'hover:bg-gray-600 text-yellow-500'}`}
+                    title={t('history.removeFavorite')}
+                  >
+                    <Star className="w-4 h-4 fill-yellow-500" />
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        ) : (
+          /* ===== 履歴ページ ===== */
+          <div className="space-y-2">
+            {history.length === 0 ? (
+              <p className={`text-sm text-center py-12 ${isLight ? 'text-gray-400' : 'text-gray-500'}`}>
+                {t('history.noHistory')}
+              </p>
+            ) : (
+              <>
+                {history.map((item) => (
+                  <div
+                    key={item.id}
+                    onClick={() => onLoadEntry(item.id)}
+                    className={`flex items-center gap-2 px-3 py-3 rounded-lg border cursor-pointer transition-colors ${isLight ? 'border-gray-200 bg-white hover:bg-gray-50' : 'border-gray-700 bg-gray-800 hover:bg-gray-700'}`}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm font-medium truncate ${isLight ? 'text-gray-800' : 'text-gray-200'}`}>
+                        {item.videoTitle || item.videoId}
+                      </p>
+                      <p className={`text-xs mt-0.5 ${isLight ? 'text-gray-400' : 'text-gray-500'}`}>
+                        {formatDate(item.analyzedAt)}
+                      </p>
+                    </div>
+                    <button
+                      onClick={(e) => handleRemoveHistory(e, item.id)}
+                      className={`p-1.5 rounded transition-colors flex-shrink-0 ${isLight ? 'hover:bg-red-100 text-gray-400 hover:text-red-500' : 'hover:bg-red-900/30 text-gray-500 hover:text-red-400'}`}
+                      title={t('history.deleteEntry')}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+                {/* 全履歴削除ボタン */}
+                <button
+                  onClick={handleClearAll}
+                  className={`w-full flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg text-xs font-medium transition-colors mt-2 ${isLight ? 'text-gray-400 hover:text-red-500 hover:bg-red-50' : 'text-gray-500 hover:text-red-400 hover:bg-red-900/20'}`}
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  {t('history.clearAll')}
+                </button>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default HistorySection;

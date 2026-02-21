@@ -307,7 +307,7 @@ function ResultDashboard({ result, videoInfo, comments, onBack, onSave, onUnsave
                     ? 'text-yellow-500 hover:text-yellow-600'
                     : isLight ? 'text-gray-400 hover:text-gray-600' : 'text-gray-500 hover:text-gray-300'
                 }`}
-                title={isSaved ? t('result.unsaveResult') : t('result.saveResult')}
+                title={isSaved ? t('history.removeFavorite') : t('history.addFavorite')}
               >
                 <Bookmark className={`w-5 h-5 ${isSaved ? 'fill-yellow-500' : ''}`} />
               </button>

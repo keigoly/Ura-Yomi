@@ -4,14 +4,12 @@
 
 import { useState, useEffect } from 'react';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
-import { ArrowLeft, Crown, Trash2, LogOut } from 'lucide-react';
+import { ArrowLeft, Crown, LogOut } from 'lucide-react';
 import { getUserPlan, subscribeToPro, openBillingPortal, clearSessionToken } from '../services/apiServer';
 import type { PlanResponse } from '../services/apiServer';
 import { FREE_DAILY_LIMIT } from '../constants';
 import { useDesignStore, BG_COLORS, isLightMode } from '../store/designStore';
 import type { FontSize } from '../store/designStore';
-import { getHistoryList, deleteHistoryEntry, clearHistory } from '../services/historyStorage';
-import type { HistoryListItem } from '../services/historyStorage';
 import { useTranslation } from '../i18n/useTranslation';
 
 // ---- 型定義 ----
@@ -27,7 +25,6 @@ interface ReleaseData {
 
 interface SettingsViewProps {
   onBack: () => void;
-  onLoadHistory?: (id: string) => void;
   onLogout?: () => void;
 }
 
@@ -86,7 +83,7 @@ const SettingsAccordion: React.FC<AccordionProps> = ({
 };
 
 // ---- メインコンポーネント ----
-function SettingsView({ onBack, onLoadHistory, onLogout }: SettingsViewProps) {
+function SettingsView({ onBack, onLogout }: SettingsViewProps) {
   const { t } = useTranslation();
   // アコーディオン開閉状態
   const [isCreditOpen, setIsCreditOpen] = useState(false);
@@ -95,8 +92,6 @@ function SettingsView({ onBack, onLoadHistory, onLogout }: SettingsViewProps) {
   const [isNgOpen, setIsNgOpen] = useState(false);
   const [isDesignOpen, setIsDesignOpen] = useState(false);
   const [isStorageOpen, setIsStorageOpen] = useState(false);
-  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-  const [historyList, setHistoryList] = useState<HistoryListItem[]>(() => getHistoryList());
   const [isOtherOpen, setIsOtherOpen] = useState(false);
 
   // データ
@@ -569,68 +564,7 @@ function SettingsView({ onBack, onLoadHistory, onLogout }: SettingsViewProps) {
             </div>
           </SettingsAccordion>
 
-          {/* ===== 7. 履歴 ===== */}
-          <SettingsAccordion
-            isLight={isLight}
-            title={t('settings.history')}
-            currentValueLabel={t('settings.historyCount', { count: historyList.length })}
-            isOpen={isHistoryOpen}
-            onToggle={() => { setIsHistoryOpen(!isHistoryOpen); setHistoryList(getHistoryList()); }}
-          >
-            <div className="p-4 space-y-3">
-              {historyList.length === 0 ? (
-                <p className={`text-sm text-center py-4 ${isLight ? 'text-gray-400' : 'text-gray-500'}`}>
-                  {t('settings.noHistory')}
-                </p>
-              ) : (
-                <>
-                  {historyList.map((item) => (
-                    <div
-                      key={item.id}
-                      className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors ${isLight ? 'border-gray-200 bg-white hover:bg-gray-100' : 'border-gray-700 bg-gray-800 hover:bg-gray-700'}`}
-                    >
-                      <div
-                        className="flex-1 min-w-0"
-                        onClick={() => onLoadHistory?.(item.id)}
-                      >
-                        <p className={`text-sm font-medium truncate ${isLight ? 'text-gray-900' : 'text-white'}`}>
-                          {item.videoTitle || item.videoId}
-                        </p>
-                        <p className={`text-xs ${isLight ? 'text-gray-400' : 'text-gray-500'}`}>
-                          {new Date(item.analyzedAt).toLocaleString('ja-JP')}
-                        </p>
-                      </div>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          deleteHistoryEntry(item.id);
-                          setHistoryList(getHistoryList());
-                        }}
-                        className={`p-1.5 rounded-lg transition-colors flex-shrink-0 ${isLight ? 'hover:bg-red-100 text-gray-400 hover:text-red-500' : 'hover:bg-red-900/30 text-gray-500 hover:text-red-400'}`}
-                        title={t('settings.delete')}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
-                  <button
-                    onClick={() => {
-                      if (confirm(t('settings.confirmDeleteHistory'))) {
-                        clearHistory();
-                        setHistoryList([]);
-                      }
-                    }}
-                    className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-red-500 text-red-500 text-xs font-bold hover:bg-red-500 hover:text-white transition-colors"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    {t('settings.deleteAll')}
-                  </button>
-                </>
-              )}
-            </div>
-          </SettingsAccordion>
-
-          {/* ===== 8. その他・問い合わせ ===== */}
+          {/* ===== 7. その他・問い合わせ ===== */}
           <SettingsAccordion
             isLight={isLight}
             title={t('settings.other')}

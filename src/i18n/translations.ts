@@ -53,6 +53,7 @@ const ja = {
   'side.serverProcessing': 'サーバーで処理中...',
   'side.aiAnalyzing': 'AI解析中...',
   'side.complete': '完了',
+  'side.characterIntro': 'キャラクター紹介！',
 
   // ---- LoadingView ----
   'loading.fetching': 'コメント取得中',
@@ -74,11 +75,11 @@ const ja = {
   'result.copySummary': '要約をコピー',
   'result.exportJson': 'JSONでエクスポート',
   'result.saved': '保存しました',
-  'result.saveResult': '解析結果を保存',
-  'result.unsaveResult': '保存を解除',
+  'result.saveResult': 'お気に入りに追加',
+  'result.unsaveResult': 'お気に入りから削除',
   'result.toastCopied': '要約をコピーしました',
-  'result.toastSaved': '解析結果を履歴に保存しました',
-  'result.toastUnsaved': '履歴から削除しました',
+  'result.toastSaved': 'お気に入りに追加しました',
+  'result.toastUnsaved': 'お気に入りから削除しました',
   'result.reanalyze': '再解析する',
   'result.reanalyzeConfirmTitle': '再解析の確認',
   'result.reanalyzeConfirmMessage': 'コメントを再取得しAIで再解析します。解析回数にカウントされます。現在の解析結果は上書きされ、元に戻すことはできません。',
@@ -200,6 +201,21 @@ const ja = {
   'settings.importError': 'インポートに失敗しました。',
   'settings.confirmDeleteHistory': '全ての履歴を削除しますか？',
 
+  // ---- History & Favorites ----
+  'history.pageTitle': 'お気に入り & 履歴',
+  'history.viewFavorites': 'お気に入りの解析結果',
+  'history.viewHistory': 'これまでの解析結果の履歴',
+  'history.favorites': 'お気に入りの解析結果',
+  'history.recentHistory': 'これまでの解析結果の履歴',
+  'history.noFavorites': 'お気に入りはまだありません',
+  'history.noHistory': '履歴はまだありません',
+  'history.addFavorite': 'お気に入りに追加',
+  'history.removeFavorite': 'お気に入りから削除',
+  'history.deleteEntry': '履歴から削除',
+  'history.clearAll': '履歴を全て削除',
+  'history.confirmClearAll': '全ての履歴を削除しますか？',
+  'history.favoritesFull': 'お気に入りは最大30件です',
+
   // ---- Character Mode ----
   'character.toggle': 'キャラクターモード',
   'character.tsubechan': 'ユウちゃんの解説',
@@ -312,6 +328,7 @@ const en: Record<keyof typeof ja, string> = {
   'side.serverProcessing': 'Processing on server...',
   'side.aiAnalyzing': 'AI analyzing...',
   'side.complete': 'Complete',
+  'side.characterIntro': 'Meet the Characters!',
 
   // ---- LoadingView ----
   'loading.fetching': 'Fetching Comments',
@@ -333,11 +350,11 @@ const en: Record<keyof typeof ja, string> = {
   'result.copySummary': 'Copy Summary',
   'result.exportJson': 'Export as JSON',
   'result.saved': 'Saved',
-  'result.saveResult': 'Save Results',
-  'result.unsaveResult': 'Remove from saved',
+  'result.saveResult': 'Add to favorites',
+  'result.unsaveResult': 'Remove from favorites',
   'result.toastCopied': 'Summary copied to clipboard',
-  'result.toastSaved': 'Analysis results saved to history',
-  'result.toastUnsaved': 'Removed from history',
+  'result.toastSaved': 'Added to favorites',
+  'result.toastUnsaved': 'Removed from favorites',
   'result.reanalyze': 'Re-analyze',
   'result.reanalyzeConfirmTitle': 'Confirm Re-analysis',
   'result.reanalyzeConfirmMessage': 'Comments will be re-fetched and re-analyzed by AI. This counts toward your daily limit. The current analysis will be overwritten and cannot be undone.',
@@ -460,6 +477,21 @@ const en: Record<keyof typeof ja, string> = {
   'settings.confirmDeleteHistory': 'Delete all history?',
 
   // ---- Character Mode ----
+  // ---- History & Favorites ----
+  'history.pageTitle': 'Favorites & History',
+  'history.viewFavorites': 'Favorite Results',
+  'history.viewHistory': 'Analysis History',
+  'history.favorites': 'Favorite Results',
+  'history.recentHistory': 'Analysis History',
+  'history.noFavorites': 'No favorites yet',
+  'history.noHistory': 'No history yet',
+  'history.addFavorite': 'Add to favorites',
+  'history.removeFavorite': 'Remove from favorites',
+  'history.deleteEntry': 'Delete from history',
+  'history.clearAll': 'Clear all history',
+  'history.confirmClearAll': 'Delete all history?',
+  'history.favoritesFull': 'Favorites limit: 30',
+
   'character.toggle': 'Character Mode',
   'character.tsubechan': "Yu-chan's Commentary",
   'character.geminny': "Geminny's Commentary",

@@ -436,3 +436,92 @@ html {
     transform: translateX(-100%);
   }
 }
+
+/* ==========================================
+ * ボタン共通グラデーションシャドウ演出
+ *
+ * .glow-btn-wrap: ホバー時にグラデーションシャドウが出る共通ラッパー
+ * .character-intro-btn: キャラクター紹介は常時シャドウ表示
+ * ========================================== */
+
+/* 共通: ラッパーの ::after でシャドウを描画 */
+.glow-btn-wrap,
+.character-intro-btn {
+  position: relative;
+}
+
+.glow-btn-wrap::after,
+.character-intro-btn::after {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  bottom: -6px;
+  left: 5%;
+  height: 100%;
+  width: 90%;
+  opacity: 0;
+  border-radius: 50px;
+  background: linear-gradient(135deg, #667eea, #764ba2, #f093fb, #f5576c, #fda085, #f6d365, #96e6a1, #667eea);
+  background-size: 200% 200%;
+  animation: gradient-shift 4s ease infinite;
+  filter: blur(10px);
+  transition: all 0.3s ease;
+  pointer-events: none;
+}
+
+/* カラーバリエーション: 黄色シャドウ（お気に入り） */
+.glow-btn-wrap.glow-yellow::after {
+  background: radial-gradient(ellipse at center, #eab308, #facc15, #fde047, #eab308);
+  animation: none;
+}
+
+/* カラーバリエーション: 白色シャドウ（履歴） */
+.glow-btn-wrap.glow-white::after {
+  background: radial-gradient(ellipse at center, rgba(255,255,255,0.9), rgba(255,255,255,0.6), rgba(255,255,255,0.9));
+  animation: none;
+}
+
+/* キャラクター紹介は常時シャドウ表示 */
+.character-intro-btn::after {
+  opacity: 0.7;
+}
+
+.character-intro-btn button {
+  background-size: 200% 200%;
+  animation: gradient-shift 4s ease infinite;
+}
+
+/* ホバー時: シャドウ出現 + ボタン浮き上がり */
+.glow-btn-wrap:hover::after,
+.character-intro-btn:hover::after {
+  filter: blur(6px);
+  width: 100%;
+  left: 0;
+  bottom: -4px;
+  opacity: 0.9;
+}
+
+.glow-btn-wrap:hover > button,
+.glow-btn-wrap:hover > a,
+.character-intro-btn:hover button {
+  transform: translateY(-1px);
+}
+
+/* クリック時: シャドウ拡散 */
+.glow-btn-wrap:active::after,
+.character-intro-btn:active::after {
+  filter: blur(14px);
+  opacity: 0.5;
+}
+
+/* ボタン内要素の transition */
+.glow-btn-wrap > button,
+.glow-btn-wrap > a {
+  transition: transform 0.3s ease;
+}
+
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
