@@ -474,6 +474,37 @@ html {
   }
 }
 
+.geminny-standing {
+  filter: drop-shadow(0 0 0 white)
+          drop-shadow(2px 0 0 white)
+          drop-shadow(-2px 0 0 white)
+          drop-shadow(0 2px 0 white)
+          drop-shadow(0 -2px 0 white)
+          drop-shadow(3px 5px 8px rgba(0, 0, 0, 0.3));
+  transform: rotate(3deg);
+  transition: transform 0.3s ease;
+  will-change: transform;
+}
+
+.geminny-standing:hover {
+  transform: rotate(0deg) scale(1.05);
+}
+
+@keyframes fadeSlideInRight {
+  0% {
+    opacity: 0;
+    transform: rotate(3deg) translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: rotate(3deg) translateY(0);
+  }
+}
+
+.animate-fade-slide-in-right {
+  animation: fadeSlideInRight 0.5s ease-out forwards;
+}
+
 .animate-fade-slide-in {
   animation: fadeSlideIn 0.5s ease-out forwards;
 }

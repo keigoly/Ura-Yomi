@@ -173,7 +173,6 @@ function Popup() {
           {planInfo && (
             <button
               onClick={() => {
-                localStorage.setItem('yt-gemini-openSettings', 'true');
                 localStorage.setItem('yt-gemini-openPlanSection', 'true');
                 handleOpenSidePanel();
               }}

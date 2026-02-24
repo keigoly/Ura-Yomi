@@ -3,7 +3,7 @@
  */
 
 import { useState, useEffect, useRef, useMemo, memo } from 'react';
-import { FileDown, Copy, Check, Menu, X, ArrowLeft, Bookmark, ExternalLink, RefreshCw } from 'lucide-react';
+import { FileDown, Copy, Check, Menu, X, ArrowLeft, Bookmark, ExternalLink, RefreshCw, Crown } from 'lucide-react';
 import type { AnalysisResult, VideoInfo, YouTubeCommentThread } from '../types';
 import { useDesignStore, BG_COLORS, isLightMode } from '../store/designStore';
 import { useTranslation } from '../i18n/useTranslation';
@@ -33,9 +33,10 @@ interface ResultDashboardProps {
   isSaved?: boolean;
   onOpenWindow?: () => void;
   onReanalyze?: () => void;
+  onOpenPlan?: () => void;
 }
 
-function ResultDashboard({ result, videoInfo, comments, plan = 'free', onBack, onSave, onUnsave, isSaved = false, onOpenWindow, onReanalyze }: ResultDashboardProps) {
+function ResultDashboard({ result, videoInfo, comments, plan = 'free', onBack, onSave, onUnsave, isSaved = false, onOpenWindow, onReanalyze, onOpenPlan }: ResultDashboardProps) {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<TabType>('summary');
   const [copied, setCopied] = useState(false);
@@ -53,6 +54,7 @@ function ResultDashboard({ result, videoInfo, comments, plan = 'free', onBack, o
   const [showReanalyzeConfirm, setShowReanalyzeConfirm] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const cleanupRef = useRef<(() => void) | null>(null);
   const { fontSize, bgMode } = useDesignStore();
   const bgColor = BG_COLORS[bgMode];
   const isLight = isLightMode(bgMode);
@@ -65,18 +67,22 @@ function ResultDashboard({ result, videoInfo, comments, plan = 'free', onBack, o
 
   // メニューの外側をクリックしたら閉じる
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setMenuOpen(false);
-      }
-    };
-
-    if (menuOpen) {
+    if (!menuOpen) return;
+    // 少し遅延してリスナーを追加（メニューを開いたクリックイベントと競合しないように）
+    const timerId = setTimeout(() => {
+      const handleClickOutside = (event: MouseEvent) => {
+        if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+          setMenuOpen(false);
+        }
+      };
       document.addEventListener('mousedown', handleClickOutside);
-    }
-
+      // cleanup用にrefに保存
+      cleanupRef.current = () => document.removeEventListener('mousedown', handleClickOutside);
+    }, 0);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      clearTimeout(timerId);
+      cleanupRef.current?.();
+      cleanupRef.current = null;
     };
   }, [menuOpen]);
 
@@ -192,12 +198,12 @@ function ResultDashboard({ result, videoInfo, comments, plan = 'free', onBack, o
   return (
     <div
       className="h-full flex flex-col"
-      style={{ height: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column', fontSize: `${fontSize}px`, backgroundColor: bgColor }}
+      style={{ height: '100%', display: 'flex', flexDirection: 'column', fontSize: `${fontSize}px`, backgroundColor: bgColor }}
     >
       {/* Header - 固定 */}
       <div
         className={`p-4 border-b ${isLight ? 'border-gray-200' : 'border-gray-800'}`}
-        style={{ flexShrink: 0, backgroundColor: bgColor }}
+        style={{ flexShrink: 0, backgroundColor: bgColor, position: 'relative', zIndex: 30, overflow: 'visible' }}
       >
         {/* 解析結果タイトルとハンバーガーメニューを同じ行に配置 */}
         <div className="flex items-center justify-between mb-2">
@@ -230,8 +236,8 @@ function ResultDashboard({ result, videoInfo, comments, plan = 'free', onBack, o
           )}
           <div className="relative" ref={menuRef}>
             <button
-              onClick={() => setMenuOpen(!menuOpen)}
-              className={`p-2 rounded-lg transition-colors ${isLight ? 'hover:bg-gray-100 text-gray-600' : 'hover:bg-gray-800 text-gray-300'}`}
+              onClick={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen); }}
+              className={`flex items-center justify-center w-10 h-10 rounded-lg transition-colors ${isLight ? 'hover:bg-gray-100 text-gray-600' : 'hover:bg-gray-800 text-gray-300'}`}
               title={t('result.menu')}
             >
               {menuOpen ? (
@@ -244,19 +250,20 @@ function ResultDashboard({ result, videoInfo, comments, plan = 'free', onBack, o
             {/* ドロップダウンメニュー */}
             {menuOpen && (
               <div
-                className={`absolute right-0 top-full mt-2 w-48 rounded-lg shadow-2xl border z-[100] ${isLight ? 'border-gray-200' : 'border-gray-700'}`}
+                className={`absolute right-0 top-full mt-2 w-48 rounded-lg shadow-2xl border ${isLight ? 'border-gray-200' : 'border-gray-700'}`}
                 style={{
                   backgroundColor: isLight ? '#ffffff' : '#1f2937',
-                  opacity: 1,
-                  backdropFilter: 'none',
-                  boxShadow: isLight ? '0 10px 25px rgba(0, 0, 0, 0.15)' : '0 10px 25px rgba(0, 0, 0, 0.5)'
+                  boxShadow: isLight ? '0 10px 25px rgba(0, 0, 0, 0.15)' : '0 10px 25px rgba(0, 0, 0, 0.5)',
+                  zIndex: 9999,
+                  position: 'absolute',
+                  pointerEvents: 'auto',
                 }}
               >
                 <div className="py-1">
                   {/* 要約をコピー */}
                   <button
-                    onClick={handleCopySummary}
-                    className={`w-full px-4 py-2 text-left flex items-center gap-3 transition-colors ${isLight ? 'hover:bg-gray-100 text-gray-700' : 'hover:bg-gray-700 text-gray-200'}`}
+                    onClick={(e) => { e.stopPropagation(); handleCopySummary(); }}
+                    className={`w-full px-4 py-2.5 text-left flex items-center gap-3 transition-colors ${isLight ? 'hover:bg-gray-100 text-gray-700' : 'hover:bg-gray-700 text-gray-200'}`}
                   >
                     {copied ? (
                       <>
@@ -273,21 +280,47 @@ function ResultDashboard({ result, videoInfo, comments, plan = 'free', onBack, o
 
                   {/* JSONでエクスポート */}
                   <button
-                    onClick={handleExportJson}
-                    className={`w-full px-4 py-2 text-left flex items-center gap-3 transition-colors ${isLight ? 'hover:bg-gray-100 text-gray-700' : 'hover:bg-gray-700 text-gray-200'}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setMenuOpen(false);
+                      if (plan === 'free' && onOpenPlan) {
+                        onOpenPlan();
+                      } else {
+                        handleExportJson();
+                      }
+                    }}
+                    className={`w-full px-4 py-2.5 text-left flex items-center gap-3 transition-colors ${isLight ? 'hover:bg-gray-100 text-gray-700' : 'hover:bg-gray-700 text-gray-200'}`}
                   >
                     <FileDown className="w-4 h-4" />
-                    <span className="text-sm">{t('result.exportJson')}</span>
+                    <span className="text-sm flex-1">{t('result.exportJson')}</span>
+                    {plan === 'free' && (
+                      <span className="inline-flex rounded-full p-[1.5px] overflow-hidden flex-shrink-0" style={{ background: 'conic-gradient(from 180deg, #0000FF, #00FFFF, #00FF00, #FFFF00, #FF8C00, #FF0000, #0000FF)' }}>
+                        <span className={`block text-[10px] font-bold px-2 py-0 rounded-full leading-relaxed ${isLight ? 'bg-white text-gray-700' : 'bg-gray-800 text-gray-100'}`}>PRO</span>
+                      </span>
+                    )}
                   </button>
 
                   {/* 再解析する */}
                   {onReanalyze && (
                     <button
-                      onClick={() => { setMenuOpen(false); setShowReanalyzeConfirm(true); }}
-                      className={`w-full px-4 py-2 text-left flex items-center gap-3 transition-colors ${isLight ? 'hover:bg-gray-100 text-gray-700' : 'hover:bg-gray-700 text-gray-200'}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setMenuOpen(false);
+                        if (plan === 'free' && onOpenPlan) {
+                          onOpenPlan();
+                        } else {
+                          setShowReanalyzeConfirm(true);
+                        }
+                      }}
+                      className={`w-full px-4 py-2.5 text-left flex items-center gap-3 transition-colors ${isLight ? 'hover:bg-gray-100 text-gray-700' : 'hover:bg-gray-700 text-gray-200'}`}
                     >
                       <RefreshCw className="w-4 h-4" />
-                      <span className="text-sm">{t('result.reanalyze')}</span>
+                      <span className="text-sm flex-1">{t('result.reanalyze')}</span>
+                      {plan === 'free' && (
+                        <span className="inline-flex rounded-full p-[1.5px] overflow-hidden flex-shrink-0" style={{ background: 'conic-gradient(from 180deg, #0000FF, #00FFFF, #00FF00, #FFFF00, #FF8C00, #FF0000, #0000FF)' }}>
+                          <span className={`block text-[10px] font-bold px-2 py-0 rounded-full leading-relaxed ${isLight ? 'bg-white text-gray-700' : 'bg-gray-800 text-gray-100'}`}>PRO</span>
+                        </span>
+                      )}
                     </button>
                   )}
                 </div>
@@ -324,7 +357,7 @@ function ResultDashboard({ result, videoInfo, comments, plan = 'free', onBack, o
       {/* Tabs - 固定 */}
       <div
         className={`flex justify-center border-b ${isLight ? 'border-gray-200' : 'border-gray-800'}`}
-        style={{ flexShrink: 0, position: 'sticky', top: 0, zIndex: 10, backgroundColor: bgColor }}
+        style={{ flexShrink: 0, backgroundColor: bgColor }}
       >
         {tabs.map((tab) => (
           <button

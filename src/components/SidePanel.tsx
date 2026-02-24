@@ -3,7 +3,7 @@
  */
 
 import { useEffect, useCallback, useRef, useState } from 'react';
-import { Play, Link, Settings, ExternalLink, Clock, Star, Crown, X } from 'lucide-react';
+import { Play, Link, Settings, ExternalLink, Clock, Star, Crown, X, Check } from 'lucide-react';
 import { useAnalysisStore } from '../store/analysisStore';
 import { useDesignStore, BG_COLORS, isLightMode } from '../store/designStore';
 import { analyzeViaServer, analyzeViaServerStream, getVideoInfo, verifySession, getUserPlan, subscribeToPro, openBillingPortal } from '../services/apiServer';
@@ -443,7 +443,7 @@ function SidePanel() {
     }
     try {
       const id = savedFavoriteId || `${Date.now()}`;
-      const maxLimit = user?.plan === 'pro' ? undefined : FREE_FAVORITES_LIMIT;
+      const maxLimit = isPro ? undefined : FREE_FAVORITES_LIMIT;
       await addFavorite({
         id,
         videoId: videoInfo.videoId,
@@ -605,7 +605,7 @@ function SidePanel() {
       <div style={wrapperStyle}>
         <HistorySection
           mode={showHistory}
-          plan={user?.plan || 'free'}
+          plan={isPro ? 'pro' : 'free'}
           onBack={() => setShowHistory(null)}
           onLoadEntry={(id) => {
             const currentMode = showHistory;
@@ -651,7 +651,7 @@ function SidePanel() {
         {showReviewRequest && !reviewSkipped && (
           <ReviewRequest onDismiss={markReviewDismissed} onSkip={() => setReviewSkipped(true)} />
         )}
-        <ResultDashboard result={result} videoInfo={videoInfo} comments={comments} plan={user?.plan || 'free'} onBack={() => {
+        <ResultDashboard result={result} videoInfo={videoInfo} comments={comments} plan={isPro ? 'pro' : 'free'} onBack={() => {
             const returnTo = isFromHistory;
             reset();
             setSavedFavoriteId(null);
@@ -661,7 +661,14 @@ function SidePanel() {
               setShowHistory(returnTo);
             }
             setIsFromHistory(false);
-          }} onSave={saveCurrentResult} onUnsave={unsaveCurrentResult} isSaved={!!savedFavoriteId} onReanalyze={handleReanalyze} onOpenWindow={isStandaloneWindow ? undefined : async () => {
+          }} onSave={saveCurrentResult} onUnsave={unsaveCurrentResult} isSaved={!!savedFavoriteId} onReanalyze={handleReanalyze} onOpenPlan={() => {
+            // フリープランのPRO機能タップ時: ランディングページに戻ってプラン管理モーダルを表示
+            reset();
+            setSavedFavoriteId(null);
+            setIsFromHistory(false);
+            setShowHistory(false);
+            setShowPlanModal(true);
+          }} onOpenWindow={isStandaloneWindow ? undefined : async () => {
             try {
               // chrome.storage.localに解析結果を保存（localStorageより大容量で信頼性が高い）
               const stateToTransfer = {
@@ -723,7 +730,7 @@ function SidePanel() {
             className="cursor-pointer transition-opacity hover:opacity-80"
             title={t('settings.planManagement')}
           >
-            {user.plan === 'pro' ? (
+            {isPro ? (
               <span className="relative inline-flex rounded-full p-[2px] overflow-hidden" style={{ background: 'conic-gradient(from 180deg, #0000FF, #00FFFF, #00FF00, #FFFF00, #FF8C00, #FF0000, #0000FF)' }}>
                 <span className={`block text-xs font-bold px-3 py-0.5 rounded-full ${
                   isLight ? 'bg-white text-gray-800' : 'bg-gray-900 text-gray-100'
@@ -1101,7 +1108,7 @@ function PlanModal({ plan, isLight, bgColor, onClose, t }: {
             )}
           </div>
 
-          {/* Freeプラン: 日次使用量 + アップグレードボタン */}
+          {/* Freeプラン: 日次使用量 + Pro特典 + アップグレードボタン */}
           {plan === 'free' && (
             <>
               <div className={`p-3 rounded-xl border ${isLight ? 'bg-gray-50 border-gray-200' : 'bg-gray-800 border-gray-700'}`}>
@@ -1118,6 +1125,28 @@ function PlanModal({ plan, isLight, bgColor, onClose, t }: {
                   </span>
                 </div>
               </div>
+
+              {/* Pro特典リスト */}
+              <div className={`p-4 rounded-xl border ${isLight ? 'bg-yellow-50/60 border-yellow-200' : 'bg-yellow-900/10 border-yellow-800/30'}`}>
+                <div className={`text-xs font-bold mb-3 flex items-center gap-1.5 ${isLight ? 'text-yellow-700' : 'text-yellow-400'}`}>
+                  <Crown className="w-3.5 h-3.5" />
+                  {t('settings.proPerks')}
+                </div>
+                <ul className="space-y-2">
+                  {(['perk1', 'perk2', 'perk3', 'perk4', 'perk5'] as const).map((key) => (
+                    <li key={key} className="flex items-start gap-2">
+                      <Check className="w-4 h-4 flex-shrink-0 mt-0.5 text-green-500" />
+                      <span className={`text-xs leading-relaxed ${isLight ? 'text-gray-600' : 'text-gray-300'}`}>
+                        {t(`settings.${key}`)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                <div className={`text-center text-xs font-bold mt-3 pt-3 border-t ${isLight ? 'border-yellow-200 text-yellow-700' : 'border-yellow-800/30 text-yellow-400'}`}>
+                  {t('settings.perkPrice')}
+                </div>
+              </div>
+
               <button
                 onClick={handleSubscribe}
                 disabled={loading}
@@ -1154,6 +1183,40 @@ function CharacterProfile({ isLight, onBack, t }: {
   onBack: () => void;
   t: (key: string, params?: Record<string, string | number>) => string;
 }) {
+  const [activeChar, setActiveChar] = useState<'yuchan' | 'geminny'>('yuchan');
+  const isYuchan = activeChar === 'yuchan';
+
+  // キャラクター別データ
+  const charData = isYuchan ? {
+    image: chrome.runtime.getURL('icons/yuchan-standing.png'),
+    imageAlt: 'ユウちゃん',
+    imageClass: 'w-64 object-contain yuchan-standing',
+    name: t('character.name'),
+    catchphrase: t('character.catchphrase'),
+    birthday: t('character.birthday'),
+    age: t('character.age'),
+    affiliation: t('character.affiliation'),
+    description: t('character.description'),
+    gradientFrom: '#667eea',
+    gradientVia: '#764ba2',
+    gradientTo: '#f093fb',
+    descBg: isLight ? 'bg-purple-50 border border-purple-200' : 'bg-purple-900/20 border border-purple-800/40',
+  } : {
+    image: chrome.runtime.getURL('icons/geminny-standing.png'),
+    imageAlt: 'ジェミニーちゃん',
+    imageClass: 'w-52 object-contain geminny-standing',
+    name: t('character.geminny.name'),
+    catchphrase: t('character.geminny.catchphrase'),
+    birthday: t('character.geminny.birthday'),
+    age: t('character.geminny.age'),
+    affiliation: t('character.geminny.affiliation'),
+    description: t('character.geminny.description'),
+    gradientFrom: '#4285F4',
+    gradientVia: '#34A853',
+    gradientTo: '#FBBC05',
+    descBg: isLight ? 'bg-blue-50 border border-blue-200' : 'bg-blue-900/20 border border-blue-800/40',
+  };
+
   return (
     <div className="flex flex-col h-full">
       {/* ヘッダー */}
@@ -1171,15 +1234,47 @@ function CharacterProfile({ isLight, onBack, t }: {
         </h1>
       </div>
 
+      {/* キャラクタートグル */}
+      <div className="flex justify-center px-5 pb-3" style={{ flexShrink: 0 }}>
+        <div className={`relative grid grid-cols-2 rounded-xl p-1 w-full max-w-xs ${isLight ? 'bg-gray-200' : 'bg-gray-700/80'}`}>
+          {/* スライドする背景 */}
+          <div
+            className="absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-lg shadow-md transition-all duration-300 ease-in-out"
+            style={{
+              left: isYuchan ? '4px' : 'calc(50% + 0px)',
+              background: isYuchan
+                ? 'linear-gradient(135deg, #667eea, #764ba2)'
+                : 'linear-gradient(135deg, #4285F4, #34A853)',
+            }}
+          />
+          <button
+            onClick={() => setActiveChar('yuchan')}
+            className={`relative z-10 py-2 rounded-lg text-sm font-bold transition-colors duration-300 ${
+              isYuchan ? 'text-white' : isLight ? 'text-gray-400' : 'text-gray-400'
+            }`}
+          >
+            {t('character.yuchan')}
+          </button>
+          <button
+            onClick={() => setActiveChar('geminny')}
+            className={`relative z-10 py-2 rounded-lg text-sm font-bold transition-colors duration-300 ${
+              !isYuchan ? 'text-white' : isLight ? 'text-gray-400' : 'text-gray-400'
+            }`}
+          >
+            {t('character.geminnyName')}
+          </button>
+        </div>
+      </div>
+
       {/* スクロールコンテンツ */}
       <div className="flex-1 overflow-y-auto min-h-0 px-5 pb-6 flex flex-col justify-center">
-        <div className="w-full max-w-sm mx-auto space-y-5">
-          {/* ユウちゃん立ち絵（ステッカー風） */}
+        <div key={activeChar} className="w-full max-w-sm mx-auto space-y-5">
+          {/* キャラクター立ち絵 */}
           <div className="flex justify-center pt-2">
             <img
-              src={chrome.runtime.getURL('icons/yuchan-standing.png')}
-              alt="ユウちゃん"
-              className="w-64 object-contain yuchan-standing animate-fade-slide-in"
+              src={charData.image}
+              alt={charData.imageAlt}
+              className={`${charData.imageClass} ${isYuchan ? 'animate-fade-slide-in' : 'animate-fade-slide-in-right'}`}
               style={{ animationFillMode: 'both' }}
             />
           </div>
@@ -1187,17 +1282,17 @@ function CharacterProfile({ isLight, onBack, t }: {
           {/* 名前 + キャッチフレーズ */}
           <div className="text-center space-y-2 animate-bounce-in" style={{ animationDelay: '0.1s', animationFillMode: 'both' }}>
             <h2 className={`text-xl font-bold ${isLight ? 'text-gray-900' : 'text-white'}`}>
-              {t('character.name')}
+              {charData.name}
             </h2>
             <p
               className="text-sm font-semibold"
               style={{
-                background: 'linear-gradient(135deg, #667eea, #764ba2, #f093fb)',
+                background: `linear-gradient(135deg, ${charData.gradientFrom}, ${charData.gradientVia}, ${charData.gradientTo})`,
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
               }}
             >
-              {t('character.catchphrase')}
+              {charData.catchphrase}
             </p>
           </div>
 
@@ -1206,20 +1301,20 @@ function CharacterProfile({ isLight, onBack, t }: {
             className={`rounded-2xl p-4 space-y-2 animate-bounce-in ${isLight ? 'bg-gray-50 border border-gray-200' : 'bg-gray-800/60 border border-gray-700'}`}
             style={{ animationDelay: '0.2s', animationFillMode: 'both' }}
           >
-            <p className={`text-sm text-center ${isLight ? 'text-gray-700' : 'text-gray-200'}`}>{t('character.birthday')}</p>
+            <p className={`text-sm text-center ${isLight ? 'text-gray-700' : 'text-gray-200'}`}>{charData.birthday}</p>
             <div className={`border-t ${isLight ? 'border-gray-200' : 'border-gray-700'}`} />
-            <p className={`text-sm text-center ${isLight ? 'text-gray-700' : 'text-gray-200'}`}>{t('character.age')}</p>
+            <p className={`text-sm text-center ${isLight ? 'text-gray-700' : 'text-gray-200'}`}>{charData.age}</p>
             <div className={`border-t ${isLight ? 'border-gray-200' : 'border-gray-700'}`} />
-            <p className={`text-sm text-center ${isLight ? 'text-gray-700' : 'text-gray-200'}`}>{t('character.affiliation')}</p>
+            <p className={`text-sm text-center ${isLight ? 'text-gray-700' : 'text-gray-200'}`}>{charData.affiliation}</p>
           </div>
 
           {/* 性格紹介テキスト */}
           <div
-            className={`rounded-2xl p-4 animate-bounce-in ${isLight ? 'bg-purple-50 border border-purple-200' : 'bg-purple-900/20 border border-purple-800/40'}`}
+            className={`rounded-2xl p-4 animate-bounce-in ${charData.descBg}`}
             style={{ animationDelay: '0.3s', animationFillMode: 'both' }}
           >
             <p className={`text-sm leading-relaxed whitespace-pre-line ${isLight ? 'text-gray-700' : 'text-gray-300'}`}>
-              {t('character.description')}
+              {charData.description}
             </p>
           </div>
         </div>

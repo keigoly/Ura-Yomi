@@ -3,7 +3,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { ArrowLeft, Star, Trash2, Clock, Crown } from 'lucide-react';
+import { ArrowLeft, Star, Trash2, Clock, Crown, AlertTriangle } from 'lucide-react';
 import { useDesignStore, BG_COLORS, isLightMode } from '../store/designStore';
 import { useTranslation } from '../i18n/useTranslation';
 
@@ -35,6 +35,12 @@ function HistorySection({ mode, plan = 'free', onBack, onLoadEntry, refreshKey }
   const [favorites, setFavorites] = useState<FavoriteListItem[]>([]);
   const [history, setHistory] = useState<HistoryListItem[]>([]);
 
+  // 削除確認ポップアップ用state
+  const [confirmDialog, setConfirmDialog] = useState<{
+    type: 'favorite' | 'history' | 'clearAll';
+    id?: string;
+  } | null>(null);
+
   const loadData = useCallback(async () => {
     if (mode === 'favorites') {
       setFavorites(await getFavoritesList());
@@ -47,21 +53,30 @@ function HistorySection({ mode, plan = 'free', onBack, onLoadEntry, refreshKey }
     loadData();
   }, [loadData, refreshKey]);
 
-  const handleRemoveFavorite = async (e: React.MouseEvent, id: string) => {
+  const requestRemoveFavorite = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    await removeFavorite(id);
-    await loadData();
+    setConfirmDialog({ type: 'favorite', id });
   };
 
-  const handleRemoveHistory = async (e: React.MouseEvent, id: string) => {
+  const requestRemoveHistory = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    await removeFromHistory(id);
-    await loadData();
+    setConfirmDialog({ type: 'history', id });
   };
 
-  const handleClearAll = async () => {
-    if (!confirm(t('history.confirmClearAll'))) return;
-    await clearAllHistory();
+  const requestClearAll = () => {
+    setConfirmDialog({ type: 'clearAll' });
+  };
+
+  const executeDelete = async () => {
+    if (!confirmDialog) return;
+    if (confirmDialog.type === 'favorite' && confirmDialog.id) {
+      await removeFavorite(confirmDialog.id);
+    } else if (confirmDialog.type === 'history' && confirmDialog.id) {
+      await removeFromHistory(confirmDialog.id);
+    } else if (confirmDialog.type === 'clearAll') {
+      await clearAllHistory();
+    }
+    setConfirmDialog(null);
     await loadData();
   };
 
@@ -137,7 +152,7 @@ function HistorySection({ mode, plan = 'free', onBack, onLoadEntry, refreshKey }
                         </p>
                       </div>
                       <button
-                        onClick={(e) => handleRemoveFavorite(e, item.id)}
+                        onClick={(e) => requestRemoveFavorite(e, item.id)}
                         className={`p-1.5 rounded transition-colors flex-shrink-0 ${isLight ? 'hover:bg-gray-100 text-yellow-500' : 'hover:bg-gray-600 text-yellow-500'}`}
                         title={t('history.removeFavorite')}
                       >
@@ -184,7 +199,7 @@ function HistorySection({ mode, plan = 'free', onBack, onLoadEntry, refreshKey }
                         </p>
                       </div>
                       <button
-                        onClick={(e) => handleRemoveHistory(e, item.id)}
+                        onClick={(e) => requestRemoveHistory(e, item.id)}
                         className={`p-1.5 rounded transition-colors flex-shrink-0 ${isLight ? 'hover:bg-red-100 text-gray-400 hover:text-red-500' : 'hover:bg-red-900/30 text-gray-500 hover:text-red-400'}`}
                         title={t('history.deleteEntry')}
                       >
@@ -199,7 +214,7 @@ function HistorySection({ mode, plan = 'free', onBack, onLoadEntry, refreshKey }
                 {/* 全履歴削除ボタン */}
                 {(!isFree || history.length <= FREE_VISIBLE_ENTRIES) && (
                   <button
-                    onClick={handleClearAll}
+                    onClick={requestClearAll}
                     className={`w-full flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg text-xs font-medium transition-colors mt-2 ${isLight ? 'text-gray-400 hover:text-red-500 hover:bg-red-50' : 'text-gray-500 hover:text-red-400 hover:bg-red-900/20'}`}
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -211,6 +226,51 @@ function HistorySection({ mode, plan = 'free', onBack, onLoadEntry, refreshKey }
           </div>
         )}
       </div>
+
+      {/* 削除確認ポップアップ */}
+      {confirmDialog && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+          onClick={() => setConfirmDialog(null)}
+        >
+          <div
+            className={`mx-6 w-full max-w-xs rounded-2xl p-5 shadow-xl ${isLight ? 'bg-white' : 'bg-gray-800'}`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex flex-col items-center text-center">
+              <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-3 ${isLight ? 'bg-red-50' : 'bg-red-900/30'}`}>
+                <AlertTriangle className="w-6 h-6 text-red-500" />
+              </div>
+              <h3 className={`text-base font-bold mb-2 ${isLight ? 'text-gray-900' : 'text-white'}`}>
+                {t('history.confirmDeleteTitle')}
+              </h3>
+              <p className={`text-sm mb-5 leading-relaxed ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>
+                {confirmDialog.type === 'clearAll'
+                  ? t('history.confirmClearAllDetail')
+                  : confirmDialog.type === 'favorite'
+                    ? t('history.confirmDeleteFavorite')
+                    : t('history.confirmDeleteHistory')
+                }
+              </p>
+              <div className="flex gap-3 w-full">
+                <button
+                  onClick={() => setConfirmDialog(null)}
+                  className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${isLight ? 'bg-gray-100 text-gray-700 hover:bg-gray-200' : 'bg-gray-700 text-gray-200 hover:bg-gray-600'}`}
+                >
+                  {t('history.confirmCancel')}
+                </button>
+                <button
+                  onClick={executeDelete}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white bg-red-500 hover:bg-red-600 transition-colors"
+                >
+                  {t('history.confirmDelete')}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
