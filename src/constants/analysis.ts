@@ -24,6 +24,11 @@ export const SUMMARY_LENGTH_MAP = {
 export const FREE_DAILY_LIMIT = 3;
 
 /**
+ * Freeプランのお気に入り保存上限
+ */
+export const FREE_FAVORITES_LIMIT = 3;
+
+/**
  * Freeプランのコメント取得上限
  */
 export const FREE_COMMENT_LIMIT = 100;

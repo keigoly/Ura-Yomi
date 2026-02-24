@@ -53,14 +53,15 @@ export async function getFavoritesList(): Promise<FavoriteListItem[]> {
   }));
 }
 
-export async function addFavorite(entry: Omit<FavoriteEntry, 'savedAt'>): Promise<void> {
+export async function addFavorite(entry: Omit<FavoriteEntry, 'savedAt'>, maxLimit?: number): Promise<void> {
   const entries = await getFavorites();
   // 同じIDがあれば上書き
   const idx = entries.findIndex((e) => e.id === entry.id);
   if (idx >= 0) {
     entries[idx] = { ...entry, savedAt: new Date().toISOString() };
   } else {
-    if (entries.length >= MAX_FAVORITES) {
+    const limit = maxLimit ?? MAX_FAVORITES;
+    if (entries.length >= limit) {
       throw new Error('FAVORITES_FULL');
     }
     entries.unshift({ ...entry, savedAt: new Date().toISOString() });

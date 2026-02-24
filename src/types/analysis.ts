@@ -42,6 +42,19 @@ export interface NeutralComment {
 }
 
 /**
+ * ネガティブコメント（サーバーが人気順全件から特定した最下位コメント）
+ * DeepDiveタブで表示するために必要なメタデータを含む
+ */
+export interface NegativeCommentData {
+  text: string;
+  author: string;
+  likeCount: number;
+  id?: string;
+  authorProfileImageUrl?: string | null;
+  publishedAt?: string;
+}
+
+/**
  * AI解析結果
  */
 export interface AnalysisResult {
@@ -55,7 +68,8 @@ export interface AnalysisResult {
   keywords: string[];
   positiveComment?: NeutralComment;
   neutralComment?: NeutralComment;
-  // negativeCommentはフロントエンドで人気順リストの一番下から選択
+  // ネガティブコメント: サーバーがyt-dlp全件（slice前）の人気順最下位から特定
+  negativeComment?: NegativeCommentData;
   negativeCommentReason?: string;
   negativeCommentReason_en?: string;
 }

@@ -26,6 +26,7 @@ interface ResultDashboardProps {
   result: AnalysisResult;
   videoInfo: VideoInfo | null;
   comments: YouTubeCommentThread[];
+  plan?: 'free' | 'pro';
   onBack?: () => void;
   onSave?: () => void;
   onUnsave?: () => void;
@@ -34,7 +35,7 @@ interface ResultDashboardProps {
   onReanalyze?: () => void;
 }
 
-function ResultDashboard({ result, videoInfo, comments, onBack, onSave, onUnsave, isSaved = false, onOpenWindow, onReanalyze }: ResultDashboardProps) {
+function ResultDashboard({ result, videoInfo, comments, plan = 'free', onBack, onSave, onUnsave, isSaved = false, onOpenWindow, onReanalyze }: ResultDashboardProps) {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<TabType>('summary');
   const [copied, setCopied] = useState(false);
@@ -365,7 +366,7 @@ function ResultDashboard({ result, videoInfo, comments, onBack, onSave, onUnsave
         )}
         {renderedTabs.has('comments') && (
           <div style={{ display: activeTab === 'comments' ? 'flex' : 'none', flexDirection: 'column', height: '100%' }}>
-            <MemoCommentsTab comments={comments} />
+            <MemoCommentsTab comments={comments} plan={plan} />
           </div>
         )}
       </div>

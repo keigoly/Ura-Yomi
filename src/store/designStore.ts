@@ -56,6 +56,7 @@ export const useDesignStore = create<DesignState>((set) => ({
   },
   setBgMode: (mode) => {
     localStorage.setItem(STORAGE_KEYS.BG_MODE, mode);
+    chrome.storage.local.set({ bgMode: mode });
     set({ bgMode: mode });
   },
 }));

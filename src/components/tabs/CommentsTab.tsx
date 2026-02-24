@@ -8,13 +8,16 @@
  */
 
 import { useState, useMemo } from 'react';
-import { ThumbsUp, ThumbsDown, Search, ChevronDown, ChevronUp } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, Search, ChevronDown, ChevronUp, Crown } from 'lucide-react';
 import type { YouTubeCommentThread } from '../../types';
-import { useDesignStore, isLightMode } from '../../store/designStore';
+import { useDesignStore, isLightMode, BG_COLORS } from '../../store/designStore';
 import { useTranslation } from '../../i18n/useTranslation';
+
+const FREE_VISIBLE_THREADS = 50;
 
 interface CommentsTabProps {
   comments: YouTubeCommentThread[];
+  plan?: 'free' | 'pro';
 }
 
 type SortField = 'popularity' | 'likeCount' | 'publishedAt';
@@ -190,10 +193,11 @@ function CommentItem({
   );
 }
 
-function CommentsTab({ comments }: CommentsTabProps) {
+function CommentsTab({ comments, plan = 'free' }: CommentsTabProps) {
   const { t } = useTranslation();
   const { bgMode } = useDesignStore();
   const isLight = isLightMode(bgMode);
+  const isFree = plan !== 'pro';
   const [searchQuery, setSearchQuery] = useState('');
   const [sortField, setSortField] = useState<SortField>('popularity');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
@@ -279,9 +283,13 @@ function CommentsTab({ comments }: CommentsTabProps) {
   }, [filteredThreads]);
 
   // ページネーション: 表示するスレッド
+  // Freeプラン: 50件 + フェードアウト用に数件追加表示
+  const effectiveVisibleCount = isFree
+    ? Math.min(FREE_VISIBLE_THREADS + 7, filteredThreads.length)
+    : visibleCount;
   const visibleThreads = useMemo(() => {
-    return filteredThreads.slice(0, visibleCount);
-  }, [filteredThreads, visibleCount]);
+    return filteredThreads.slice(0, effectiveVisibleCount);
+  }, [filteredThreads, effectiveVisibleCount]);
 
   const remainingCount = filteredThreads.length - visibleCount;
 
@@ -377,14 +385,20 @@ function CommentsTab({ comments }: CommentsTabProps) {
           </div>
         ) : (
           <div className="space-y-6">
-            {visibleThreads.map((thread) => {
+            {visibleThreads.map((thread, index) => {
               const isExpanded = expandedThreads.has(thread.id);
               const hasReplies = thread.replies && thread.replies.length > 0;
               const showReplies = hasReplies && isExpanded;
+              // Freeプラン: 50件以降はフェードアウト（50件目からグラデーション開始）
+              const isFaded = isFree && index >= FREE_VISIBLE_THREADS;
+              const fadeOpacity = isFaded
+                ? Math.max(0.08, 1 - (index - FREE_VISIBLE_THREADS) * 0.15)
+                : 1;
               return (
                 <div
                   key={thread.id}
                   className={`youtube-comment-thread ${hasReplies ? 'has-replies' : 'no-replies'} ${isExpanded ? 'is-expanded' : 'is-collapsed'}`}
+                  style={isFaded ? { opacity: fadeOpacity, filter: `blur(${Math.min(4, (index - FREE_VISIBLE_THREADS) * 0.7)}px)`, pointerEvents: 'none', userSelect: 'none' } : undefined}
                 >
                   {/* 親コメント */}
                   <div className="comment-parent">
@@ -569,8 +583,41 @@ function CommentsTab({ comments }: CommentsTabProps) {
               );
             })}
 
-            {/* もっと見るボタン */}
-            {remainingCount > 0 && (
+            {/* Freeプラン: アップグレードCTA */}
+            {isFree && filteredThreads.length > FREE_VISIBLE_THREADS && (
+              <div className="relative -mt-2">
+                {/* フェードグラデーションオーバーレイ */}
+                <div
+                  className="absolute -top-24 left-0 right-0 h-24 pointer-events-none"
+                  style={{ background: `linear-gradient(to bottom, transparent, ${BG_COLORS[bgMode]})` }}
+                />
+                <div className={`relative text-center py-6 px-4 rounded-xl border ${
+                  isLight ? 'bg-gray-50 border-gray-200' : 'bg-gray-800/80 border-gray-700'
+                }`}>
+                  <Crown className={`w-8 h-8 mx-auto mb-2 ${isLight ? 'text-yellow-500' : 'text-yellow-400'}`} />
+                  <p className={`text-sm mb-1 ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>
+                    {t('comments.freeLimit', { limit: FREE_VISIBLE_THREADS })}
+                  </p>
+                  <p className={`text-sm font-semibold mb-3 ${isLight ? 'text-gray-700' : 'text-gray-200'}`}>
+                    {t('comments.upgradeToSeeAll', { total: totalCommentCount })}
+                  </p>
+                  <button
+                    className="px-5 py-2 rounded-full text-sm font-semibold text-white transition-colors"
+                    style={{ background: 'conic-gradient(from 180deg, #0000FF, #00FFFF, #00FF00, #FFFF00, #FF8C00, #FF0000, #0000FF)' }}
+                    onClick={() => {
+                      // 設定画面のアップグレードセクションを開く
+                      localStorage.setItem('yt-gemini-openSettings', 'true');
+                      window.location.reload();
+                    }}
+                  >
+                    {t('paywall.upgradeToPro')}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* もっと見るボタン（Proプランのみ） */}
+            {!isFree && remainingCount > 0 && (
               <div className="flex justify-center py-4">
                 <button
                   onClick={() => setVisibleCount(prev => prev + PAGE_SIZE)}

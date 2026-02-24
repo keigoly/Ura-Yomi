@@ -427,6 +427,57 @@ html {
   animation: bounceIn 0.75s cubic-bezier(0.215, 0.61, 0.355, 1) forwards;
 }
 
+/* ユウちゃんステッカー風 */
+.yuchan-sticker {
+  filter: drop-shadow(0 0 0 white)
+          drop-shadow(1px 0 0 white)
+          drop-shadow(-1px 0 0 white)
+          drop-shadow(0 1px 0 white)
+          drop-shadow(0 -1px 0 white)
+          drop-shadow(2px 4px 6px rgba(0, 0, 0, 0.3));
+  transform: rotate(-5deg);
+  transition: transform 0.3s ease;
+}
+
+.yuchan-sticker:hover {
+  transform: rotate(0deg) scale(1.08);
+}
+
+/* ユウちゃん立ち絵（プロフィールページ用） */
+/* drop-shadowはGPU非対応で重いため、box-shadow風の白縁はoutline+borderで代替不可。
+   代わりにdrop-shadowを最小限に抑え、アニメーション中はfilterを適用しない */
+.yuchan-standing {
+  filter: drop-shadow(0 0 0 white)
+          drop-shadow(2px 0 0 white)
+          drop-shadow(-2px 0 0 white)
+          drop-shadow(0 2px 0 white)
+          drop-shadow(0 -2px 0 white)
+          drop-shadow(3px 5px 8px rgba(0, 0, 0, 0.3));
+  transform: rotate(-3deg);
+  transition: transform 0.3s ease;
+  will-change: transform;
+}
+
+.yuchan-standing:hover {
+  transform: rotate(0deg) scale(1.05);
+}
+
+/* 立ち絵用フェードイン（drop-shadow再計算を避ける軽量アニメーション） */
+@keyframes fadeSlideIn {
+  0% {
+    opacity: 0;
+    transform: rotate(-3deg) translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: rotate(-3deg) translateY(0);
+  }
+}
+
+.animate-fade-slide-in {
+  animation: fadeSlideIn 0.5s ease-out forwards;
+}
+
 /* トピックのマーキースクロールアニメーション（Spotify風） */
 @keyframes marquee-scroll {
   0% {
@@ -524,4 +575,30 @@ html {
   0% { background-position: 0% 50%; }
   50% { background-position: 100% 50%; }
   100% { background-position: 0% 50%; }
+}
+
+/* プラン管理モーダル */
+@keyframes modal-backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.animate-modal-backdrop {
+  animation: modal-backdrop-in 0.3s ease-out forwards;
+}
+
+.animate-modal-bounce-in {
+  animation: bounceIn 0.75s cubic-bezier(0.215, 0.61, 0.355, 1) forwards;
+}
+
+/* モーダル虹色ボーダー（ゆっくり流れる） */
+@keyframes modal-border-rotate {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 300% 50%; }
+}
+
+.modal-rainbow-border {
+  background: linear-gradient(90deg, #0000FF, #00FFFF, #00FF00, #FFFF00, #FF8C00, #FF0000, #0000FF, #00FFFF, #00FF00, #FFFF00, #FF8C00, #FF0000, #0000FF);
+  background-size: 300% 100%;
+  animation: modal-border-rotate 12s linear infinite;
 }

@@ -69,6 +69,56 @@ function loadLanguage(): Promise<void> {
   });
 }
 
+// ---- プラン情報 & デザイン設定 ----
+
+let currentPlan: 'free' | 'pro' = 'free';
+let dailyRemaining: number | null = null;
+let currentBgMode: 'default' | 'darkblue' | 'black' = 'default';
+
+const BG_COLORS_MAP: Record<string, string> = {
+  default: '#ffffff',
+  darkblue: '#273340',
+  black: '#000000',
+};
+
+/** chrome.storage.localからプラン情報とデザイン設定を読み込む */
+function loadPlanInfo(): Promise<void> {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(['planInfo', 'bgMode'], (result) => {
+      if (result.planInfo) {
+        currentPlan = result.planInfo.plan || 'free';
+        dailyRemaining = result.planInfo.dailyRemaining ?? null;
+      }
+      if (result.bgMode) {
+        currentBgMode = result.bgMode;
+      }
+      resolve();
+    });
+  });
+}
+
+/** ボタンの再生成 */
+function rebuildButton() {
+  const existingBtn = document.getElementById('youtube-comment-analyzer-btn');
+  if (existingBtn) existingBtn.closest('div[style]')?.remove() || existingBtn.remove();
+  tryAddButton();
+}
+
+// プラン情報・bgModeの変更を監視してボタンを再生成
+chrome.storage.onChanged.addListener((changes) => {
+  let needRebuild = false;
+  if (changes.planInfo?.newValue) {
+    currentPlan = changes.planInfo.newValue.plan || 'free';
+    dailyRemaining = changes.planInfo.newValue.dailyRemaining ?? null;
+    needRebuild = true;
+  }
+  if (changes.bgMode?.newValue) {
+    currentBgMode = changes.bgMode.newValue;
+    needRebuild = true;
+  }
+  if (needRebuild) rebuildButton();
+});
+
 // 言語変更を監視してボタンを再生成
 chrome.storage.onChanged.addListener((changes) => {
   if (changes.language?.newValue && changes.language.newValue !== currentLang) {
@@ -182,28 +232,78 @@ function createAnalyzeButton(compact: boolean): HTMLButtonElement {
 
   button.appendChild(buttonContent);
 
-  button.style.cssText = `
-    margin-left: 0;
-    padding: 2px;
-    background: conic-gradient(from 180deg, #0000FF, #00FFFF, #00FF00, #FFFF00, #FF8C00, #FF0000, #0000FF);
-    color: white;
-    border: none;
-    border-radius: ${innerRadius + 2}px;
-    font-size: ${compact ? '12px' : '13px'};
-    font-weight: 600;
-    cursor: pointer;
-    transition: filter 0.2s, box-shadow 0.2s;
-    display: inline-flex;
-    align-items: center;
-    white-space: nowrap;
-    flex-shrink: 0;
-  `;
+  const isFree = currentPlan !== 'pro';
+
+  if (isFree) {
+    // Freeプラン: デザイン設定の背景色に連動
+    const isLight = currentBgMode === 'default';
+    const bgColor = BG_COLORS_MAP[currentBgMode] || '#ffffff';
+    const textColor = isLight ? '#333333' : '#e0e0e0';
+    const borderColor = isLight ? '#d0d0d0' : 'rgba(255,255,255,0.25)';
+    const badgeColor = isLight ? '#888888' : '#999999';
+
+    buttonContent.style.background = bgColor;
+    buttonContent.style.color = textColor;
+    textSpan.style.color = textColor;
+
+    button.style.cssText = `
+      margin-left: 0;
+      padding: 2px;
+      background: ${bgColor};
+      color: ${textColor};
+      border: 1px solid ${borderColor};
+      border-radius: ${innerRadius + 2}px;
+      font-size: ${compact ? '12px' : '13px'};
+      font-weight: 600;
+      cursor: pointer;
+      transition: filter 0.2s, box-shadow 0.2s;
+      display: inline-flex;
+      align-items: center;
+      white-space: nowrap;
+      flex-shrink: 0;
+    `;
+
+    // 残りクレジット表示
+    if (dailyRemaining !== null) {
+      const badge = document.createElement('span');
+      badge.id = 'youtube-comment-analyzer-remaining';
+      const remainingText = currentLang === 'ja' ? `残り${dailyRemaining}回` : `${dailyRemaining} left`;
+      badge.textContent = remainingText;
+      badge.style.cssText = `
+        font-size: ${compact ? '9px' : '10px'};
+        font-weight: 700;
+        color: ${badgeColor};
+        margin-left: 2px;
+        margin-right: ${compact ? '2px' : '4px'};
+        white-space: nowrap;
+      `;
+      buttonContent.appendChild(badge);
+    }
+  } else {
+    // Proプラン: 虹色グラデーション
+    button.style.cssText = `
+      margin-left: 0;
+      padding: 2px;
+      background: conic-gradient(from 180deg, #0000FF, #00FFFF, #00FF00, #FFFF00, #FF8C00, #FF0000, #0000FF);
+      color: white;
+      border: none;
+      border-radius: ${innerRadius + 2}px;
+      font-size: ${compact ? '12px' : '13px'};
+      font-weight: 600;
+      cursor: pointer;
+      transition: filter 0.2s, box-shadow 0.2s;
+      display: inline-flex;
+      align-items: center;
+      white-space: nowrap;
+      flex-shrink: 0;
+    `;
+  }
 
   // ホバー効果
   let savedAriaLabel: string | null = null;
   button.addEventListener('mouseenter', () => {
-    button.style.filter = 'brightness(1.3)';
-    button.style.boxShadow = '0 0 12px 2px rgba(100, 100, 255, 0.5)';
+    button.style.filter = 'brightness(1.1)';
+    button.style.boxShadow = isFree ? '0 0 8px 1px rgba(0,0,0,0.15)' : '0 0 12px 2px rgba(100, 100, 255, 0.5)';
     const parentLabel = button.closest('#trigger')?.querySelector('[aria-label]') as HTMLElement | null;
     if (parentLabel) {
       savedAriaLabel = parentLabel.getAttribute('aria-label');
@@ -512,9 +612,9 @@ function tryAddButton() {
   }
 }
 
-// 言語を読み込んでからボタンを追加
+// 言語・プラン情報を読み込んでからボタンを追加
 async function init() {
-  await loadLanguage();
+  await Promise.all([loadLanguage(), loadPlanInfo()]);
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {

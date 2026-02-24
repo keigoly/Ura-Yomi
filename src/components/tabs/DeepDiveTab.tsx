@@ -207,11 +207,33 @@ function DeepDiveTab({ comments, result }: DeepDiveTabProps) {
       thread: thread,
     }));
 
-  // ネガティブコメント: 人気順リストの一番下（投稿者除外済み）
-  // 人気順（comment_sort=top）で最後のコメントを使用
-  const negativeComment = topLevelComments.length > 0
-    ? topLevelComments[topLevelComments.length - 1]
-    : null;
+  // ネガティブコメント: サーバーがyt-dlp全件（slice前）の人気順最下位から特定
+  // result.negativeComment → 全コメント中の本当の最下位（Free:100件のslice外にある可能性）
+  // フォールバック: 旧キャッシュ / API-only時 → topLevelCommentsの末尾
+  const negativeComment = (() => {
+    if (result.negativeComment && result.negativeComment.text) {
+      // サーバー提供の最下位コメントを使用
+      // コメント一覧からスレッドを検索（返信表示のため。slice外なら見つからない→返信非表示）
+      const matchingThread = comments.find(t =>
+        t.topLevelComment.id === result.negativeComment!.id ||
+        t.topLevelComment.text === result.negativeComment!.text
+      );
+      return {
+        id: result.negativeComment.id || 'server-selected',
+        text: result.negativeComment.text,
+        author: result.negativeComment.author,
+        authorProfileImageUrl: result.negativeComment.authorProfileImageUrl || null,
+        likeCount: result.negativeComment.likeCount,
+        publishedAt: result.negativeComment.publishedAt || '',
+        replyCount: matchingThread?.topLevelComment.replyCount || 0,
+        thread: matchingThread || null as any,
+      };
+    }
+    // フォールバック: 旧データ or API-only
+    return topLevelComments.length > 0
+      ? topLevelComments[topLevelComments.length - 1]
+      : null;
+  })();
 
   // ポジティブコメント: Geminiが選定、またはリストの最初（人気順の一番上）
   // ネガティブと重複する場合は、ネガティブを優先しポジティブは別コメントに差し替え
@@ -817,7 +839,7 @@ function DeepDiveTab({ comments, result }: DeepDiveTabProps) {
                         {/* 返信リスト */}
                         {negativeComment.thread.replies && negativeComment.thread.replies.length > 0 && (
                           <div className="mt-4 space-y-3 pl-4 border-l-2 border-gray-300/20">
-                            {negativeComment.thread.replies.map((reply) => (
+                            {negativeComment.thread.replies.map((reply: any) => (
                               <div key={reply.id} className="flex items-start gap-3">
                                 <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-red-800/30">
                                   <span className="text-xs font-medium text-red-300">

@@ -3,14 +3,14 @@
  */
 
 import { useEffect, useCallback, useRef, useState } from 'react';
-import { Play, Link, Settings, ExternalLink, Clock, Star } from 'lucide-react';
+import { Play, Link, Settings, ExternalLink, Clock, Star, Crown, X } from 'lucide-react';
 import { useAnalysisStore } from '../store/analysisStore';
 import { useDesignStore, BG_COLORS, isLightMode } from '../store/designStore';
-import { analyzeViaServer, analyzeViaServerStream, getVideoInfo, verifySession } from '../services/apiServer';
-import type { User } from '../types';
+import { analyzeViaServer, analyzeViaServerStream, getVideoInfo, verifySession, getUserPlan, subscribeToPro, openBillingPortal } from '../services/apiServer';
+import type { User, PlanResponse } from '../types';
 import { addToHistory, addFavorite, removeFavorite, getEntryById, isFavorite, migrateFromLocalStorage } from '../services/analysisStorage';
 import { getCurrentYouTubeVideo, extractVideoId } from '../utils/youtube';
-// FREE_COMMENT_LIMIT, PRO_COMMENT_LIMIT are used by apiServer.ts internally
+import { FREE_DAILY_LIMIT, FREE_FAVORITES_LIMIT } from '../constants';
 import { useTranslation } from '../i18n/useTranslation';
 import { getLanguage } from '../i18n/useTranslation';
 import { parseAnalysisResult } from '../utils/jsonParser';
@@ -33,7 +33,16 @@ function SidePanel() {
     }
     return false;
   });
+  const [showPlanModal, setShowPlanModal] = useState(() => {
+    const flag = localStorage.getItem('yt-gemini-openPlanSection');
+    if (flag) {
+      localStorage.removeItem('yt-gemini-openPlanSection');
+      return true;
+    }
+    return false;
+  });
   const [showHistory, setShowHistory] = useState<'favorites' | 'history' | null>(null);
+  const [showCharacterIntro, setShowCharacterIntro] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [urlInput, setUrlInput] = useState('');
@@ -57,6 +66,7 @@ function SidePanel() {
   const { fontSize, bgMode } = useDesignStore();
   const bgColor = BG_COLORS[bgMode];
   const isLight = isLightMode(bgMode);
+  const isPro = user?.plan === 'pro';
   const {
     isAnalyzing,
     progress,
@@ -110,6 +120,11 @@ function SidePanel() {
       const result = await verifySession();
       if (result.success && result.user) {
         setUser(result.user);
+        // プラン情報をchrome.storageに保存（content scriptから参照）
+        const planResult = await getUserPlan();
+        if (planResult.success) {
+          chrome.storage.local.set({ planInfo: { plan: planResult.plan, dailyRemaining: planResult.dailyRemaining } });
+        }
       }
       setAuthLoading(false);
     };
@@ -315,11 +330,9 @@ function SidePanel() {
         const errorMessage =
           err instanceof Error ? err.message : t('side.unknownError');
 
-        // 日次上限到達エラーの場合
+        // 日次上限到達エラーの場合 → プランモーダルを表示
         if (errorMessage.includes('上限') || errorMessage.includes('limit') || errorMessage.includes('クレジット') || errorMessage.includes('credit')) {
-          setError(
-            errorMessage + ' ' + t('side.dailyLimitInfo')
-          );
+          setShowPlanModal(true);
         } else {
           setError(errorMessage);
         }
@@ -418,6 +431,9 @@ function SidePanel() {
   const handleOpenSettings = () => {
     setShowSettings(true);
   };
+  const handleOpenPlan = () => {
+    setShowPlanModal(true);
+  };
 
   // 現在の解析結果をお気に入りに保存
   const saveCurrentResult = useCallback(async () => {
@@ -427,6 +443,7 @@ function SidePanel() {
     }
     try {
       const id = savedFavoriteId || `${Date.now()}`;
+      const maxLimit = user?.plan === 'pro' ? undefined : FREE_FAVORITES_LIMIT;
       await addFavorite({
         id,
         videoId: videoInfo.videoId,
@@ -435,7 +452,7 @@ function SidePanel() {
         result,
         comments,
         videoInfo,
-      });
+      }, maxLimit);
       setSavedFavoriteId(id);
       setHistoryRefreshKey((k) => k + 1);
     } catch (e) {
@@ -571,11 +588,24 @@ function SidePanel() {
     );
   }
 
+  if (showCharacterIntro) {
+    return (
+      <div style={wrapperStyle}>
+        <CharacterProfile
+          isLight={isLight}
+          onBack={() => setShowCharacterIntro(false)}
+          t={t}
+        />
+      </div>
+    );
+  }
+
   if (showHistory) {
     return (
       <div style={wrapperStyle}>
         <HistorySection
           mode={showHistory}
+          plan={user?.plan || 'free'}
           onBack={() => setShowHistory(null)}
           onLoadEntry={(id) => {
             const currentMode = showHistory;
@@ -621,7 +651,7 @@ function SidePanel() {
         {showReviewRequest && !reviewSkipped && (
           <ReviewRequest onDismiss={markReviewDismissed} onSkip={() => setReviewSkipped(true)} />
         )}
-        <ResultDashboard result={result} videoInfo={videoInfo} comments={comments} onBack={() => {
+        <ResultDashboard result={result} videoInfo={videoInfo} comments={comments} plan={user?.plan || 'free'} onBack={() => {
             const returnTo = isFromHistory;
             reset();
             setSavedFavoriteId(null);
@@ -686,7 +716,32 @@ function SidePanel() {
       )}
 
       {/* ボタン（右上） */}
-      <div className="flex justify-end gap-1 p-3" style={{ flexShrink: 0 }}>
+      <div className="flex items-center justify-end gap-1.5 p-3" style={{ flexShrink: 0 }}>
+        {user && (
+          <button
+            onClick={handleOpenPlan}
+            className="cursor-pointer transition-opacity hover:opacity-80"
+            title={t('settings.planManagement')}
+          >
+            {user.plan === 'pro' ? (
+              <span className="relative inline-flex rounded-full p-[2px] overflow-hidden" style={{ background: 'conic-gradient(from 180deg, #0000FF, #00FFFF, #00FF00, #FFFF00, #FF8C00, #FF0000, #0000FF)' }}>
+                <span className={`block text-xs font-bold px-3 py-0.5 rounded-full ${
+                  isLight ? 'bg-white text-gray-800' : 'bg-gray-900 text-gray-100'
+                }`}>
+                  PRO
+                </span>
+              </span>
+            ) : (
+              <span className={`text-xs font-bold px-3 py-1 rounded-full border ${
+                isLight
+                  ? 'border-gray-300 text-gray-500 bg-white'
+                  : 'bg-gray-800 border-gray-600 text-gray-400'
+              }`}>
+                FREE
+              </span>
+            )}
+          </button>
+        )}
         {!isStandaloneWindow && (
           <button
             onClick={async () => {
@@ -710,10 +765,20 @@ function SidePanel() {
       </div>
 
       {/* メインコンテンツ */}
-      <div className="flex-1 overflow-y-auto px-6 pb-4 flex flex-col justify-center">
-        <div className="w-full max-w-sm mx-auto space-y-5">
+      <div className="flex-1 overflow-y-auto px-6 pb-4 flex flex-col min-h-0">
+        <div className="w-full max-w-sm mx-auto space-y-5 my-auto">
           {currentVideo ? (
             <>
+              {/* ユウちゃん「解析開始！」ステッカー */}
+              <div className="flex justify-center">
+                <img
+                  src={chrome.runtime.getURL('icons/yuchan-analyze.png')}
+                  alt="ユウちゃん - 解析開始！"
+                  className="w-72 object-contain yuchan-sticker animate-bounce-in"
+                  style={{ animationFillMode: 'both' }}
+                />
+              </div>
+
               {/* 現在の動画情報 */}
               <div className={`p-4 rounded-lg ${isLight ? 'bg-gray-50 border border-gray-200' : 'bg-gray-800/50 border border-gray-700'}`}>
                 {currentVideo.title && (
@@ -735,7 +800,7 @@ function SidePanel() {
               </div>
 
               {/* 解析ボタン */}
-              <div className="relative w-full glow-btn-wrap">
+              <div className={`relative w-full ${isPro ? 'glow-btn-wrap' : ''}`}>
                 <button
                   onClick={() => handleStartAnalysis(currentVideo.videoId, currentVideo.title)}
                   className="relative w-full rounded-[20px] p-[2px] cursor-pointer transition-all z-[1]"
@@ -799,7 +864,7 @@ function SidePanel() {
               </div>
 
               {/* 解析ボタン */}
-              <div className={`relative w-full ${isValidUrl ? 'glow-btn-wrap' : ''}`}>
+              <div className={`relative w-full ${isValidUrl && isPro ? 'glow-btn-wrap' : ''}`}>
                 <button
                   onClick={handleUrlAnalyze}
                   disabled={!isValidUrl || urlLoading}
@@ -820,7 +885,7 @@ function SidePanel() {
           )}
 
           {/* お気に入りボタン（黄色 + 黄色シャドウ） */}
-          <div className="relative w-full glow-btn-wrap glow-yellow">
+          <div className={`relative w-full ${isPro ? 'glow-btn-wrap glow-yellow' : ''}`}>
             <button
               onClick={() => setShowHistory('favorites')}
               className="relative w-full rounded-[20px] p-[1px] cursor-pointer transition-all z-[1] bg-yellow-500"
@@ -833,7 +898,7 @@ function SidePanel() {
           </div>
 
           {/* 履歴ボタン（白縁 + 白色シャドウ） */}
-          <div className="relative w-full glow-btn-wrap glow-white">
+          <div className={`relative w-full ${isPro ? 'glow-btn-wrap glow-white' : ''}`}>
             <button
               onClick={() => setShowHistory('history')}
               className={`relative w-full rounded-[20px] p-[1px] cursor-pointer transition-all z-[1] ${isLight ? 'bg-gray-300' : 'border border-white/40 bg-transparent'}`}
@@ -846,9 +911,9 @@ function SidePanel() {
           </div>
 
           {/* キャラクター紹介ボタン（虹色グラデーション + グラデーションシャドウ） */}
-          <div className="relative w-full character-intro-btn">
+          <div className={`relative w-full ${isPro ? 'character-intro-btn' : ''}`}>
             <button
-              onClick={() => { /* TODO: キャラクタープロフィールページ */ }}
+              onClick={() => setShowCharacterIntro(true)}
               className="relative w-full rounded-[50px] px-4 py-3 cursor-pointer font-semibold text-white z-[1] transition-all"
               style={{ background: 'linear-gradient(135deg, #667eea, #764ba2, #f093fb, #f5576c, #fda085, #f6d365, #96e6a1, #667eea)' }}
             >
@@ -946,6 +1011,219 @@ function SidePanel() {
           </div>
         </div>
       )}
+
+      {/* プラン管理モーダル */}
+      {showPlanModal && (
+        <PlanModal
+          plan={user?.plan || 'free'}
+          isLight={isLight}
+          bgColor={bgColor}
+          onClose={() => setShowPlanModal(false)}
+          t={t}
+        />
+      )}
+    </div>
+  );
+}
+
+/** プラン管理モーダル */
+function PlanModal({ plan, isLight, bgColor, onClose, t }: {
+  plan: 'free' | 'pro';
+  isLight: boolean;
+  bgColor: string;
+  onClose: () => void;
+  t: (key: string, params?: Record<string, string | number>) => string;
+}) {
+  const [planInfo, setPlanInfo] = useState<PlanResponse | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    getUserPlan().then((res) => { if (res.success) setPlanInfo(res); });
+    const onVisible = () => { if (document.visibilityState === 'visible') getUserPlan().then((res) => { if (res.success) setPlanInfo(res); }); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, []);
+
+  const handleSubscribe = async () => {
+    setLoading(true);
+    try {
+      const result = await subscribeToPro();
+      if (result.url) chrome.tabs.create({ url: result.url });
+      else alert(result.error || t('settings.purchaseError'));
+    } catch (e) {
+      alert(t('settings.purchaseError') + (e instanceof Error ? e.message : ''));
+    } finally { setLoading(false); }
+  };
+
+  const handleBilling = async () => {
+    try {
+      const result = await openBillingPortal();
+      if (result.url) chrome.tabs.create({ url: result.url });
+      else alert(result.error || t('settings.purchaseError'));
+    } catch (e) {
+      alert(t('settings.purchaseError') + (e instanceof Error ? e.message : ''));
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/60 animate-modal-backdrop" />
+      {/* 虹色ボーダー + カード */}
+      <div
+        className="relative w-full max-w-sm rounded-2xl p-[2px] modal-rainbow-border animate-modal-bounce-in"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div
+          className={`w-full rounded-2xl shadow-2xl overflow-hidden ${isLight ? 'text-gray-800' : 'text-white'}`}
+          style={{ backgroundColor: bgColor }}
+        >
+        {/* ヘッダー */}
+        <div className="relative p-5 pb-3 flex items-center justify-between">
+          <h2 className="text-lg font-bold">{t('settings.planManagement')}</h2>
+          <button onClick={onClose} className={`p-1.5 rounded-lg transition-colors ${isLight ? 'hover:bg-gray-100' : 'hover:bg-gray-800'}`}>
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="px-5 pb-5 space-y-4">
+          {/* 現在のプランバッジ */}
+          <div className={`flex items-center justify-between p-3 rounded-xl border ${isLight ? 'bg-white border-gray-200' : 'bg-gray-800 border-gray-700'}`}>
+            <div className="flex items-center gap-2">
+              <Crown className={`w-5 h-5 ${plan === 'pro' ? 'text-yellow-400' : isLight ? 'text-gray-400' : 'text-gray-500'}`} />
+              <span className={`text-sm ${isLight ? 'text-gray-600' : 'text-gray-300'}`}>{t('settings.currentPlan')}</span>
+            </div>
+            {plan === 'pro' ? (
+              <span className="relative inline-flex rounded-full p-[2px] overflow-hidden" style={{ background: 'conic-gradient(from 180deg, #0000FF, #00FFFF, #00FF00, #FFFF00, #FF8C00, #FF0000, #0000FF)' }}>
+                <span className={`block text-xs font-bold px-3 py-0.5 rounded-full ${isLight ? 'bg-white text-gray-800' : 'bg-gray-900 text-gray-100'}`}>PRO</span>
+              </span>
+            ) : (
+              <span className={`text-xs font-bold px-3 py-0.5 rounded-full ${isLight ? 'bg-gray-100 text-gray-600' : 'bg-gray-700 text-gray-300'}`}>FREE</span>
+            )}
+          </div>
+
+          {/* Freeプラン: 日次使用量 + アップグレードボタン */}
+          {plan === 'free' && (
+            <>
+              <div className={`p-3 rounded-xl border ${isLight ? 'bg-gray-50 border-gray-200' : 'bg-gray-800 border-gray-700'}`}>
+                <div className={`text-xs font-bold mb-2 ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>{t('settings.dailyUsage')}</div>
+                <div className="flex items-center gap-3">
+                  <div className={`flex-1 h-2 rounded-full overflow-hidden ${isLight ? 'bg-gray-200' : 'bg-gray-700'}`}>
+                    <div
+                      className="h-full rounded-full bg-blue-500 transition-all"
+                      style={{ width: `${Math.min(100, ((planInfo?.dailyUsed ?? 0) / FREE_DAILY_LIMIT) * 100)}%` }}
+                    />
+                  </div>
+                  <span className={`text-xs font-bold flex-shrink-0 ${isLight ? 'text-gray-700' : 'text-gray-200'}`}>
+                    {planInfo?.dailyUsed ?? 0} / {FREE_DAILY_LIMIT}
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={handleSubscribe}
+                disabled={loading}
+                className="relative w-full rounded-[20px] p-[2px] cursor-pointer transition-all hover:brightness-110 disabled:opacity-50"
+                style={{ background: 'conic-gradient(from 180deg, #0000FF, #00FFFF, #00FF00, #FFFF00, #FF8C00, #FF0000, #0000FF)' }}
+              >
+                <div className="flex items-center justify-center gap-2 px-4 py-3 bg-[#0f0f0f] rounded-[18px] text-white font-bold text-sm">
+                  <Crown className="w-4 h-4" />
+                  {loading ? t('settings.processing') : t('settings.upgradeToPro')}
+                </div>
+              </button>
+            </>
+          )}
+
+          {/* Proプラン: サブスクリプション管理 */}
+          {plan === 'pro' && (
+            <button
+              onClick={handleBilling}
+              className={`w-full py-3 text-sm font-bold rounded-xl border transition-colors flex items-center justify-center gap-2 ${isLight ? 'border-gray-300 text-gray-700 hover:bg-gray-100' : 'border-gray-600 text-gray-300 hover:bg-gray-700'}`}
+            >
+              {t('settings.manageSubscription')}
+            </button>
+          )}
+        </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** キャラクター紹介ページ */
+function CharacterProfile({ isLight, onBack, t }: {
+  isLight: boolean;
+  onBack: () => void;
+  t: (key: string, params?: Record<string, string | number>) => string;
+}) {
+  return (
+    <div className="flex flex-col h-full">
+      {/* ヘッダー */}
+      <div className="flex items-center gap-3 p-4" style={{ flexShrink: 0 }}>
+        <button
+          onClick={onBack}
+          className={`p-2 rounded-lg transition-colors ${isLight ? 'hover:bg-gray-100 text-gray-600' : 'hover:bg-gray-800 text-gray-300'}`}
+        >
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+        <h1 className={`text-lg font-bold ${isLight ? 'text-gray-800' : 'text-white'}`}>
+          {t('character.profileTitle')}
+        </h1>
+      </div>
+
+      {/* スクロールコンテンツ */}
+      <div className="flex-1 overflow-y-auto min-h-0 px-5 pb-6 flex flex-col justify-center">
+        <div className="w-full max-w-sm mx-auto space-y-5">
+          {/* ユウちゃん立ち絵（ステッカー風） */}
+          <div className="flex justify-center pt-2">
+            <img
+              src={chrome.runtime.getURL('icons/yuchan-standing.png')}
+              alt="ユウちゃん"
+              className="w-64 object-contain yuchan-standing animate-fade-slide-in"
+              style={{ animationFillMode: 'both' }}
+            />
+          </div>
+
+          {/* 名前 + キャッチフレーズ */}
+          <div className="text-center space-y-2 animate-bounce-in" style={{ animationDelay: '0.1s', animationFillMode: 'both' }}>
+            <h2 className={`text-xl font-bold ${isLight ? 'text-gray-900' : 'text-white'}`}>
+              {t('character.name')}
+            </h2>
+            <p
+              className="text-sm font-semibold"
+              style={{
+                background: 'linear-gradient(135deg, #667eea, #764ba2, #f093fb)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+              }}
+            >
+              {t('character.catchphrase')}
+            </p>
+          </div>
+
+          {/* プロフィールカード */}
+          <div
+            className={`rounded-2xl p-4 space-y-2 animate-bounce-in ${isLight ? 'bg-gray-50 border border-gray-200' : 'bg-gray-800/60 border border-gray-700'}`}
+            style={{ animationDelay: '0.2s', animationFillMode: 'both' }}
+          >
+            <p className={`text-sm text-center ${isLight ? 'text-gray-700' : 'text-gray-200'}`}>{t('character.birthday')}</p>
+            <div className={`border-t ${isLight ? 'border-gray-200' : 'border-gray-700'}`} />
+            <p className={`text-sm text-center ${isLight ? 'text-gray-700' : 'text-gray-200'}`}>{t('character.age')}</p>
+            <div className={`border-t ${isLight ? 'border-gray-200' : 'border-gray-700'}`} />
+            <p className={`text-sm text-center ${isLight ? 'text-gray-700' : 'text-gray-200'}`}>{t('character.affiliation')}</p>
+          </div>
+
+          {/* 性格紹介テキスト */}
+          <div
+            className={`rounded-2xl p-4 animate-bounce-in ${isLight ? 'bg-purple-50 border border-purple-200' : 'bg-purple-900/20 border border-purple-800/40'}`}
+            style={{ animationDelay: '0.3s', animationFillMode: 'both' }}
+          >
+            <p className={`text-sm leading-relaxed whitespace-pre-line ${isLight ? 'text-gray-700' : 'text-gray-300'}`}>
+              {t('character.description')}
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

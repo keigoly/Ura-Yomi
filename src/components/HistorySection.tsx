@@ -3,9 +3,11 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { ArrowLeft, Star, Trash2, Clock } from 'lucide-react';
+import { ArrowLeft, Star, Trash2, Clock, Crown } from 'lucide-react';
 import { useDesignStore, BG_COLORS, isLightMode } from '../store/designStore';
 import { useTranslation } from '../i18n/useTranslation';
+
+const FREE_VISIBLE_ENTRIES = 5;
 import {
   getFavoritesList,
   getHistoryList,
@@ -17,16 +19,18 @@ import type { FavoriteListItem, HistoryListItem } from '../services/analysisStor
 
 interface HistorySectionProps {
   mode: 'favorites' | 'history';
+  plan?: 'free' | 'pro';
   onBack: () => void;
   onLoadEntry: (id: string) => void;
   refreshKey?: number;
 }
 
-function HistorySection({ mode, onBack, onLoadEntry, refreshKey }: HistorySectionProps) {
+function HistorySection({ mode, plan = 'free', onBack, onLoadEntry, refreshKey }: HistorySectionProps) {
   const { t } = useTranslation();
   const { bgMode } = useDesignStore();
   const bgColor = BG_COLORS[bgMode];
   const isLight = isLightMode(bgMode);
+  const isFree = plan !== 'pro';
 
   const [favorites, setFavorites] = useState<FavoriteListItem[]>([]);
   const [history, setHistory] = useState<HistoryListItem[]>([]);
@@ -109,29 +113,43 @@ function HistorySection({ mode, onBack, onLoadEntry, refreshKey }: HistorySectio
                 {t('history.noFavorites')}
               </p>
             ) : (
-              favorites.map((item) => (
-                <div
-                  key={item.id}
-                  onClick={() => onLoadEntry(item.id)}
-                  className={`flex items-center gap-2 px-3 py-3 rounded-lg border cursor-pointer transition-colors ${isLight ? 'border-gray-200 bg-white hover:bg-gray-50' : 'border-gray-700 bg-gray-800 hover:bg-gray-700'}`}
-                >
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-sm font-medium truncate ${isLight ? 'text-gray-800' : 'text-gray-200'}`}>
-                      {item.videoTitle || item.videoId}
-                    </p>
-                    <p className={`text-xs mt-0.5 ${isLight ? 'text-gray-400' : 'text-gray-500'}`}>
-                      {formatDate(item.analyzedAt)}
-                    </p>
-                  </div>
-                  <button
-                    onClick={(e) => handleRemoveFavorite(e, item.id)}
-                    className={`p-1.5 rounded transition-colors flex-shrink-0 ${isLight ? 'hover:bg-gray-100 text-yellow-500' : 'hover:bg-gray-600 text-yellow-500'}`}
-                    title={t('history.removeFavorite')}
-                  >
-                    <Star className="w-4 h-4 fill-yellow-500" />
-                  </button>
-                </div>
-              ))
+              <>
+                {(isFree ? favorites.slice(0, FREE_VISIBLE_ENTRIES + 3) : favorites).map((item, index) => {
+                  const isFaded = isFree && index >= FREE_VISIBLE_ENTRIES;
+                  const fadeOpacity = isFaded ? Math.max(0.1, 1 - (index - FREE_VISIBLE_ENTRIES) * 0.3) : 1;
+                  return (
+                    <div
+                      key={item.id}
+                      onClick={isFaded ? undefined : () => onLoadEntry(item.id)}
+                      className={`flex items-center gap-2 px-3 py-3 rounded-lg border transition-colors ${
+                        isFaded
+                          ? isLight ? 'border-gray-200 bg-white' : 'border-gray-700 bg-gray-800'
+                          : `cursor-pointer ${isLight ? 'border-gray-200 bg-white hover:bg-gray-50' : 'border-gray-700 bg-gray-800 hover:bg-gray-700'}`
+                      }`}
+                      style={isFaded ? { opacity: fadeOpacity, filter: `blur(${Math.min(4, (index - FREE_VISIBLE_ENTRIES) * 1)}px)`, pointerEvents: 'none', userSelect: 'none' } : undefined}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm font-medium truncate ${isLight ? 'text-gray-800' : 'text-gray-200'}`}>
+                          {item.videoTitle || item.videoId}
+                        </p>
+                        <p className={`text-xs mt-0.5 ${isLight ? 'text-gray-400' : 'text-gray-500'}`}>
+                          {formatDate(item.analyzedAt)}
+                        </p>
+                      </div>
+                      <button
+                        onClick={(e) => handleRemoveFavorite(e, item.id)}
+                        className={`p-1.5 rounded transition-colors flex-shrink-0 ${isLight ? 'hover:bg-gray-100 text-yellow-500' : 'hover:bg-gray-600 text-yellow-500'}`}
+                        title={t('history.removeFavorite')}
+                      >
+                        <Star className="w-4 h-4 fill-yellow-500" />
+                      </button>
+                    </div>
+                  );
+                })}
+                {isFree && favorites.length > FREE_VISIBLE_ENTRIES && (
+                  <UpgradeCTA isLight={isLight} bgColor={bgColor} total={favorites.length} limit={FREE_VISIBLE_ENTRIES} t={t} label={t('history.favorites')} />
+                )}
+              </>
             )}
           </div>
         ) : (
@@ -143,41 +161,91 @@ function HistorySection({ mode, onBack, onLoadEntry, refreshKey }: HistorySectio
               </p>
             ) : (
               <>
-                {history.map((item) => (
-                  <div
-                    key={item.id}
-                    onClick={() => onLoadEntry(item.id)}
-                    className={`flex items-center gap-2 px-3 py-3 rounded-lg border cursor-pointer transition-colors ${isLight ? 'border-gray-200 bg-white hover:bg-gray-50' : 'border-gray-700 bg-gray-800 hover:bg-gray-700'}`}
-                  >
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-sm font-medium truncate ${isLight ? 'text-gray-800' : 'text-gray-200'}`}>
-                        {item.videoTitle || item.videoId}
-                      </p>
-                      <p className={`text-xs mt-0.5 ${isLight ? 'text-gray-400' : 'text-gray-500'}`}>
-                        {formatDate(item.analyzedAt)}
-                      </p>
-                    </div>
-                    <button
-                      onClick={(e) => handleRemoveHistory(e, item.id)}
-                      className={`p-1.5 rounded transition-colors flex-shrink-0 ${isLight ? 'hover:bg-red-100 text-gray-400 hover:text-red-500' : 'hover:bg-red-900/30 text-gray-500 hover:text-red-400'}`}
-                      title={t('history.deleteEntry')}
+                {(isFree ? history.slice(0, FREE_VISIBLE_ENTRIES + 3) : history).map((item, index) => {
+                  const isFaded = isFree && index >= FREE_VISIBLE_ENTRIES;
+                  const fadeOpacity = isFaded ? Math.max(0.1, 1 - (index - FREE_VISIBLE_ENTRIES) * 0.3) : 1;
+                  return (
+                    <div
+                      key={item.id}
+                      onClick={isFaded ? undefined : () => onLoadEntry(item.id)}
+                      className={`flex items-center gap-2 px-3 py-3 rounded-lg border transition-colors ${
+                        isFaded
+                          ? isLight ? 'border-gray-200 bg-white' : 'border-gray-700 bg-gray-800'
+                          : `cursor-pointer ${isLight ? 'border-gray-200 bg-white hover:bg-gray-50' : 'border-gray-700 bg-gray-800 hover:bg-gray-700'}`
+                      }`}
+                      style={isFaded ? { opacity: fadeOpacity, filter: `blur(${Math.min(4, (index - FREE_VISIBLE_ENTRIES) * 1)}px)`, pointerEvents: 'none', userSelect: 'none' } : undefined}
                     >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm font-medium truncate ${isLight ? 'text-gray-800' : 'text-gray-200'}`}>
+                          {item.videoTitle || item.videoId}
+                        </p>
+                        <p className={`text-xs mt-0.5 ${isLight ? 'text-gray-400' : 'text-gray-500'}`}>
+                          {formatDate(item.analyzedAt)}
+                        </p>
+                      </div>
+                      <button
+                        onClick={(e) => handleRemoveHistory(e, item.id)}
+                        className={`p-1.5 rounded transition-colors flex-shrink-0 ${isLight ? 'hover:bg-red-100 text-gray-400 hover:text-red-500' : 'hover:bg-red-900/30 text-gray-500 hover:text-red-400'}`}
+                        title={t('history.deleteEntry')}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  );
+                })}
+                {isFree && history.length > FREE_VISIBLE_ENTRIES && (
+                  <UpgradeCTA isLight={isLight} bgColor={bgColor} total={history.length} limit={FREE_VISIBLE_ENTRIES} t={t} label={t('history.recentHistory')} />
+                )}
                 {/* 全履歴削除ボタン */}
-                <button
-                  onClick={handleClearAll}
-                  className={`w-full flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg text-xs font-medium transition-colors mt-2 ${isLight ? 'text-gray-400 hover:text-red-500 hover:bg-red-50' : 'text-gray-500 hover:text-red-400 hover:bg-red-900/20'}`}
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  {t('history.clearAll')}
-                </button>
+                {(!isFree || history.length <= FREE_VISIBLE_ENTRIES) && (
+                  <button
+                    onClick={handleClearAll}
+                    className={`w-full flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg text-xs font-medium transition-colors mt-2 ${isLight ? 'text-gray-400 hover:text-red-500 hover:bg-red-50' : 'text-gray-500 hover:text-red-400 hover:bg-red-900/20'}`}
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    {t('history.clearAll')}
+                  </button>
+                )}
               </>
             )}
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+/** Freeプラン用アップグレードCTA */
+function UpgradeCTA({ isLight, bgColor, total, limit, t, label }: {
+  isLight: boolean; bgColor: string; total: number; limit: number;
+  t: (key: string, params?: Record<string, string | number>) => string; label: string;
+}) {
+  return (
+    <div className="relative -mt-1">
+      <div
+        className="absolute -top-16 left-0 right-0 h-16 pointer-events-none"
+        style={{ background: `linear-gradient(to bottom, transparent, ${bgColor})` }}
+      />
+      <div className={`relative text-center py-5 px-4 rounded-xl border ${
+        isLight ? 'bg-gray-50 border-gray-200' : 'bg-gray-800/80 border-gray-700'
+      }`}>
+        <Crown className={`w-7 h-7 mx-auto mb-2 ${isLight ? 'text-yellow-500' : 'text-yellow-400'}`} />
+        <p className={`text-xs mb-1 ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>
+          {t('history.freeLimit', { limit, total })}
+        </p>
+        <p className={`text-sm font-semibold mb-3 ${isLight ? 'text-gray-700' : 'text-gray-200'}`}>
+          {t('history.upgradeToSeeAll')}
+        </p>
+        <button
+          className="px-5 py-2 rounded-full text-sm font-semibold text-white transition-colors"
+          style={{ background: 'conic-gradient(from 180deg, #0000FF, #00FFFF, #00FF00, #FFFF00, #FF8C00, #FF0000, #0000FF)' }}
+          onClick={() => {
+            localStorage.setItem('yt-gemini-openSettings', 'true');
+            window.location.reload();
+          }}
+        >
+          {t('paywall.upgradeToPro')}
+        </button>
       </div>
     </div>
   );

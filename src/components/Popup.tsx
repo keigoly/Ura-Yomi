@@ -46,6 +46,7 @@ function Popup() {
     const result = await getUserPlan();
     if (result.success) {
       setPlanInfo(result);
+      chrome.storage.local.set({ planInfo: { plan: result.plan, dailyRemaining: result.dailyRemaining } });
     }
   };
 
@@ -170,14 +171,23 @@ function Popup() {
         <div className="flex items-center gap-2">
           {/* Plan Badge */}
           {planInfo && (
-            <div className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold ${
-              isPro
-                ? 'bg-gradient-to-r from-amber-500 to-yellow-400 text-black'
-                : 'bg-gray-700 text-gray-300'
-            }`}>
-              {isPro && <Crown className="w-3 h-3" />}
-              {isPro ? 'PRO' : 'FREE'}
-            </div>
+            <button
+              onClick={() => {
+                localStorage.setItem('yt-gemini-openSettings', 'true');
+                localStorage.setItem('yt-gemini-openPlanSection', 'true');
+                handleOpenSidePanel();
+              }}
+              className="cursor-pointer transition-opacity hover:opacity-80"
+              title={t('settings.planManagement')}
+            >
+              {isPro ? (
+                <span className="relative inline-flex rounded-full p-[2px] overflow-hidden" style={{ background: 'conic-gradient(from 180deg, #0000FF, #00FFFF, #00FF00, #FFFF00, #FF8C00, #FF0000, #0000FF)' }}>
+                  <span className="block text-xs font-bold px-3 py-0.5 rounded-full bg-gray-900 text-gray-100">PRO</span>
+                </span>
+              ) : (
+                <span className="text-xs font-bold px-3 py-1 rounded-full bg-gray-800 border border-gray-600 text-gray-400">FREE</span>
+              )}
+            </button>
           )}
           <button
             onClick={handleOpenSidePanel}

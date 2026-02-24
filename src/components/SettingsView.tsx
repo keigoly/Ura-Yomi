@@ -4,10 +4,8 @@
 
 import { useState, useEffect } from 'react';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
-import { ArrowLeft, Crown, LogOut } from 'lucide-react';
-import { getUserPlan, subscribeToPro, openBillingPortal, clearSessionToken } from '../services/apiServer';
-import type { PlanResponse } from '../services/apiServer';
-import { FREE_DAILY_LIMIT } from '../constants';
+import { ArrowLeft, LogOut } from 'lucide-react';
+import { clearSessionToken } from '../services/apiServer';
 import { useDesignStore, BG_COLORS, isLightMode } from '../store/designStore';
 import type { FontSize } from '../store/designStore';
 import { useTranslation } from '../i18n/useTranslation';
@@ -86,7 +84,6 @@ const SettingsAccordion: React.FC<AccordionProps> = ({
 function SettingsView({ onBack, onLogout }: SettingsViewProps) {
   const { t } = useTranslation();
   // アコーディオン開閉状態
-  const [isCreditOpen, setIsCreditOpen] = useState(false);
   const [isLanguageOpen, setIsLanguageOpen] = useState(false);
   const [isUpdateInfoOpen, setIsUpdateInfoOpen] = useState(false);
   const [isNgOpen, setIsNgOpen] = useState(false);
@@ -95,8 +92,6 @@ function SettingsView({ onBack, onLogout }: SettingsViewProps) {
   const [isOtherOpen, setIsOtherOpen] = useState(false);
 
   // データ
-  const [planInfo, setPlanInfo] = useState<PlanResponse | null>(null);
-  const [subscribeLoading, setSubscribeLoading] = useState(false);
   const [language, setLanguageState] = useState<Language>(() => {
     return (localStorage.getItem(STORAGE_KEYS.LANGUAGE) as Language) || 'ja';
   });
@@ -109,25 +104,8 @@ function SettingsView({ onBack, onLogout }: SettingsViewProps) {
 
   // 初期化
   useEffect(() => {
-    loadPlanInfo();
     fetchRelease();
-
-    // タブがフォーカスされた時にプラン情報を再取得（Stripe決済完了後の反映用）
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        loadPlanInfo();
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, []);
-
-  const loadPlanInfo = async () => {
-    const result = await getUserPlan();
-    if (result.success) {
-      setPlanInfo(result);
-    }
-  };
 
   const fetchRelease = async () => {
     try {
@@ -150,50 +128,6 @@ function SettingsView({ onBack, onLogout }: SettingsViewProps) {
       // 設定画面に留まるようにフラグを同期的に保存してからリロード
       localStorage.setItem('yt-gemini-openSettings', 'true');
       location.reload();
-    }
-  };
-
-  // Proプランへのアップグレード
-  const handleSubscribe = async () => {
-    setSubscribeLoading(true);
-    try {
-      const result = await subscribeToPro();
-      if (result.url) {
-        chrome.tabs.create({ url: result.url });
-      } else {
-        alert(result.error || t('settings.purchaseError'));
-      }
-    } catch (error) {
-      console.error('Subscribe error:', error);
-      alert(t('settings.purchaseError') + (error instanceof Error ? error.message : ''));
-    } finally {
-      setSubscribeLoading(false);
-    }
-  };
-
-  // Stripeカスタマーポータルを開く
-  const handleBillingPortal = async () => {
-    try {
-      const result = await openBillingPortal();
-      if (result.url) {
-        chrome.tabs.create({ url: result.url });
-      } else {
-        // Stripe未設定やカスタマー未登録の場合
-        const msg = result.error || '';
-        if (msg.includes('Stripe') || msg.includes('カスタマー') || msg.includes('customer')) {
-          alert(t('settings.stripeNotConfigured'));
-        } else {
-          alert(t('settings.purchaseError') + msg);
-        }
-      }
-    } catch (error) {
-      console.error('Billing portal error:', error);
-      const msg = error instanceof Error ? error.message : '';
-      if (msg.includes('Stripe') || msg.includes('カスタマー') || msg.includes('customer')) {
-        alert(t('settings.stripeNotConfigured'));
-      } else {
-        alert(t('settings.purchaseError') + msg);
-      }
     }
   };
 
@@ -307,67 +241,7 @@ function SettingsView({ onBack, onLogout }: SettingsViewProps) {
         {/* 設定項目（スクロール） */}
         <div className="p-4 space-y-3 overflow-y-auto flex-1" ref={parent}>
 
-          {/* ===== 1. プラン管理 ===== */}
-          <SettingsAccordion
-            isLight={isLight}
-            title={t('settings.planManagement')}
-            currentValueLabel={planInfo ? (planInfo.plan === 'pro' ? 'Pro' : 'Free') : t('settings.loadingCredits')}
-            isOpen={isCreditOpen}
-            onToggle={() => setIsCreditOpen(!isCreditOpen)}
-          >
-            <div className="p-4 space-y-4">
-              {/* 現在のプランバッジ */}
-              <div className={`flex items-center justify-between p-3 rounded-lg border ${isLight ? 'bg-white border-gray-200' : 'bg-gray-800 border-gray-700'}`}>
-                <div className="flex items-center gap-2">
-                  <Crown className={`w-5 h-5 ${planInfo?.plan === 'pro' ? 'text-yellow-400' : 'text-gray-400'}`} />
-                  <span className={`text-sm ${isLight ? 'text-gray-600' : 'text-gray-300'}`}>{t('settings.currentPlan')}</span>
-                </div>
-                <span className={`text-sm font-bold px-2 py-0.5 rounded-full ${planInfo?.plan === 'pro' ? 'bg-yellow-400/20 text-yellow-400' : isLight ? 'bg-gray-100 text-gray-600' : 'bg-gray-700 text-gray-300'}`}>
-                  {planInfo?.plan === 'pro' ? 'Pro' : 'Free'}
-                </span>
-              </div>
-
-              {/* Freeプラン: 日次使用量 + アップグレードボタン */}
-              {(!planInfo || planInfo.plan === 'free') && (
-                <>
-                  <div className={`p-3 rounded-lg border ${isLight ? 'bg-gray-50 border-gray-200' : 'bg-gray-800 border-gray-700'}`}>
-                    <div className={`text-xs font-bold mb-2 ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>{t('settings.dailyUsage')}</div>
-                    <div className="flex items-center gap-3">
-                      <div className="flex-1 h-2 rounded-full bg-gray-700 overflow-hidden">
-                        <div
-                          className="h-full rounded-full bg-blue-500 transition-all"
-                          style={{ width: `${Math.min(100, ((planInfo?.dailyUsed ?? 0) / FREE_DAILY_LIMIT) * 100)}%` }}
-                        />
-                      </div>
-                      <span className={`text-xs font-bold flex-shrink-0 ${isLight ? 'text-gray-700' : 'text-gray-200'}`}>
-                        {planInfo?.dailyUsed ?? 0} / {FREE_DAILY_LIMIT}
-                      </span>
-                    </div>
-                  </div>
-                  <button
-                    onClick={handleSubscribe}
-                    disabled={subscribeLoading}
-                    className="w-full py-2.5 text-sm font-bold text-white bg-gradient-to-r from-yellow-500 to-orange-500 rounded-lg hover:brightness-110 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-                  >
-                    <Crown className="w-4 h-4" />
-                    {subscribeLoading ? t('settings.processing') : t('settings.upgradeToPro')}
-                  </button>
-                </>
-              )}
-
-              {/* Proプラン: カスタマーポータルリンク */}
-              {planInfo?.plan === 'pro' && (
-                <button
-                  onClick={handleBillingPortal}
-                  className={`w-full py-2.5 text-sm font-bold rounded-lg border transition-colors flex items-center justify-center gap-2 ${isLight ? 'border-gray-300 text-gray-700 hover:bg-gray-100' : 'border-gray-600 text-gray-300 hover:bg-gray-700'}`}
-                >
-                  {t('settings.manageSubscription')}
-                </button>
-              )}
-            </div>
-          </SettingsAccordion>
-
-          {/* ===== 2. 言語設定 ===== */}
+          {/* ===== 1. 言語設定 ===== */}
           <SettingsAccordion
             isLight={isLight}
             title={t('settings.language')}
@@ -376,15 +250,15 @@ function SettingsView({ onBack, onLogout }: SettingsViewProps) {
             onToggle={() => setIsLanguageOpen(!isLanguageOpen)}
           >
             <div className="p-3 space-y-2">
-              <p className="text-xs text-gray-400 mb-3">{t('settings.languageDescription')}</p>
+              <p className={`text-xs mb-3 ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>{t('settings.languageDescription')}</p>
               {[
                 { value: 'ja' as const, label: '日本語' },
                 { value: 'en' as const, label: 'English' },
               ].map((option) => (
-                <label key={option.value} className="flex items-center justify-between p-3 rounded-lg cursor-pointer border border-gray-700 hover:bg-gray-800 transition-colors">
+                <label key={option.value} className={`flex items-center justify-between p-3 rounded-lg cursor-pointer border transition-colors ${isLight ? 'border-gray-200 hover:bg-gray-100' : 'border-gray-700 hover:bg-gray-800'}`}>
                   <div className="flex items-center gap-3">
                     <input type="radio" name="language" value={option.value} checked={language === option.value} onChange={() => setLanguage(option.value)} className="accent-blue-500 w-4 h-4" />
-                    <span className="text-sm text-white">{option.label}</span>
+                    <span className={`text-sm ${isLight ? 'text-gray-900' : 'text-white'}`}>{option.label}</span>
                   </div>
                 </label>
               ))}
@@ -401,25 +275,25 @@ function SettingsView({ onBack, onLogout }: SettingsViewProps) {
             isNew={releaseInfo?.published_at ? (Date.now() - new Date(releaseInfo.published_at).getTime()) < 7 * 24 * 60 * 60 * 1000 : false}
           >
             {releaseInfo ? (
-              <div className="p-4 bg-gray-800">
+              <div className={`p-4 ${isLight ? 'bg-gray-50' : 'bg-gray-900'}`}>
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-bold text-white">{releaseInfo.name || releaseInfo.tag_name}</span>
-                  <span className="text-xs text-gray-500">{new Date(releaseInfo.published_at).toLocaleDateString()}</span>
+                  <span className={`text-sm font-bold ${isLight ? 'text-gray-900' : 'text-white'}`}>{releaseInfo.name || releaseInfo.tag_name}</span>
+                  <span className={`text-xs ${isLight ? 'text-gray-400' : 'text-gray-500'}`}>{new Date(releaseInfo.published_at).toLocaleDateString()}</span>
                 </div>
-                <div className="text-sm text-gray-300 whitespace-pre-wrap max-h-[200px] overflow-y-auto mb-4 p-2 bg-gray-900 rounded border border-gray-700">
+                <div className={`text-sm whitespace-pre-wrap max-h-[200px] overflow-y-auto mb-4 p-2 rounded border ${isLight ? 'text-gray-700 bg-white border-gray-200' : 'text-gray-300 bg-gray-800 border-gray-700'}`}>
                   {releaseInfo.body || t('settings.noUpdateInfo')}
                 </div>
                 <a
                   href={releaseInfo.html_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="block w-full text-center py-2 text-sm font-bold text-white bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors border border-gray-600"
+                  className={`block w-full text-center py-2 text-sm font-bold rounded-lg transition-colors border ${isLight ? 'text-gray-700 bg-white hover:bg-gray-100 border-gray-300' : 'text-white bg-gray-700 hover:bg-gray-600 border-gray-600'}`}
                 >
                   {t('settings.viewOnGithub')}
                 </a>
               </div>
             ) : (
-              <div className="p-4 text-center text-sm text-gray-500">
+              <div className={`p-4 text-center text-sm ${isLight ? 'text-gray-400' : 'text-gray-500'}`}>
                 {t('settings.noReleaseInfo')}
               </div>
             )}
@@ -504,13 +378,13 @@ function SettingsView({ onBack, onLogout }: SettingsViewProps) {
             onToggle={() => { setIsStorageOpen(!isStorageOpen); setStorageSize(getStorageSize()); }}
           >
             <div className="p-4 flex flex-col gap-4">
-              <div className="flex justify-between text-xs text-gray-400 border-b border-gray-700 pb-3">
+              <div className={`flex justify-between text-xs border-b pb-3 ${isLight ? 'text-gray-500 border-gray-200' : 'text-gray-400 border-gray-700'}`}>
                 <span>{t('settings.storageTotal')}: {(storageSize / 1024).toFixed(1)} KB</span>
               </div>
 
               {/* インポート */}
               <div className="flex justify-between items-center">
-                <div className="text-sm font-bold text-white">{t('settings.importSettings')}</div>
+                <div className={`text-sm font-bold ${isLight ? 'text-gray-900' : 'text-white'}`}>{t('settings.importSettings')}</div>
                 <button
                   onClick={importSettings}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-blue-500 text-blue-500 text-xs font-bold hover:bg-blue-500 hover:text-white transition-colors"
@@ -522,7 +396,7 @@ function SettingsView({ onBack, onLogout }: SettingsViewProps) {
 
               {/* エクスポート */}
               <div className="flex justify-between items-center">
-                <div className="text-sm font-bold text-white">{t('settings.exportSettings')}</div>
+                <div className={`text-sm font-bold ${isLight ? 'text-gray-900' : 'text-white'}`}>{t('settings.exportSettings')}</div>
                 <button
                   onClick={exportSettings}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-blue-500 text-blue-500 text-xs font-bold hover:bg-blue-500 hover:text-white transition-colors"
@@ -533,9 +407,9 @@ function SettingsView({ onBack, onLogout }: SettingsViewProps) {
               </div>
 
               {/* リセット */}
-              <div className="flex justify-between items-center border-t border-gray-700 pt-3">
+              <div className={`flex justify-between items-center border-t pt-3 ${isLight ? 'border-gray-200' : 'border-gray-700'}`}>
                 <div>
-                  <div className="text-sm font-bold text-white">{t('settings.resetSettings')}</div>
+                  <div className={`text-sm font-bold ${isLight ? 'text-gray-900' : 'text-white'}`}>{t('settings.resetSettings')}</div>
                   <div className="text-xs text-gray-500">{t('settings.resetDescription')}</div>
                 </div>
                 <button
@@ -550,7 +424,7 @@ function SettingsView({ onBack, onLogout }: SettingsViewProps) {
               {/* 初期化 */}
               <div className="flex justify-between items-center">
                 <div>
-                  <div className="text-sm font-bold text-white">{t('settings.clearStorage')}</div>
+                  <div className={`text-sm font-bold ${isLight ? 'text-gray-900' : 'text-white'}`}>{t('settings.clearStorage')}</div>
                   <div className="text-xs text-gray-500">{t('settings.clearDescription')}</div>
                 </div>
                 <button
@@ -571,19 +445,19 @@ function SettingsView({ onBack, onLogout }: SettingsViewProps) {
             isOpen={isOtherOpen}
             onToggle={() => setIsOtherOpen(!isOtherOpen)}
           >
-            <div className="flex flex-col bg-gray-800">
+            <div className={`flex flex-col ${isLight ? 'bg-gray-50' : 'bg-gray-900'}`}>
               {/* 不具合の報告 */}
               <a
                 href="https://docs.google.com/forms/d/e/1FAIpQLSdSyrRWEPHWtuDRvwkRNvPem4YONvthES4QrkJn4eZBEEyP8A/viewform?usp=sharing&ouid=100536804432513362660"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-3 p-4 border-b border-gray-700 hover:bg-gray-900 transition-colors group"
+                className={`flex items-center gap-3 p-4 border-b transition-colors group ${isLight ? 'border-gray-100 hover:bg-gray-100' : 'border-gray-700 hover:bg-gray-800'}`}
               >
                 <div className="p-2 rounded-full bg-red-500/10 text-red-400 group-hover:bg-red-500/20 transition-colors">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
                 </div>
                 <div className="flex-1">
-                  <div className="text-sm font-bold text-white">{t('settings.reportBug')}</div>
+                  <div className={`text-sm font-bold ${isLight ? 'text-gray-900' : 'text-white'}`}>{t('settings.reportBug')}</div>
                   <div className="text-xs text-gray-500">{t('settings.reportBugDescription')}</div>
                 </div>
                 <ExternalLinkIcon />
@@ -594,13 +468,13 @@ function SettingsView({ onBack, onLogout }: SettingsViewProps) {
                 href="https://github.com/keigoly/Ura-Yomi/blob/main/PRIVACY.md"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-3 p-4 border-b border-gray-700 hover:bg-gray-900 transition-colors group"
+                className={`flex items-center gap-3 p-4 border-b transition-colors group ${isLight ? 'border-gray-100 hover:bg-gray-100' : 'border-gray-700 hover:bg-gray-800'}`}
               >
                 <div className="p-2 rounded-full bg-blue-500/10 text-blue-400 group-hover:bg-blue-500/20 transition-colors">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
                 </div>
                 <div className="flex-1">
-                  <div className="text-sm font-bold text-white">{t('settings.privacyPolicy')}</div>
+                  <div className={`text-sm font-bold ${isLight ? 'text-gray-900' : 'text-white'}`}>{t('settings.privacyPolicy')}</div>
                   <div className="text-xs text-gray-500">{t('settings.privacyDescription')}</div>
                 </div>
                 <ExternalLinkIcon />
@@ -611,13 +485,13 @@ function SettingsView({ onBack, onLogout }: SettingsViewProps) {
                 href="https://github.com/keigoly/Ura-Yomi"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-3 p-4 border-b border-gray-700 hover:bg-gray-900 transition-colors group"
+                className={`flex items-center gap-3 p-4 border-b transition-colors group ${isLight ? 'border-gray-100 hover:bg-gray-100' : 'border-gray-700 hover:bg-gray-800'}`}
               >
-                <div className="p-2 rounded-full bg-gray-700/30 text-white group-hover:bg-gray-700/50 transition-colors">
+                <div className={`p-2 rounded-full transition-colors ${isLight ? 'bg-gray-200/50 text-gray-700 group-hover:bg-gray-200' : 'bg-gray-700/30 text-white group-hover:bg-gray-700/50'}`}>
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" /></svg>
                 </div>
                 <div className="flex-1">
-                  <div className="text-sm font-bold text-white">{t('settings.sourceCode')}</div>
+                  <div className={`text-sm font-bold ${isLight ? 'text-gray-900' : 'text-white'}`}>{t('settings.sourceCode')}</div>
                   <div className="text-xs text-gray-500">{t('settings.sourceCodeDescription')}</div>
                 </div>
                 <ExternalLinkIcon />
@@ -628,13 +502,13 @@ function SettingsView({ onBack, onLogout }: SettingsViewProps) {
                 href="https://www.amazon.jp/hz/wishlist/ls/EB28J89CZWVI?ref_=wl_share"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-3 p-4 border-b border-gray-700 hover:bg-gray-900 transition-colors group"
+                className={`flex items-center gap-3 p-4 border-b transition-colors group ${isLight ? 'border-gray-100 hover:bg-gray-100' : 'border-gray-700 hover:bg-gray-800'}`}
               >
                 <div className="p-2 rounded-full bg-orange-500/10 text-orange-400 group-hover:bg-orange-500/20 transition-colors">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 12v10H4V12" /><path d="M2 7h20v5H2z" /><path d="M12 22V7" /><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z" /><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z" /></svg>
                 </div>
                 <div className="flex-1">
-                  <div className="text-sm font-bold text-white">{t('settings.supportDeveloper')}</div>
+                  <div className={`text-sm font-bold ${isLight ? 'text-gray-900' : 'text-white'}`}>{t('settings.supportDeveloper')}</div>
                   <div className="text-xs text-gray-500">{t('settings.supportDescription')}</div>
                 </div>
                 <ExternalLinkIcon />
@@ -645,13 +519,13 @@ function SettingsView({ onBack, onLogout }: SettingsViewProps) {
                 href="https://keigoly.jp/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-3 p-4 hover:bg-gray-900 transition-colors group"
+                className={`flex items-center gap-3 p-4 transition-colors group ${isLight ? 'hover:bg-gray-100' : 'hover:bg-gray-800'}`}
               >
                 <div className="p-1 rounded-full flex items-center justify-center flex-shrink-0" style={{ width: 36, height: 36 }}>
                   <img src="icons/developer-logo.png" alt="Developer" style={{ width: 28, height: 28, objectFit: 'contain' }} />
                 </div>
                 <div className="flex-1">
-                  <div className="text-sm font-bold text-white">{t('settings.developerSite')}</div>
+                  <div className={`text-sm font-bold ${isLight ? 'text-gray-900' : 'text-white'}`}>{t('settings.developerSite')}</div>
                   <div className="text-xs text-gray-500">{t('settings.developerSiteUrl')}</div>
                 </div>
                 <ExternalLinkIcon />
