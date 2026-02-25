@@ -22,7 +22,7 @@ interface AnalysisState {
   error: string | null;
 
   // アクション
-  startAnalysis: (videoId: string, title?: string) => void;
+  startAnalysis: (videoId: string, title?: string, commentCount?: number) => void;
   updateProgress: (progress: Partial<AnalysisProgress>) => void;
   setComments: (comments: YouTubeCommentThread[]) => void;
   setResult: (result: AnalysisResult) => void;
@@ -53,10 +53,10 @@ const initialState = {
 export const useAnalysisStore = create<AnalysisState>((set) => ({
   ...initialState,
 
-  startAnalysis: (videoId: string, title?: string) =>
+  startAnalysis: (videoId: string, title?: string, commentCount?: number) =>
     set({
       isAnalyzing: true,
-      videoInfo: { videoId, title },
+      videoInfo: { videoId, title, commentCount },
       progress: {
         stage: 'fetching',
         current: 0,

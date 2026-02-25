@@ -59,11 +59,12 @@ function ResultDashboard({ result, videoInfo, comments, plan = 'free', onBack, o
   const bgColor = BG_COLORS[bgMode];
   const isLight = isLightMode(bgMode);
 
-  // 返信込みの全コメント数
-  const totalCommentCount = useMemo(() =>
+  // 返信込みの全コメント数（動画メタデータの総数を優先、なければ取得済みコメント数）
+  const fetchedCommentCount = useMemo(() =>
     comments.reduce((sum, thread) => sum + 1 + (thread.replies?.length || 0), 0),
     [comments]
   );
+  const totalCommentCount = videoInfo?.commentCount || fetchedCommentCount;
 
   // メニューの外側をクリックしたら閉じる
   useEffect(() => {

@@ -173,20 +173,20 @@ function SidePanel() {
       setReviewSkipped(false);
 
       try {
-        // タイトルが空の場合、サーバーから取得
+        // タイトル・コメント数をサーバーから取得
         let resolvedTitle = title;
-        if (!resolvedTitle) {
-          try {
-            const info = await getVideoInfo(videoId);
-            if (info.success && info.title) {
-              resolvedTitle = info.title;
-            }
-          } catch {
-            // タイトル取得失敗は無視して続行
+        let resolvedCommentCount: number | undefined;
+        try {
+          const info = await getVideoInfo(videoId);
+          if (info.success) {
+            if (!resolvedTitle && info.title) resolvedTitle = info.title;
+            if (info.commentCount) resolvedCommentCount = info.commentCount;
           }
+        } catch {
+          // 取得失敗は無視して続行
         }
 
-        startAnalysis(videoId, resolvedTitle);
+        startAnalysis(videoId, resolvedTitle, resolvedCommentCount);
 
         // 進捗を初期化
         updateProgress({

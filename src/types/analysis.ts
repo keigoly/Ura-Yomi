@@ -95,4 +95,5 @@ export interface AnalysisProgress {
 export interface VideoInfo {
   videoId: string;
   title?: string;
+  commentCount?: number;
 }
