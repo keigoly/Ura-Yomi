@@ -3,7 +3,7 @@
  */
 
 import { useEffect, useCallback, useRef, useState } from 'react';
-import { Play, Link, Settings, ExternalLink, Clock, Star, Crown, X, Check } from 'lucide-react';
+import { Play, Link, Settings, ExternalLink, Clock, Star, Crown, X, Check, Lock, ShieldCheck } from 'lucide-react';
 import { useAnalysisStore } from '../store/analysisStore';
 import { useDesignStore, BG_COLORS, isLightMode } from '../store/designStore';
 import { analyzeViaServer, analyzeViaServerStream, getVideoInfo, verifySession, getUserPlan, subscribeToPro, openBillingPortal } from '../services/apiServer';
@@ -53,6 +53,8 @@ function SidePanel() {
   const [shareToast, setShareToast] = useState<string | null>(null);
   const showShareToast = (msg: string) => { setShareToast(msg); setTimeout(() => setShareToast(null), 2000); };
   const [interruptedNotice, setInterruptedNotice] = useState(false);
+  const [showFavoritesFull, setShowFavoritesFull] = useState(false);
+  const [dailyInfo, setDailyInfo] = useState<{ used: number; limit: number } | null>(null);
   const [isStandaloneWindow, setIsStandaloneWindow] = useState(false);
   useEffect(() => {
     chrome.windows.getCurrent((win) => {
@@ -124,6 +126,9 @@ function SidePanel() {
         const planResult = await getUserPlan();
         if (planResult.success) {
           chrome.storage.local.set({ planInfo: { plan: planResult.plan, dailyRemaining: planResult.dailyRemaining } });
+          if (planResult.plan === 'free' && planResult.dailyLimit) {
+            setDailyInfo({ used: planResult.dailyUsed ?? 0, limit: planResult.dailyLimit });
+          }
         }
       }
       setAuthLoading(false);
@@ -457,7 +462,7 @@ function SidePanel() {
       setHistoryRefreshKey((k) => k + 1);
     } catch (e) {
       if (e instanceof Error && e.message === 'FAVORITES_FULL') {
-        alert(t('history.favoritesFull'));
+        setShowFavoritesFull(true);
       } else {
         console.error('[SidePanel] Failed to save favorite:', e);
       }
@@ -666,7 +671,7 @@ function SidePanel() {
             reset();
             setSavedFavoriteId(null);
             setIsFromHistory(false);
-            setShowHistory(false);
+            setShowHistory(null);
             setShowPlanModal(true);
           }} onOpenWindow={isStandaloneWindow ? undefined : async () => {
             try {
@@ -781,7 +786,7 @@ function SidePanel() {
                 <img
                   src={chrome.runtime.getURL('icons/yuchan-analyze.png')}
                   alt="ユウちゃん - 解析開始！"
-                  className="w-72 object-contain yuchan-sticker animate-bounce-in"
+                  className="w-80 object-contain yuchan-sticker animate-bounce-in"
                   style={{ animationFillMode: 'both' }}
                 />
               </div>
@@ -819,6 +824,20 @@ function SidePanel() {
                   </div>
                 </button>
               </div>
+              {/* Freeプラン: 残り回数表示 */}
+              {!isPro && dailyInfo && (
+                <div className="text-center">
+                  {dailyInfo.used >= dailyInfo.limit ? (
+                    <p className="text-xs text-red-400 font-medium">{t('daily.limitReached')}</p>
+                  ) : dailyInfo.limit - dailyInfo.used === 1 ? (
+                    <p className="text-xs text-orange-400 font-medium">{t('daily.lastChance')}</p>
+                  ) : (
+                    <p className={`text-xs ${isLight ? 'text-gray-400' : 'text-gray-500'}`}>
+                      {t('daily.remaining', { remaining: String(dailyInfo.limit - dailyInfo.used), limit: String(dailyInfo.limit) })}
+                    </p>
+                  )}
+                </div>
+              )}
             </>
           ) : (
             <>
@@ -888,6 +907,20 @@ function SidePanel() {
                   </div>
                 </button>
               </div>
+              {/* Freeプラン: 残り回数表示 */}
+              {!isPro && dailyInfo && (
+                <div className="text-center">
+                  {dailyInfo.used >= dailyInfo.limit ? (
+                    <p className="text-xs text-red-400 font-medium">{t('daily.limitReached')}</p>
+                  ) : dailyInfo.limit - dailyInfo.used === 1 ? (
+                    <p className="text-xs text-orange-400 font-medium">{t('daily.lastChance')}</p>
+                  ) : (
+                    <p className={`text-xs ${isLight ? 'text-gray-400' : 'text-gray-500'}`}>
+                      {t('daily.remaining', { remaining: String(dailyInfo.limit - dailyInfo.used), limit: String(dailyInfo.limit) })}
+                    </p>
+                  )}
+                </div>
+              )}
             </>
           )}
 
@@ -939,9 +972,7 @@ function SidePanel() {
           {/* X (Twitter) */}
           <button
             onClick={() => {
-              const text = encodeURIComponent(t('share.text'));
-              const url = encodeURIComponent('https://chromewebstore.google.com/detail/mhgmmpapgdegmimfdgmanbdakeopmojn');
-              window.open(`https://x.com/intent/tweet?text=${text}&url=${url}`, '_blank');
+              window.open(`https://x.com/intent/tweet?text=${encodeURIComponent(t('share.text'))}`, '_blank');
             }}
             className={`p-2 rounded-lg transition-colors ${isLight ? 'hover:bg-gray-100 text-gray-500' : 'hover:bg-gray-800 text-gray-400'}`}
             title={t('share.x')}
@@ -953,8 +984,7 @@ function SidePanel() {
           {/* LINE */}
           <button
             onClick={() => {
-              const url = encodeURIComponent('https://chromewebstore.google.com/detail/mhgmmpapgdegmimfdgmanbdakeopmojn');
-              window.open(`https://social-plugins.line.me/lineit/share?url=${url}&text=${encodeURIComponent(t('share.text'))}`, '_blank');
+              window.open(`https://social-plugins.line.me/lineit/share?url=${encodeURIComponent('https://bit.ly/3ZZN9T6')}&text=${encodeURIComponent(t('share.text'))}`, '_blank');
             }}
             className={`p-2 rounded-lg transition-colors ${isLight ? 'hover:bg-gray-100 text-gray-500' : 'hover:bg-gray-800 text-gray-400'}`}
             title={t('share.line')}
@@ -966,8 +996,7 @@ function SidePanel() {
           {/* Facebook */}
           <button
             onClick={() => {
-              const url = encodeURIComponent('https://chromewebstore.google.com/detail/mhgmmpapgdegmimfdgmanbdakeopmojn');
-              window.open(`https://www.facebook.com/sharer/sharer.php?u=${url}`, '_blank');
+              window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent('https://bit.ly/3ZZN9T6')}`, '_blank');
             }}
             className={`p-2 rounded-lg transition-colors ${isLight ? 'hover:bg-gray-100 text-gray-500' : 'hover:bg-gray-800 text-gray-400'}`}
             title={t('share.facebook')}
@@ -976,12 +1005,22 @@ function SidePanel() {
               <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
             </svg>
           </button>
+          {/* Threads */}
+          <button
+            onClick={() => {
+              window.open(`https://www.threads.net/intent/post?text=${encodeURIComponent(t('share.text'))}`, '_blank');
+            }}
+            className={`p-2 rounded-lg transition-colors ${isLight ? 'hover:bg-gray-100 text-gray-500' : 'hover:bg-gray-800 text-gray-400'}`}
+            title={t('share.threads')}
+          >
+            <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M6.321 6.016c-.27-.18-1.166-.802-1.166-.802.756-1.081 1.753-1.502 3.132-1.502.975 0 1.803.327 2.394.948s.928 1.509 1.005 2.644q.492.207.905.484c1.109.745 1.719 1.86 1.719 3.137 0 2.716-2.226 5.075-6.256 5.075C4.594 16 1 13.987 1 7.994 1 2.034 4.482 0 8.044 0 9.69 0 13.55.243 15 5.036l-1.36.353C12.516 1.974 10.163 1.43 8.006 1.43c-3.565 0-5.582 2.171-5.582 6.79 0 4.143 2.254 6.343 5.63 6.343 2.777 0 4.847-1.443 4.847-3.556 0-1.438-1.208-2.127-1.27-2.127-.236 1.234-.868 3.31-3.644 3.31-1.618 0-3.013-1.118-3.013-2.582 0-2.09 1.984-2.847 3.55-2.847.586 0 1.294.04 1.663.114 0-.637-.54-1.728-1.9-1.728-1.25 0-1.566.405-1.967.868ZM8.716 8.19c-2.04 0-2.304.87-2.304 1.416 0 .878 1.043 1.168 1.6 1.168 1.02 0 2.067-.282 2.232-2.423a6.2 6.2 0 0 0-1.528-.161" />
+            </svg>
+          </button>
           {/* Reddit */}
           <button
             onClick={() => {
-              const url = encodeURIComponent('https://chromewebstore.google.com/detail/mhgmmpapgdegmimfdgmanbdakeopmojn');
-              const title = encodeURIComponent(t('share.text'));
-              window.open(`https://www.reddit.com/submit?url=${url}&title=${title}`, '_blank');
+              window.open(`https://www.reddit.com/submit?url=${encodeURIComponent('https://bit.ly/3ZZN9T6')}&title=${encodeURIComponent(t('share.text'))}`, '_blank');
             }}
             className={`p-2 rounded-lg transition-colors ${isLight ? 'hover:bg-gray-100 text-gray-500' : 'hover:bg-gray-800 text-gray-400'}`}
             title={t('share.reddit')}
@@ -993,8 +1032,7 @@ function SidePanel() {
           {/* Chrome Web Store URLコピー */}
           <button
             onClick={async () => {
-              const storeUrl = 'https://chromewebstore.google.com/detail/mhgmmpapgdegmimfdgmanbdakeopmojn';
-              await navigator.clipboard.writeText(storeUrl);
+              await navigator.clipboard.writeText('https://bit.ly/3ZZN9T6');
               showShareToast(t('share.copied'));
             }}
             className={`p-2 rounded-lg transition-colors ${isLight ? 'hover:bg-gray-100 text-gray-500' : 'hover:bg-gray-800 text-gray-400'}`}
@@ -1015,6 +1053,42 @@ function SidePanel() {
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] animate-toast-in">
           <div className={`flex items-center gap-2 px-4 py-2.5 rounded-lg shadow-lg text-sm font-medium ${isLight ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-900'}`}>
             {shareToast}
+          </div>
+        </div>
+      )}
+
+      {/* お気に入り上限モーダル */}
+      {showFavoritesFull && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setShowFavoritesFull(false)}>
+          <div className="absolute inset-0 bg-black/50" />
+          <div
+            className={`relative w-full max-w-xs rounded-xl p-5 shadow-2xl ${isLight ? 'bg-white' : 'bg-gray-800'}`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-2 mb-3">
+              <Star className="w-5 h-5 text-yellow-500 fill-yellow-500" />
+              <h3 className={`text-base font-semibold ${isLight ? 'text-gray-900' : 'text-white'}`}>
+                {t('favoritesFull.title')}
+              </h3>
+            </div>
+            <p className={`text-sm mb-4 leading-relaxed ${isLight ? 'text-gray-600' : 'text-gray-300'}`}>
+              {t('favoritesFull.description', { limit: String(FREE_FAVORITES_LIMIT), max: '30' })}
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowFavoritesFull(false)}
+                className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${isLight ? 'bg-gray-100 text-gray-700 hover:bg-gray-200' : 'bg-gray-700 text-gray-200 hover:bg-gray-600'}`}
+              >
+                {t('favoritesFull.close')}
+              </button>
+              <button
+                onClick={() => { setShowFavoritesFull(false); setShowPlanModal(true); }}
+                className="flex-1 px-3 py-2 rounded-lg text-sm font-bold text-white bg-yellow-500 hover:bg-yellow-600 transition-colors flex items-center justify-center gap-1"
+              >
+                <Crown className="w-3.5 h-3.5" />
+                {t('favoritesFull.upgrade')}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -1126,6 +1200,24 @@ function PlanModal({ plan, isLight, bgColor, onClose, t }: {
                 </div>
               </div>
 
+              {/* Freeプラン制限（損失フレーム） */}
+              <div className={`p-4 rounded-xl border ${isLight ? 'bg-red-50/50 border-red-200/60' : 'bg-red-900/10 border-red-800/20'}`}>
+                <div className={`text-xs font-bold mb-3 flex items-center gap-1.5 ${isLight ? 'text-red-600' : 'text-red-400'}`}>
+                  <Lock className="w-3.5 h-3.5" />
+                  {t('settings.freeLimitations')}
+                </div>
+                <ul className="space-y-2">
+                  {(['freeLimit1', 'freeLimit2', 'freeLimit3', 'freeLimit4'] as const).map((key) => (
+                    <li key={key} className="flex items-start gap-2">
+                      <X className={`w-4 h-4 flex-shrink-0 mt-0.5 ${isLight ? 'text-red-400' : 'text-red-500/70'}`} />
+                      <span className={`text-xs leading-relaxed ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>
+                        {t(`settings.${key}`)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
               {/* Pro特典リスト */}
               <div className={`p-4 rounded-xl border ${isLight ? 'bg-yellow-50/60 border-yellow-200' : 'bg-yellow-900/10 border-yellow-800/30'}`}>
                 <div className={`text-xs font-bold mb-3 flex items-center gap-1.5 ${isLight ? 'text-yellow-700' : 'text-yellow-400'}`}>
@@ -1142,22 +1234,35 @@ function PlanModal({ plan, isLight, bgColor, onClose, t }: {
                     </li>
                   ))}
                 </ul>
-                <div className={`text-center text-xs font-bold mt-3 pt-3 border-t ${isLight ? 'border-yellow-200 text-yellow-700' : 'border-yellow-800/30 text-yellow-400'}`}>
-                  {t('settings.perkPrice')}
+                {/* 価格 + 日割りアンカー */}
+                <div className={`text-center mt-3 pt-3 border-t ${isLight ? 'border-yellow-200' : 'border-yellow-800/30'}`}>
+                  <div className={`text-xs font-bold ${isLight ? 'text-yellow-700' : 'text-yellow-400'}`}>
+                    {t('settings.perkPrice')}
+                  </div>
+                  <div className={`text-[10px] mt-0.5 ${isLight ? 'text-yellow-600/70' : 'text-yellow-500/60'}`}>
+                    {t('settings.perkPriceDaily')}
+                  </div>
                 </div>
               </div>
 
-              <button
-                onClick={handleSubscribe}
-                disabled={loading}
-                className="relative w-full rounded-[20px] p-[2px] cursor-pointer transition-all hover:brightness-110 disabled:opacity-50"
-                style={{ background: 'conic-gradient(from 180deg, #0000FF, #00FFFF, #00FF00, #FFFF00, #FF8C00, #FF0000, #0000FF)' }}
-              >
-                <div className="flex items-center justify-center gap-2 px-4 py-3 bg-[#0f0f0f] rounded-[18px] text-white font-bold text-sm">
-                  <Crown className="w-4 h-4" />
-                  {loading ? t('settings.processing') : t('settings.upgradeToPro')}
+              <div>
+                <button
+                  onClick={handleSubscribe}
+                  disabled={loading}
+                  className="relative w-full rounded-[20px] p-[2px] cursor-pointer transition-all hover:brightness-110 disabled:opacity-50"
+                  style={{ background: 'conic-gradient(from 180deg, #0000FF, #00FFFF, #00FF00, #FFFF00, #FF8C00, #FF0000, #0000FF)' }}
+                >
+                  <div className="flex items-center justify-center gap-2 px-4 py-3 bg-[#0f0f0f] rounded-[18px] text-white font-bold text-sm">
+                    <Crown className="w-4 h-4" />
+                    {loading ? t('settings.processing') : t('settings.upgradeToPro')}
+                  </div>
+                </button>
+                {/* リスク逆転: いつでもキャンセル安心表示 */}
+                <div className={`flex items-center justify-center gap-1 mt-2 ${isLight ? 'text-gray-400' : 'text-gray-500'}`}>
+                  <ShieldCheck className="w-3 h-3" />
+                  <span className="text-[10px]">{t('settings.cancelAnytime')}</span>
                 </div>
-              </button>
+              </div>
             </>
           )}
 

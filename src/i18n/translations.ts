@@ -145,12 +145,19 @@ const ja = {
   'settings.manageSubscription': 'サブスクリプションを管理',
   'settings.processing': '処理中...',
   'settings.proPerks': 'PROプランの特典',
-  'settings.perk1': '1日30回まで解析可能（Freeは3回）',
-  'settings.perk2': '最大2,000件のコメントを取得',
-  'settings.perk3': 'お気に入り＆履歴を無制限に保存',
-  'settings.perk4': 'JSONエクスポート機能',
-  'settings.perk5': '再解析機能',
+  'settings.perk1': '好きな動画を思う存分分析できる（1日30回）',
+  'settings.perk2': 'コメント欄の全貌を見逃さない（最大2,000件）',
+  'settings.perk3': '過去の分析をいつでも振り返れる（無制限保存）',
+  'settings.perk4': '分析データを自由に活用（JSONエクスポート）',
+  'settings.perk5': '新コメントが増えた動画をすぐ再分析',
   'settings.perkPrice': '月額 ¥980',
+  'settings.perkPriceDaily': '1日たった33円',
+  'settings.cancelAnytime': 'いつでもキャンセルOK',
+  'settings.freeLimitations': 'Freeプランの制限',
+  'settings.freeLimit1': '1日3回までしか解析できない',
+  'settings.freeLimit2': 'コメントの一部しか見られない（100件まで）',
+  'settings.freeLimit3': 'お気に入りは3件まで、履歴は5件まで',
+  'settings.freeLimit4': 'エクスポート・再解析が使えない',
   'settings.purchaseError': 'エラーが発生しました: ',
   'settings.stripeNotConfigured': 'Stripeが設定されていないため、この機能は現在利用できません。',
   'settings.language': '言語',
@@ -198,6 +205,8 @@ const ja = {
   'settings.sourceCodeDescription': 'GitHubリポジトリを見る',
   'settings.supportDeveloper': '開発者を応援する',
   'settings.supportDescription': 'Amazon 欲しいものリスト',
+  'settings.developerExtensions': '開発者が製作した拡張機能一覧',
+  'settings.developerExtensionsDesc': 'keigoly.jp/apps',
   'settings.developerSite': '開発者のオフィシャルサイト',
   'settings.developerSiteUrl': 'keigoly.jp',
   'settings.logout': 'ログアウト',
@@ -260,10 +269,11 @@ const ja = {
   'share.x': 'Xでシェア',
   'share.line': 'LINEでシェア',
   'share.facebook': 'Facebookでシェア',
+  'share.threads': 'Threadsでシェア',
   'share.reddit': 'Redditでシェア',
   'share.copyUrl': 'URLをコピー',
   'share.copied': 'URLをコピーしました！',
-  'share.text': 'YouTubeコメントをAIで分析できる「ウラヨミ！」が便利すぎる！',
+  'share.text': 'YouTubeコメントを全て取得しAIで分析できる\n『#ウラヨミ！』が便利すぎる!!!\n是非お試しあれ → https://bit.ly/3ZZN9T6',
   'share.yuchanAsk': 'SNSでのシェアのほどよろしくお願いします！',
 
   // ---- Review Request ----
@@ -273,6 +283,21 @@ const ja = {
   'review.thanksDescription': 'より良いサービスにするため、ぜひ具体的なご意見をお聞かせください。',
   'review.sendFeedback': 'フィードバックを送る',
   'review.later': 'あとで',
+
+  // ---- Peak Pro Banner ----
+  'proBanner.commentsHidden': 'Proなら全{total}件のコメントが見られます',
+  'proBanner.upgrade': 'Proにアップグレード',
+
+  // ---- Daily Remaining ----
+  'daily.remaining': '今日の残り: {remaining}/{limit}回',
+  'daily.lastChance': 'あと1回で今日は解析できなくなります',
+  'daily.limitReached': '今日の解析回数を使い切りました',
+
+  // ---- Favorites Full Modal ----
+  'favoritesFull.title': 'お気に入りがいっぱいです',
+  'favoritesFull.description': 'Freeプランではお気に入りは{limit}件までです。Proプランなら最大{max}件まで保存できます。',
+  'favoritesFull.upgrade': 'Proにアップグレード',
+  'favoritesFull.close': '閉じる',
 
   // ---- Paywall ----
   'paywall.description': 'この機能はProプランでご利用いただけます。',
@@ -452,12 +477,19 @@ const en: Record<keyof typeof ja, string> = {
   'settings.manageSubscription': 'Manage Subscription',
   'settings.processing': 'Processing...',
   'settings.proPerks': 'Pro Plan Benefits',
-  'settings.perk1': 'Up to 30 analyses per day (Free: 3)',
-  'settings.perk2': 'Fetch up to 2,000 comments',
-  'settings.perk3': 'Unlimited favorites & history storage',
-  'settings.perk4': 'JSON export',
-  'settings.perk5': 'Re-analyze',
+  'settings.perk1': 'Analyze your favorite videos freely (30/day)',
+  'settings.perk2': 'Never miss a comment (up to 2,000)',
+  'settings.perk3': 'Revisit past analyses anytime (unlimited storage)',
+  'settings.perk4': 'Use your data freely (JSON export)',
+  'settings.perk5': 'Re-analyze videos with new comments',
   'settings.perkPrice': '¥980 / month',
+  'settings.perkPriceDaily': 'Just ¥33/day',
+  'settings.cancelAnytime': 'Cancel anytime',
+  'settings.freeLimitations': 'Free Plan Limitations',
+  'settings.freeLimit1': 'Only 3 analyses per day',
+  'settings.freeLimit2': 'Only partial comments visible (100 max)',
+  'settings.freeLimit3': 'Only 3 favorites and 5 history entries',
+  'settings.freeLimit4': 'No export or re-analysis',
   'settings.purchaseError': 'An error occurred: ',
   'settings.stripeNotConfigured': 'Stripe is not configured. This feature is currently unavailable.',
   'settings.language': 'Language',
@@ -505,6 +537,8 @@ const en: Record<keyof typeof ja, string> = {
   'settings.sourceCodeDescription': 'View GitHub repository',
   'settings.supportDeveloper': 'Support the Developer',
   'settings.supportDescription': 'Amazon Wish List',
+  'settings.developerExtensions': "Developer's Extensions",
+  'settings.developerExtensionsDesc': 'keigoly.jp/apps',
   'settings.developerSite': "Developer's Official Site",
   'settings.developerSiteUrl': 'keigoly.jp',
   'settings.logout': 'Log out',
@@ -567,10 +601,11 @@ const en: Record<keyof typeof ja, string> = {
   'share.x': 'Share on X',
   'share.line': 'Share on LINE',
   'share.facebook': 'Share on Facebook',
+  'share.threads': 'Share on Threads',
   'share.reddit': 'Share on Reddit',
   'share.copyUrl': 'Copy URL',
   'share.copied': 'URL copied!',
-  'share.text': 'Ura-Yomi! - Analyze YouTube comments with AI. So useful!',
+  'share.text': 'Fetch ALL YouTube comments and analyze them with AI!\n#UraYomi is incredibly useful!!!\nTry it out → https://bit.ly/3ZZN9T6',
   'share.yuchanAsk': 'Please share us on social media!',
 
   // ---- Review Request ----
@@ -580,6 +615,21 @@ const en: Record<keyof typeof ja, string> = {
   'review.thanksDescription': "We'd love to hear your feedback to make Ura-Yomi! even better.",
   'review.sendFeedback': 'Send Feedback',
   'review.later': 'Later',
+
+  // ---- Peak Pro Banner ----
+  'proBanner.commentsHidden': 'See all {total} comments with Pro',
+  'proBanner.upgrade': 'Upgrade to Pro',
+
+  // ---- Daily Remaining ----
+  'daily.remaining': 'Remaining today: {remaining}/{limit}',
+  'daily.lastChance': 'Last analysis for today',
+  'daily.limitReached': "Today's analyses are used up",
+
+  // ---- Favorites Full Modal ----
+  'favoritesFull.title': 'Favorites are full',
+  'favoritesFull.description': 'Free plan allows up to {limit} favorites. Upgrade to Pro for up to {max}.',
+  'favoritesFull.upgrade': 'Upgrade to Pro',
+  'favoritesFull.close': 'Close',
 
   // ---- Paywall ----
   'paywall.description': 'This feature is available with the Pro plan.',

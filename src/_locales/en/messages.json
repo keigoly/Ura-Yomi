@@ -1,10 +1,10 @@
 {
   "extName": {
-    "message": "Ura-Yomi! - YouTube Comment AI Analysis & Sentiment Tool",
+    "message": "Ura-Yomi! Powered by Google Gemini",
     "description": "Extension name shown in Chrome"
   },
   "extDescription": {
-    "message": "AI-powered YouTube comment sentiment analysis. Visualize positive/negative ratios, word clouds, and topic extraction in 3 seconds. Free Chrome extension for VTuber fan analytics, YouTuber competitor analysis, and comment summarization.",
+    "message": "Read between the lines of every comment! An AI-powered detective tool that analyzes YouTube comments and visualizes what viewers really think.",
     "description": "Extension description shown in Chrome"
   }
 }

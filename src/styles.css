@@ -429,12 +429,15 @@ html {
 
 /* ユウちゃんステッカー風 */
 .yuchan-sticker {
-  filter: drop-shadow(0 0 0 white)
-          drop-shadow(1px 0 0 white)
-          drop-shadow(-1px 0 0 white)
-          drop-shadow(0 1px 0 white)
-          drop-shadow(0 -1px 0 white)
-          drop-shadow(2px 4px 6px rgba(0, 0, 0, 0.3));
+  filter: drop-shadow(2px 0 0 white)
+          drop-shadow(-2px 0 0 white)
+          drop-shadow(0 2px 0 white)
+          drop-shadow(0 -2px 0 white)
+          drop-shadow(1.5px 1.5px 0 white)
+          drop-shadow(-1.5px 1.5px 0 white)
+          drop-shadow(1.5px -1.5px 0 white)
+          drop-shadow(-1.5px -1.5px 0 white)
+          drop-shadow(3px 6px 8px rgba(0, 0, 0, 0.25));
   transform: rotate(-5deg);
   transition: transform 0.3s ease;
 }

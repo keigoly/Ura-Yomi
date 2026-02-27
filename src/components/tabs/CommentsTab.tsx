@@ -392,13 +392,13 @@ function CommentsTab({ comments, plan = 'free' }: CommentsTabProps) {
               // Freeプラン: 50件以降はフェードアウト（50件目からグラデーション開始）
               const isFaded = isFree && index >= FREE_VISIBLE_THREADS;
               const fadeOpacity = isFaded
-                ? Math.max(0.08, 1 - (index - FREE_VISIBLE_THREADS) * 0.15)
+                ? Math.max(0.15, 1 - (index - FREE_VISIBLE_THREADS) * 0.12)
                 : 1;
               return (
                 <div
                   key={thread.id}
                   className={`youtube-comment-thread ${hasReplies ? 'has-replies' : 'no-replies'} ${isExpanded ? 'is-expanded' : 'is-collapsed'}`}
-                  style={isFaded ? { opacity: fadeOpacity, filter: `blur(${Math.min(4, (index - FREE_VISIBLE_THREADS) * 0.7)}px)`, pointerEvents: 'none', userSelect: 'none' } : undefined}
+                  style={isFaded ? { opacity: fadeOpacity, filter: `blur(${Math.min(2.5, (index - FREE_VISIBLE_THREADS) * 0.5)}px)`, pointerEvents: 'none', userSelect: 'none' } : undefined}
                 >
                   {/* 親コメント */}
                   <div className="comment-parent">

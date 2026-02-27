@@ -514,6 +514,23 @@ function SettingsView({ onBack, onLogout }: SettingsViewProps) {
                 <ExternalLinkIcon />
               </a>
 
+              {/* 開発者の拡張機能一覧 */}
+              <a
+                href="https://keigoly.jp/apps/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`flex items-center gap-3 p-4 border-b transition-colors group ${isLight ? 'border-gray-100 hover:bg-gray-100' : 'border-gray-700 hover:bg-gray-800'}`}
+              >
+                <div className="p-1 rounded-full flex items-center justify-center flex-shrink-0" style={{ width: 36, height: 36 }}>
+                  <img src="icons/chrome-icon.png" alt="Chrome" style={{ width: 28, height: 28, objectFit: 'contain' }} />
+                </div>
+                <div className="flex-1">
+                  <div className={`text-sm font-bold ${isLight ? 'text-gray-900' : 'text-white'}`}>{t('settings.developerExtensions')}</div>
+                  <div className="text-xs text-gray-500">{t('settings.developerExtensionsDesc')}</div>
+                </div>
+                <ExternalLinkIcon />
+              </a>
+
               {/* 開発者サイト */}
               <a
                 href="https://keigoly.jp/"

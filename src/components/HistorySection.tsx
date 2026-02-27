@@ -131,7 +131,7 @@ function HistorySection({ mode, plan = 'free', onBack, onLoadEntry, refreshKey }
               <>
                 {(isFree ? favorites.slice(0, FREE_VISIBLE_ENTRIES + 3) : favorites).map((item, index) => {
                   const isFaded = isFree && index >= FREE_VISIBLE_ENTRIES;
-                  const fadeOpacity = isFaded ? Math.max(0.1, 1 - (index - FREE_VISIBLE_ENTRIES) * 0.3) : 1;
+                  const fadeOpacity = isFaded ? Math.max(0.2, 1 - (index - FREE_VISIBLE_ENTRIES) * 0.25) : 1;
                   return (
                     <div
                       key={item.id}
@@ -141,7 +141,7 @@ function HistorySection({ mode, plan = 'free', onBack, onLoadEntry, refreshKey }
                           ? isLight ? 'border-gray-200 bg-white' : 'border-gray-700 bg-gray-800'
                           : `cursor-pointer ${isLight ? 'border-gray-200 bg-white hover:bg-gray-50' : 'border-gray-700 bg-gray-800 hover:bg-gray-700'}`
                       }`}
-                      style={isFaded ? { opacity: fadeOpacity, filter: `blur(${Math.min(4, (index - FREE_VISIBLE_ENTRIES) * 1)}px)`, pointerEvents: 'none', userSelect: 'none' } : undefined}
+                      style={isFaded ? { opacity: fadeOpacity, filter: `blur(${Math.min(2.5, (index - FREE_VISIBLE_ENTRIES) * 0.7)}px)`, pointerEvents: 'none', userSelect: 'none' } : undefined}
                     >
                       <div className="flex-1 min-w-0">
                         <p className={`text-sm font-medium truncate ${isLight ? 'text-gray-800' : 'text-gray-200'}`}>
@@ -162,7 +162,7 @@ function HistorySection({ mode, plan = 'free', onBack, onLoadEntry, refreshKey }
                   );
                 })}
                 {isFree && favorites.length > FREE_VISIBLE_ENTRIES && (
-                  <UpgradeCTA isLight={isLight} bgColor={bgColor} total={favorites.length} limit={FREE_VISIBLE_ENTRIES} t={t} label={t('history.favorites')} />
+                  <UpgradeCTA isLight={isLight} bgColor={bgColor} total={favorites.length} limit={FREE_VISIBLE_ENTRIES} t={t} />
                 )}
               </>
             )}
@@ -178,7 +178,7 @@ function HistorySection({ mode, plan = 'free', onBack, onLoadEntry, refreshKey }
               <>
                 {(isFree ? history.slice(0, FREE_VISIBLE_ENTRIES + 3) : history).map((item, index) => {
                   const isFaded = isFree && index >= FREE_VISIBLE_ENTRIES;
-                  const fadeOpacity = isFaded ? Math.max(0.1, 1 - (index - FREE_VISIBLE_ENTRIES) * 0.3) : 1;
+                  const fadeOpacity = isFaded ? Math.max(0.2, 1 - (index - FREE_VISIBLE_ENTRIES) * 0.25) : 1;
                   return (
                     <div
                       key={item.id}
@@ -188,7 +188,7 @@ function HistorySection({ mode, plan = 'free', onBack, onLoadEntry, refreshKey }
                           ? isLight ? 'border-gray-200 bg-white' : 'border-gray-700 bg-gray-800'
                           : `cursor-pointer ${isLight ? 'border-gray-200 bg-white hover:bg-gray-50' : 'border-gray-700 bg-gray-800 hover:bg-gray-700'}`
                       }`}
-                      style={isFaded ? { opacity: fadeOpacity, filter: `blur(${Math.min(4, (index - FREE_VISIBLE_ENTRIES) * 1)}px)`, pointerEvents: 'none', userSelect: 'none' } : undefined}
+                      style={isFaded ? { opacity: fadeOpacity, filter: `blur(${Math.min(2.5, (index - FREE_VISIBLE_ENTRIES) * 0.7)}px)`, pointerEvents: 'none', userSelect: 'none' } : undefined}
                     >
                       <div className="flex-1 min-w-0">
                         <p className={`text-sm font-medium truncate ${isLight ? 'text-gray-800' : 'text-gray-200'}`}>
@@ -209,7 +209,7 @@ function HistorySection({ mode, plan = 'free', onBack, onLoadEntry, refreshKey }
                   );
                 })}
                 {isFree && history.length > FREE_VISIBLE_ENTRIES && (
-                  <UpgradeCTA isLight={isLight} bgColor={bgColor} total={history.length} limit={FREE_VISIBLE_ENTRIES} t={t} label={t('history.recentHistory')} />
+                  <UpgradeCTA isLight={isLight} bgColor={bgColor} total={history.length} limit={FREE_VISIBLE_ENTRIES} t={t} />
                 )}
                 {/* 全履歴削除ボタン */}
                 {(!isFree || history.length <= FREE_VISIBLE_ENTRIES) && (
@@ -276,9 +276,9 @@ function HistorySection({ mode, plan = 'free', onBack, onLoadEntry, refreshKey }
 }
 
 /** Freeプラン用アップグレードCTA */
-function UpgradeCTA({ isLight, bgColor, total, limit, t, label }: {
+function UpgradeCTA({ isLight, bgColor, total, limit, t }: {
   isLight: boolean; bgColor: string; total: number; limit: number;
-  t: (key: string, params?: Record<string, string | number>) => string; label: string;
+  t: (key: string, params?: Record<string, string | number>) => string;
 }) {
   return (
     <div className="relative -mt-1">

@@ -31,9 +31,13 @@ lerna-debug.log*
 ehthumbs.db
 Thumbs.db
 
-# IDE
+# IDE & AI tools
 .vscode/
 .idea/
+.claude/
+.serena/
+.mcp.json
+.cursor/
 *.swp
 *.swo
 *~

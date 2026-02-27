@@ -3,7 +3,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { Settings, Play, AlertCircle, Link, PanelRight, Crown } from 'lucide-react';
+import { Settings, Play, AlertCircle, Link, PanelRight } from 'lucide-react';
 import { getCurrentYouTubeVideo, extractVideoId } from '../utils/youtube';
 import { verifySession, getUserPlan, getVideoInfo } from '../services/apiServer';
 import type { User, PlanResponse } from '../types';
@@ -321,9 +321,7 @@ function Popup() {
           {/* X (Twitter) */}
           <button
             onClick={() => {
-              const text = encodeURIComponent(t('share.text'));
-              const url = encodeURIComponent('https://chromewebstore.google.com/detail/mhgmmpapgdegmimfdgmanbdakeopmojn');
-              window.open(`https://x.com/intent/tweet?text=${text}&url=${url}`, '_blank');
+              window.open(`https://x.com/intent/tweet?text=${encodeURIComponent(t('share.text'))}`, '_blank');
             }}
             className="p-1.5 hover:bg-gray-800 rounded-lg transition-colors text-gray-500 hover:text-gray-300"
             title={t('share.x')}
@@ -335,8 +333,7 @@ function Popup() {
           {/* LINE */}
           <button
             onClick={() => {
-              const url = encodeURIComponent('https://chromewebstore.google.com/detail/mhgmmpapgdegmimfdgmanbdakeopmojn');
-              window.open(`https://social-plugins.line.me/lineit/share?url=${url}&text=${encodeURIComponent(t('share.text'))}`, '_blank');
+              window.open(`https://social-plugins.line.me/lineit/share?url=${encodeURIComponent('https://bit.ly/3ZZN9T6')}&text=${encodeURIComponent(t('share.text'))}`, '_blank');
             }}
             className="p-1.5 hover:bg-gray-800 rounded-lg transition-colors text-gray-500 hover:text-gray-300"
             title={t('share.line')}
@@ -348,8 +345,7 @@ function Popup() {
           {/* Facebook */}
           <button
             onClick={() => {
-              const url = encodeURIComponent('https://chromewebstore.google.com/detail/mhgmmpapgdegmimfdgmanbdakeopmojn');
-              window.open(`https://www.facebook.com/sharer/sharer.php?u=${url}`, '_blank');
+              window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent('https://bit.ly/3ZZN9T6')}`, '_blank');
             }}
             className="p-1.5 hover:bg-gray-800 rounded-lg transition-colors text-gray-500 hover:text-gray-300"
             title={t('share.facebook')}
@@ -358,12 +354,22 @@ function Popup() {
               <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
             </svg>
           </button>
+          {/* Threads */}
+          <button
+            onClick={() => {
+              window.open(`https://www.threads.net/intent/post?text=${encodeURIComponent(t('share.text'))}`, '_blank');
+            }}
+            className="p-1.5 hover:bg-gray-800 rounded-lg transition-colors text-gray-500 hover:text-gray-300"
+            title={t('share.threads')}
+          >
+            <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M6.321 6.016c-.27-.18-1.166-.802-1.166-.802.756-1.081 1.753-1.502 3.132-1.502.975 0 1.803.327 2.394.948s.928 1.509 1.005 2.644q.492.207.905.484c1.109.745 1.719 1.86 1.719 3.137 0 2.716-2.226 5.075-6.256 5.075C4.594 16 1 13.987 1 7.994 1 2.034 4.482 0 8.044 0 9.69 0 13.55.243 15 5.036l-1.36.353C12.516 1.974 10.163 1.43 8.006 1.43c-3.565 0-5.582 2.171-5.582 6.79 0 4.143 2.254 6.343 5.63 6.343 2.777 0 4.847-1.443 4.847-3.556 0-1.438-1.208-2.127-1.27-2.127-.236 1.234-.868 3.31-3.644 3.31-1.618 0-3.013-1.118-3.013-2.582 0-2.09 1.984-2.847 3.55-2.847.586 0 1.294.04 1.663.114 0-.637-.54-1.728-1.9-1.728-1.25 0-1.566.405-1.967.868ZM8.716 8.19c-2.04 0-2.304.87-2.304 1.416 0 .878 1.043 1.168 1.6 1.168 1.02 0 2.067-.282 2.232-2.423a6.2 6.2 0 0 0-1.528-.161" />
+            </svg>
+          </button>
           {/* Reddit */}
           <button
             onClick={() => {
-              const url = encodeURIComponent('https://chromewebstore.google.com/detail/mhgmmpapgdegmimfdgmanbdakeopmojn');
-              const title = encodeURIComponent(t('share.text'));
-              window.open(`https://www.reddit.com/submit?url=${url}&title=${title}`, '_blank');
+              window.open(`https://www.reddit.com/submit?url=${encodeURIComponent('https://bit.ly/3ZZN9T6')}&title=${encodeURIComponent(t('share.text'))}`, '_blank');
             }}
             className="p-1.5 hover:bg-gray-800 rounded-lg transition-colors text-gray-500 hover:text-gray-300"
             title={t('share.reddit')}
@@ -374,7 +380,7 @@ function Popup() {
           </button>
           {/* Chrome Web Store URLコピー */}
           <button
-            onClick={() => navigator.clipboard.writeText('https://chromewebstore.google.com/detail/mhgmmpapgdegmimfdgmanbdakeopmojn')}
+            onClick={() => navigator.clipboard.writeText('https://bit.ly/3ZZN9T6')}
             className="p-1.5 hover:bg-gray-800 rounded-lg transition-colors text-gray-500 hover:text-gray-300"
             title={t('share.copyUrl')}
           >

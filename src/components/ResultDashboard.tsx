@@ -3,7 +3,7 @@
  */
 
 import { useState, useEffect, useRef, useMemo, memo } from 'react';
-import { FileDown, Copy, Check, Menu, X, ArrowLeft, Bookmark, ExternalLink, RefreshCw, Crown } from 'lucide-react';
+import { FileDown, Copy, Check, Menu, X, ArrowLeft, Bookmark, ExternalLink, RefreshCw, Sparkles } from 'lucide-react';
 import type { AnalysisResult, VideoInfo, YouTubeCommentThread } from '../types';
 import { useDesignStore, BG_COLORS, isLightMode } from '../store/designStore';
 import { useTranslation } from '../i18n/useTranslation';
@@ -377,6 +377,23 @@ function ResultDashboard({ result, videoInfo, comments, plan = 'free', onBack, o
           </button>
         ))}
       </div>
+
+      {/* Freeプラン: ピーク訴求バナー（解析完了直後の報酬系ピーク時に表示） */}
+      {plan === 'free' && totalCommentCount > 100 && (
+        <div
+          className={`flex items-center gap-2 px-4 py-2 border-b cursor-pointer transition-colors ${isLight ? 'bg-yellow-50/80 border-yellow-200/60 hover:bg-yellow-50' : 'bg-yellow-900/10 border-yellow-800/20 hover:bg-yellow-900/20'}`}
+          onClick={onOpenPlan}
+          style={{ flexShrink: 0 }}
+        >
+          <Sparkles className={`w-4 h-4 flex-shrink-0 ${isLight ? 'text-yellow-600' : 'text-yellow-400'}`} />
+          <span className={`text-xs flex-1 ${isLight ? 'text-yellow-700' : 'text-yellow-300'}`}>
+            {t('proBanner.commentsHidden', { total: totalCommentCount.toLocaleString() })}
+          </span>
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-yellow-500 text-white flex-shrink-0">
+            PRO
+          </span>
+        </div>
+      )}
 
       {/* Tab Content - 各タブが自身のスクロールを管理 */}
       <div
