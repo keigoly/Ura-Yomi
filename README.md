@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <a href="https://chromewebstore.google.com/detail/mhgmmpapgdegmimfdgmanbdakeopmojn"><img src="https://img.shields.io/badge/Chrome_Web_Store-v1.0.2-brightgreen.svg?logo=googlechrome&logoColor=white" alt="Chrome Web Store"></a>
+  <a href="https://chromewebstore.google.com/detail/mhgmmpapgdegmimfdgmanbdakeopmojn"><img src="https://img.shields.io/badge/Chrome_Web_Store-v1.1.0-brightgreen.svg?logo=googlechrome&logoColor=white" alt="Chrome Web Store"></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/TypeScript-5.6-blue.svg" alt="TypeScript">
   <img src="https://img.shields.io/badge/React-18-blue.svg" alt="React">
@@ -27,7 +27,7 @@
 
 「ウラヨミ！」は、YouTube動画のコメント欄をGoogle Gemini AIで自動解析し、コメントの感情分析・要約・深掘りを行うChrome拡張機能です。通常動画だけでなく、ショート動画にも対応しています。
 
-数千件のコメントを瞬時に分析し、視聴者の本音やトレンドを可視化します。APIキーの直接設定は不要で、Googleアカウントでサインインしてクレジットを消費する形で利用できます。
+数千件のコメントを瞬時に分析し、視聴者の本音やトレンドを可視化します。Googleアカウントでサインインするだけで利用開始。Freeプラン（1日3回）で気軽に試せます。
 
 ## 主な機能
 
@@ -68,18 +68,16 @@
 - **多言語対応** — 日本語 / English 切り替え（UI全体 + Gemini解析結果も対応）
 - **テーマ** — ライト / ダークブルー / ブラックの3種類の背景モード
 - **フォントサイズ** — 13px〜18pxの5段階で調整可能
-- **解析履歴** — 過去の解析結果を最大30件保存・閲覧・再表示
+- **お気に入り＆履歴** — お気に入り動画を最大30件保存、解析履歴は自動保存（chrome.storage.local）
 - **設定のインポート/エクスポート** — JSON形式でバックアップ・復元
-- **SNSシェア** — X / LINE / Facebook / Reddit + Chrome Web StoreリンクのURLコピーでの拡散機能（サイドパネル・ポップアップ両方に配置）
+- **SNSシェア** — X / LINE / Facebook / Threads / Reddit + Chrome Web StoreリンクのURLコピーでの拡散機能（サイドパネル・ポップアップ両方に配置）
 
-### 認証・クレジットシステム
+### Free / Proプラン
 
 - **Googleアカウント認証** — Chrome Identity APIを利用した安全なOAuth認証
-- **クレジットベースの利用** — 解析1回につき2クレジット消費
+- **Freeプラン** — 1日3回まで解析可能、コメント取得100件、お気に入り5件まで
+- **Proプラン（月額¥980）** — 1日30回まで解析、コメント最大2,000件取得、お気に入り＆履歴無制限、JSONエクスポート、再解析機能
 - **サーバー側でAPIキー管理** — ユーザーがAPIキーを直接設定する必要なし
-- **クレジット購入・サブスクリプション** — 設定画面から購入可能
-- **クレジットバッチシステム** — サブスクリプションクレジットは90日有効期限（FIFO消費）、都度購入・初回無料は期限なし
-- **期限切れ警告** — クレジット有効期限が30日/7日以内の場合に設定画面で警告表示
 
 ## 技術スタック
 
@@ -151,11 +149,11 @@
 ```
 1. ユーザーが解析を開始
 2. フロントエンド → POST /api/analyze (videoId, language)
-3. サーバー: 認証確認 → クレジット確認 → コスト上限確認
+3. サーバー: 認証確認 → プラン確認 → 利用制限確認
 4. サーバー: YouTube API でコメント取得（最大2,000件）
 5. サーバー: コメントをフラット化（親+返信）
 6. サーバー: Gemini API で AI解析
-7. サーバー: クレジット差引 → 使用量記録
+7. サーバー: 使用回数記録
 8. レスポンス: 解析結果 + コメント一覧 → フロントエンド
 9. サイドパネルに結果を3タブで表示
 ```
@@ -172,6 +170,7 @@ Ura-Yomi/
 │   │   ├── LoadingView.tsx       # 解析中の進捗表示
 │   │   ├── SettingsView.tsx      # 設定画面（アコーディオン式）
 │   │   ├── Auth.tsx              # Google認証UI
+│   │   ├── HistorySection.tsx    # お気に入り＆履歴ページ
 │   │   └── tabs/                 # 結果タブコンポーネント
 │   │       ├── SummaryTab.tsx    # 要約・感情分析・トピック
 │   │       ├── DeepDiveTab.tsx   # Gemini深掘り分析
@@ -182,7 +181,7 @@ Ura-Yomi/
 │   │   └── characterStore.ts     # キャラクターモード（変換キャッシュ含む）
 │   ├── services/                 # フロントエンドサービス
 │   │   ├── apiServer.ts          # バックエンドAPI通信クライアント
-│   │   └── historyStorage.ts     # 解析履歴のlocalStorage管理
+│   │   └── analysisStorage.ts    # お気に入り＆履歴のchrome.storage.local管理
 │   ├── i18n/                     # 多言語対応（国際化）
 │   │   ├── translations.ts       # 翻訳辞書（ja/en 200+キー）
 │   │   └── useTranslation.ts     # useTranslation() フック
@@ -276,8 +275,8 @@ JWT_SECRET=your_jwt_secret
 NODE_ENV=development                 # development | production
 USE_ALTERNATIVE_FETCH=false           # 代替手段によるコメント取得を有効化
 ALTERNATIVE_FETCH_FALLBACK=false     # YouTube API失敗時に代替手段へフォールバック
-MONTHLY_COST_LIMIT=1000              # 月間API利用コスト上限（円）
-DEVELOPER_COMMISSION_RATE=0.30       # 開発者コミッション率
+DAILY_LIMIT_PER_USER=30              # Proプランの1日あたり解析上限回数
+FREE_DAILY_LIMIT=3                   # Freeプランの1日あたり解析上限回数
 ```
 
 ### 5. APIキーの取得
@@ -347,26 +346,20 @@ npm run dev
 - **エクスポート** — 「JSONでエクスポート」で全データをダウンロード
 - **履歴** — 設定画面の「履歴」から過去の解析結果を再表示
 
-## クレジットシステム
+## Free / Proプラン
 
-| 項目 | 値 |
-|------|-----|
-| 解析1回あたりのコスト | 3クレジット |
-| 初期クレジット（開発環境） | 999クレジット |
-| 初期クレジット（本番環境） | 15クレジット |
-| クレジット上限 | 3,000クレジット |
-| 都度購入クレジット有効期限 | なし |
-| サブスクリプションクレジット有効期限 | 90日（FIFO消費） |
+| プラン | 解析回数 | コメント取得 | お気に入り | 価格 |
+|--------|---------|------------|----------|------|
+| Free | 1日3回 | 100件 | 5件まで | ¥0 |
+| Pro | 1日30回 | 最大2,000件 | 無制限 | ¥980/月 |
 
-### 購入プラン
+### Proプランの特典
 
-| プラン | クレジット数 | 価格 |
-|--------|-------------|------|
-| お試しパック | 30 | ¥300 |
-| スタンダード | 60 | ¥500 |
-| プレミアム | 150 | ¥1,000 |
-| 月額ライト | 90/月 | ¥800/月 |
-| 月額スタンダード | 300/月 | ¥1,980/月 |
+- 好きな動画を思う存分分析できる（1日30回）
+- YouTubeの全コメントを取得して完全な分析結果を得られる
+- お気に入り＆履歴を無制限に保存できる
+- 解析結果をJSONでエクスポートして自由に活用できる
+- いつでも再解析して最新のコメントを分析できる
 
 ## AI解析モデル
 
@@ -386,11 +379,10 @@ Gemini APIのモデルは以下の優先順位で自動選択されます：
 |----------|---------------|------|------|
 | POST | `/api/auth/google` | Google OAuth認証 | 不要 |
 | GET | `/api/auth/verify` | セッション検証 | Bearer Token |
-| GET | `/api/user/credits` | クレジット残高取得 | Bearer Token |
+| GET | `/api/user/plan` | プラン情報・利用状況取得 | Bearer Token |
 | GET | `/api/video/info` | 動画情報（タイトル・コメント数） | 不要 |
 | POST | `/api/analyze` | コメント解析（メイン機能） | Bearer Token |
-| POST | `/api/billing/purchase` | クレジット購入（レガシー） | Bearer Token |
-| POST | `/api/billing/create-checkout-session` | Stripe決済セッション作成 | Bearer Token |
+| POST | `/api/billing/create-checkout-session` | StripeサブスクリプションCheckoutセッション作成 | Bearer Token |
 | POST | `/api/billing/webhook` | Stripe Webhook受信 | Stripe署名 |
 | POST | `/api/character/rewrite` | キャラクターモード書き換え | Bearer Token |
 | GET | `/health` | ヘルスチェック | 不要 |
@@ -495,34 +487,31 @@ NODE_ENV=production
 GOOGLE_CLIENT_ID=your_google_client_id
 YOUTUBE_API_KEY=your_youtube_api_key
 GEMINI_API_KEY=your_gemini_api_key
-DEVELOPER_COMMISSION_RATE=0.30
 ADMIN_SECRET=your_admin_secret
 JWT_SECRET=your_jwt_secret
+DAILY_LIMIT_PER_USER=30
+FREE_DAILY_LIMIT=3
 
-# Stripe決済
+# Stripe決済（Proサブスクリプション）
 STRIPE_SECRET_KEY=sk_live_xxxxx
 STRIPE_WEBHOOK_SECRET=whsec_xxxxx
-STRIPE_PRICE_30=price_xxxxx
-STRIPE_PRICE_60=price_xxxxx
-STRIPE_PRICE_150=price_xxxxx
-STRIPE_PRICE_LITE=price_xxxxx
-STRIPE_PRICE_STANDARD=price_xxxxx
+STRIPE_PRICE_PRO=price_xxxxx
 ```
 
 ### Stripe決済連携
 
-本番環境ではStripeを使用したクレジット購入・サブスクリプションに対応しています。
+本番環境ではStripeを使用したProプランのサブスクリプション決済に対応しています。
 
 #### 決済フロー
 
 ```
-1. ユーザーが設定画面から購入プランを選択
+1. ユーザーが設定画面またはPlanModalからProプランを選択
 2. フロントエンド → POST /api/billing/create-checkout-session
-3. サーバー: Stripe Checkout Sessionを作成
+3. サーバー: Stripe Checkout Sessionを作成（月額サブスクリプション）
 4. ユーザー: Stripeホスト決済ページへリダイレクト
 5. 決済完了 → Stripe Webhook → POST /api/billing/webhook
-6. サーバー: 署名検証 → クレジット付与 → 売上記録
-7. フロントエンド: ポーリングでクレジット更新を検知
+6. サーバー: 署名検証 → Proプラン有効化 → 利用状況記録
+7. フロントエンド: ポーリングでプラン更新を検知
 ```
 
 #### Stripe Webhook設定
@@ -583,9 +572,9 @@ cd server && npm run dev
 ```
 → `.env` の `VITE_API_BASE_URL` が `http://localhost:3000` に設定されているか確認
 
-### クレジット不足
+### 解析回数の制限
 
-→ 設定画面の「クレジット管理」からクレジットを購入してください。
+→ Freeプランは1日3回までの制限があります。Proプランにアップグレードすると1日30回まで解析できます。設定画面またはPlanModalからProプランへ移行してください。
 
 ### Gemini APIエラー
 
@@ -606,6 +595,22 @@ cd server && npm run dev
 → コンソール（F12）でエラーメッセージを確認
 
 ## 更新履歴
+
+### v1.1.0（2026-02-27）
+
+- クレジット制を廃止し、Free/Proプラン制へ移行（Pro月額¥980）
+- お気に入り＆履歴機能を追加（chrome.storage.local、自動保存）
+- キャラクター紹介ページを追加（ユウちゃん＆ジェミニーちゃんプロフィール）
+- PlanModalにニューロマーケティング施策を適用（損失フレーム、ベネフィットテキスト、日割り価格、リスク逆転）
+- ResultDashboardにPROピーク訴求バナーを追加
+- Freeプラン向けに残り解析回数表示、お気に入り上限モーダルを追加
+- コメントタブ・履歴のブラー演出を緩和（見えるのに触れない演出強化）
+- SNSシェアにThreadsを追加、シェアテキストを統一
+- 設定画面に「開発者が製作した拡張機能一覧」リンクを追加
+- ユウちゃんステッカーのCSS強化（白縁太く）＋サイズ拡大
+- レビュー依頼モーダルを追加（3回以上解析後に表示）
+- 削除確認ポップアップを追加（お気に入り・履歴）
+- TypeScriptエラー修正、ルート直下ファイル整理
 
 ### v1.0.2（2026-02-19）
 

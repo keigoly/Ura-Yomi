@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <a href="https://chromewebstore.google.com/detail/mhgmmpapgdegmimfdgmanbdakeopmojn"><img src="https://img.shields.io/badge/Chrome_Web_Store-v1.0.2-brightgreen.svg?logo=googlechrome&logoColor=white" alt="Chrome Web Store"></a>
+  <a href="https://chromewebstore.google.com/detail/mhgmmpapgdegmimfdgmanbdakeopmojn"><img src="https://img.shields.io/badge/Chrome_Web_Store-v1.1.0-brightgreen.svg?logo=googlechrome&logoColor=white" alt="Chrome Web Store"></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/TypeScript-5.6-blue.svg" alt="TypeScript">
   <img src="https://img.shields.io/badge/React-18-blue.svg" alt="React">
@@ -27,7 +27,7 @@
 
 "Ura-Yomi!" is a Chrome extension that automatically analyzes YouTube video comments using Google Gemini AI, providing sentiment analysis, summaries, and deep-dive insights. It supports both regular videos and YouTube Shorts.
 
-Instantly analyze thousands of comments to reveal viewer sentiment and trending topics. No API key setup required for end users — simply sign in with your Google account and use credits.
+Instantly analyze thousands of comments to reveal viewer sentiment and trending topics. No API key setup required for end users — simply sign in with your Google account to get started. Try it free with the Free plan (3 analyses per day).
 
 ## Key Features
 
@@ -68,18 +68,16 @@ Instantly analyze thousands of comments to reveal viewer sentiment and trending 
 - **Multilingual** — Japanese / English toggle (entire UI + Gemini analysis results)
 - **Themes** — 3 background modes: Light / Dark Blue / Black
 - **Font Size** — 5 levels from 13px to 18px
-- **Analysis History** — Save up to 30 past analysis results for later review
+- **Favorites & History** — Save up to 30 favorite videos, analysis history auto-saved (chrome.storage.local)
 - **Import/Export Settings** — Backup and restore settings in JSON format
-- **Social Sharing** — Share via X / LINE / Facebook / Reddit + Chrome Web Store link URL copy (available in both side panel and popup)
+- **Social Sharing** — Share via X / LINE / Facebook / Threads / Reddit + Chrome Web Store link URL copy (available in both side panel and popup)
 
-### Authentication & Credits
+### Free / Pro Plans
 
 - **Google Account Auth** — Secure OAuth via Chrome Identity API
-- **Credit-based Usage** — 2 credits per analysis
+- **Free Plan** — Up to 3 analyses per day, 100 comments fetched, up to 5 favorites
+- **Pro Plan (¥980/month)** — Up to 30 analyses per day, up to 2,000 comments, unlimited favorites & history, JSON export, re-analysis
 - **Server-side API Key Management** — No API key setup required for users
-- **Credit Purchase & Subscriptions** — Available from the settings page
-- **Credit Batch System** — Subscription credits have a 90-day expiry (FIFO consumption); one-time purchases and initial free credits never expire
-- **Expiry Warnings** — Settings page shows warnings when credits expire within 30 or 7 days
 
 ## Tech Stack
 
@@ -136,7 +134,7 @@ Instantly analyze thousands of comments to reveal viewer sentiment and trending 
 │  │          API Endpoints           │               │
 │  │  /api/auth/google  /api/analyze  │               │
 │  │  /api/auth/verify  /api/video    │               │
-│  │  /api/user/credits /api/billing  │               │
+│  │  /api/user/plan    /api/billing  │               │
 │  └──┬──────────┬──────────┬─────────┘               │
 │     │          │          │                         │
 │  ┌──┴───┐  ┌──┴────┐  ┌──┴──────┐                  │
@@ -151,11 +149,11 @@ Instantly analyze thousands of comments to reveal viewer sentiment and trending 
 ```
 1. User initiates analysis
 2. Frontend → POST /api/analyze (videoId, language)
-3. Server: Auth check → Credit check → Cost limit check
+3. Server: Auth check → Plan check → Cost limit check
 4. Server: Fetch comments via YouTube API (up to 2,000)
 5. Server: Flatten comment threads (parent + replies)
 6. Server: AI analysis via Gemini API
-7. Server: Deduct credits → Log usage
+7. Server: Record usage → Log analysis
 8. Response: Analysis result + comments → Frontend
 9. Display results in side panel across 3 tabs
 ```
@@ -172,6 +170,7 @@ Ura-Yomi/
 │   │   ├── LoadingView.tsx       # Loading/progress display
 │   │   ├── SettingsView.tsx      # Settings (accordion-style)
 │   │   ├── Auth.tsx              # Google auth UI
+│   │   ├── HistorySection.tsx    # Favorites & history list/detail view
 │   │   └── tabs/                 # Result tab components
 │   │       ├── SummaryTab.tsx    # Summary, sentiment, topics
 │   │       ├── DeepDiveTab.tsx   # Gemini deep dive analysis
@@ -182,7 +181,7 @@ Ura-Yomi/
 │   │   └── characterStore.ts     # Character mode (with conversion cache)
 │   ├── services/                 # Frontend services
 │   │   ├── apiServer.ts          # Backend API client
-│   │   └── historyStorage.ts     # Analysis history (localStorage)
+│   │   └── analysisStorage.ts    # Favorites & history (chrome.storage.local)
 │   ├── i18n/                     # Internationalization
 │   │   ├── translations.ts       # Translation dictionary (ja/en, 200+ keys)
 │   │   └── useTranslation.ts     # useTranslation() hook
@@ -262,6 +261,8 @@ NODE_ENV=development                 # development | production
 USE_ALTERNATIVE_FETCH=false           # Enable alternative method for comment fetching
 ALTERNATIVE_FETCH_FALLBACK=false     # Fallback to alternative method on YouTube API failure
 MONTHLY_COST_LIMIT=1000              # Monthly API cost limit (JPY)
+DAILY_LIMIT_PER_USER=30             # Daily analysis limit per user (Pro plan)
+FREE_DAILY_LIMIT=3                  # Daily analysis limit for Free plan users
 DEVELOPER_COMMISSION_RATE=0.30       # Developer commission rate
 ```
 
@@ -327,31 +328,25 @@ npm run dev
 
 ### Working with Results
 
-- **Save** — Save to history from the menu (up to 20 entries)
+- **Favorite** — Save to favorites from the menu (up to 30 entries for Free; unlimited for Pro)
 - **Copy** — Copy the summary to clipboard
-- **Export** — Download all data as JSON
-- **History** — Re-view past analyses from the settings page
+- **Export** — Download all data as JSON (Pro plan)
+- **History** — Re-view past analyses from the favorites & history buttons on the landing page
 
-## Credit System
+## Free / Pro Plans
 
-| Item | Value |
-|------|-------|
-| Cost per analysis | 3 credits |
-| Initial credits (development) | 999 credits |
-| Initial credits (production) | 15 credits |
-| Max credits | 3,000 credits |
-| One-time purchase credit expiration | Never |
-| Subscription credit expiration | 90 days (FIFO consumption) |
+| Plan | Analyses | Comments | Favorites | Price |
+|------|----------|----------|-----------|-------|
+| Free | 3/day | 100 | Up to 5 | ¥0 |
+| Pro | 30/day | Up to 2,000 | Unlimited | ¥980/month |
 
-### Purchase Plans
+### Pro Plan Benefits
 
-| Plan | Credits | Price |
-|------|---------|-------|
-| Trial Pack | 30 | ¥300 |
-| Standard | 60 | ¥500 |
-| Premium | 150 | ¥1,000 |
-| Monthly Lite | 90/month | ¥800/month |
-| Monthly Standard | 300/month | ¥1,980/month |
+- Analyze as many videos as you want (30 per day)
+- Fetch all YouTube comments for complete analysis results
+- Save unlimited favorites and history
+- Export analysis results as JSON for flexible use
+- Re-analyze anytime to get the latest comments
 
 ## AI Analysis Models
 
@@ -371,10 +366,9 @@ The system automatically switches to the next model on rate limits (429) or serv
 |--------|----------|-------------|------|
 | POST | `/api/auth/google` | Google OAuth authentication | None |
 | GET | `/api/auth/verify` | Session verification | Bearer Token |
-| GET | `/api/user/credits` | Get credit balance | Bearer Token |
+| GET | `/api/user/plan` | Get plan info & usage status | Bearer Token |
 | GET | `/api/video/info` | Video info (title, comment count) | None |
 | POST | `/api/analyze` | Comment analysis (main feature) | Bearer Token |
-| POST | `/api/billing/purchase` | Purchase credits (legacy) | Bearer Token |
 | POST | `/api/billing/create-checkout-session` | Create Stripe checkout session | Bearer Token |
 | POST | `/api/billing/webhook` | Stripe webhook receiver | Stripe Signature |
 | POST | `/api/character/rewrite` | Character mode rewrite | Bearer Token |
@@ -480,34 +474,31 @@ NODE_ENV=production
 GOOGLE_CLIENT_ID=your_google_client_id
 YOUTUBE_API_KEY=your_youtube_api_key
 GEMINI_API_KEY=your_gemini_api_key
-DEVELOPER_COMMISSION_RATE=0.30
 ADMIN_SECRET=your_admin_secret
 JWT_SECRET=your_jwt_secret
+DAILY_LIMIT_PER_USER=30
+FREE_DAILY_LIMIT=3
 
-# Stripe Payments
+# Stripe Payments (Pro plan subscription)
 STRIPE_SECRET_KEY=sk_live_xxxxx
 STRIPE_WEBHOOK_SECRET=whsec_xxxxx
-STRIPE_PRICE_30=price_xxxxx
-STRIPE_PRICE_60=price_xxxxx
-STRIPE_PRICE_150=price_xxxxx
-STRIPE_PRICE_LITE=price_xxxxx
-STRIPE_PRICE_STANDARD=price_xxxxx
+STRIPE_PRICE_PRO=price_xxxxx
 ```
 
 ### Stripe Payment Integration
 
-The production environment supports credit purchases and subscriptions via Stripe.
+The production environment supports Pro plan subscriptions via Stripe.
 
 #### Payment Flow
 
 ```
-1. User selects a plan from the settings page
+1. User selects Pro plan from the settings page
 2. Frontend → POST /api/billing/create-checkout-session
 3. Server: Creates a Stripe Checkout Session
 4. User: Redirected to Stripe-hosted payment page
 5. Payment complete → Stripe Webhook → POST /api/billing/webhook
-6. Server: Verify signature → Grant credits → Record revenue
-7. Frontend: Polls for credit updates
+6. Server: Verify signature → Upgrade to Pro → Record subscription
+7. Frontend: Reflects updated plan status
 ```
 
 #### Stripe Webhook Setup
@@ -568,9 +559,9 @@ cd server && npm run dev
 ```
 → Verify `VITE_API_BASE_URL` is set to `http://localhost:3000` in `.env`
 
-### Insufficient credits
+### Analysis Limit Reached
 
-→ Purchase credits from "Credit Management" in the settings page.
+→ Free plan users are limited to 3 analyses per day. Upgrade to the Pro plan from the settings page for up to 30 analyses per day.
 
 ### Gemini API errors
 
@@ -591,6 +582,22 @@ cd server && npm run dev
 → Check for error messages in the console (F12)
 
 ## Changelog
+
+### v1.1.0 (2026-02-27)
+
+- Replaced credit system with Free/Pro plan model (Pro ¥980/month)
+- Added favorites & history system (chrome.storage.local, auto-save)
+- Added character introduction page (Yu-chan & Geminny-chan profiles)
+- Applied neuromarketing optimizations to PlanModal (loss framing, benefit text, daily pricing, risk reversal)
+- Added PRO peak upsell banner in ResultDashboard
+- Added daily remaining analysis count display for Free users
+- Reduced blur intensity on comments and history for better teaser effect
+- Added Threads to social sharing, unified share text
+- Added "Developer's Extensions" link in settings
+- Enhanced Yu-chan sticker CSS (thicker white border) + size increase
+- Added review request modal (shown after 3+ analyses)
+- Added delete confirmation popups (favorites & history)
+- Fixed TypeScript errors, cleaned up root directory files
 
 ### v1.0.2 (2026-02-19)
 
@@ -619,7 +626,7 @@ cd server && npm run dev
 - Comment viewer (thread view, search, sorting)
 - Multilingual support (Japanese / English)
 - Theme switching (Light / Dark Blue / Black)
-- Credit system & Stripe payment integration
+- Free plan & Stripe payment integration for Pro plan
 
 ## License
 
